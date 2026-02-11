@@ -1,81 +1,61 @@
-# Mapa Político Mundial (PHP + MySQL + Google Maps)
+# Plugin WordPress: Mapa Político Mundial
 
-Sistema institucional com mapa mundial interativo e painel administrativo para cadastro de localizações e figuras políticas.
+Este repositório foi adaptado para uso como **plugin WordPress**.
 
-## Arquitetura
+## O que o plugin entrega
 
-Estrutura em MVC simplificado:
+- Shortcode público `[mapa_politico]` para renderizar mapa mundial com Google Maps.
+- Marcadores dinâmicos por localidade.
+- Modal com dados políticos completos:
+  - nome, cargo, partido, idade
+  - biografia e histórico político
+  - foto
+  - informações do município e região
+  - telefone, e-mail e assessores
+- Painel administrativo no WordPress:
+  - **Mapa Político > Configurações** (Google Maps API Key)
+  - **Mapa Político > Localizações** (CRUD)
+  - **Mapa Político > Políticos** (CRUD + upload de foto via biblioteca de mídia)
 
-- `public/`: ponto de entrada (`index.php`), assets e uploads.
-- `app/Controllers`: fluxo HTTP e regras de entrada.
-- `app/Models`: acesso a dados via PDO e prepared statements.
-- `app/Views`: templates da área pública e área admin.
-- `config/`: configurações da aplicação e banco.
-- `database/schema.sql`: criação das tabelas normalizadas.
+## Estrutura do plugin
 
-## Funcionalidades implementadas
-
-### Área pública
-- Mapa Google Maps com visão global.
-- Marcadores dinâmicos carregados via `/api/map-data`.
-- Modal com detalhes de políticos por localidade: nome, cargo, partido, idade, biografia, carreira, contato, assessores e contexto local/regional.
-
-### Área administrativa
-- Login com sessão e `password_hash/password_verify`.
-- Proteção CSRF em todos os formulários de escrita.
-- CRUD de localizações (endereço, CEP, latitude/longitude, município/região).
-- CRUD de dados políticos (campos completos, vínculo com localidade, upload de foto com validação de MIME e tamanho).
-
-## Configuração local
-
-1. Crie banco e tabelas:
-
-```bash
-mysql -u root -p < database/schema.sql
+```txt
+wordpress-plugin/
+  mapa-politico/
+    mapa-politico.php
+    uninstall.php
+    includes/
+      class-mapa-politico-db.php
+      class-mapa-politico-admin.php
+      class-mapa-politico-public.php
+    assets/
+      css/mapa-politico.css
+      js/mapa-politico-public.js
 ```
 
-2. Ajuste configurações:
+## Instalação no WordPress
 
-- `config/database.php`: host, porta, base, usuário e senha MySQL.
-- `config/app.php`: `google_maps_api_key` e URL base.
+1. Compacte a pasta `wordpress-plugin/mapa-politico` em `.zip`.
+2. No WP Admin, vá em **Plugins > Adicionar novo > Enviar plugin**.
+3. Envie o `.zip`, instale e ative.
+4. Em **Mapa Político > Configurações**, configure a Google Maps API Key.
+5. Crie uma página e adicione o shortcode:
 
-3. Rode em ambiente local:
-
-```bash
-php -S localhost:8000 -t public
+```txt
+[mapa_politico]
 ```
 
-4. Acesse:
-- Site público: `http://localhost:8000`
-- Admin: `http://localhost:8000/admin/login`
-- Usuário inicial: `admin@seudominio.com`
-- Senha inicial: `admin123`
+## Segurança e boas práticas aplicadas
 
-> Importante: troque a senha inicial em produção.
+- Controle de acesso por `manage_options` nas telas administrativas.
+- Nonces (`wp_nonce_field`, `check_admin_referer`, `check_ajax_referer`) em ações sensíveis.
+- Sanitização com funções nativas do WordPress (`sanitize_text_field`, `sanitize_email`, etc.).
+- Escape de saída (`esc_html`, `esc_attr`, `esc_textarea`, `esc_url`).
+- Upload de mídia via APIs nativas do WordPress (`media_handle_upload`).
 
-## Deploy na HostGator (Apache + PHP + MySQL)
+## Observações
 
-1. No cPanel, crie banco MySQL e usuário com permissões.
-2. Importe `database/schema.sql` via phpMyAdmin.
-3. Faça upload dos arquivos para `public_html` mantendo estrutura.
-   - Se possível, exponha somente a pasta `public` como web root.
-4. Se usar `public_html` como raiz:
-   - mova conteúdo de `public/` para `public_html/`.
-   - ajuste os caminhos do `require` em `index.php` para apontar ao diretório pai correto.
-5. Configure `GOOGLE_MAPS_API_KEY` no ambiente (ou em `config/app.php`).
-6. Garanta `mod_rewrite` ativo e `.htaccess` aplicado.
-
-## Boas práticas de segurança usadas
-
-- Queries com `PDO::prepare` para evitar SQL injection.
-- Escape de saída com `htmlspecialchars` nas views.
-- CSRF token em formulários sensíveis.
-- Sessão com `httponly` e `samesite=Lax`.
-- Upload de imagem restrito por MIME, tamanho e extensão.
-
-## Observações de produção
-
-- Ativar HTTPS obrigatório.
-- Implementar rotação de logs e monitoramento de erros.
-- Adicionar paginação/filtros para grandes volumes.
-- Configurar backup automático do banco de dados.
+- O plugin cria duas tabelas customizadas com prefixo do WordPress:
+  - `{prefix}mapa_politico_locations`
+  - `{prefix}mapa_politico_politicians`
+- Na desinstalação (`uninstall.php`), as tabelas e opção da API key são removidas.
