@@ -1,0 +1,61 @@
+/*
+Theme Name: Prefeitura SAD Feminino
+Theme URI: https://prefeitura.sad.go.gov.br
+Author: Equipe Institucional
+Author URI: https://prefeitura.sad.go.gov.br
+Description: Tema institucional acolhedor para a Prefeitura Municipal de Santo Antônio do Descoberto, com foco em cidadãs, famílias e comunidades.
+Version: 1.0.0
+Text Domain: prefeitura-sad-feminino
+Tags: acessibilidade, elementor, institucional, pastel, feminino
+*/
+
+:root {
+  --rosa-queimado: #c9879a;
+  --lilas-suave: #cbb7e4;
+  --verde-claro: #b9d8c2;
+  --bege: #f7f1ec;
+  --cinza-escuro: #3f3a3a;
+  --cinza-claro: #f2f2f2;
+  --destaque: #a66c85;
+  --branco: #ffffff;
+  --fonte-titulo: "Playfair Display", "Georgia", serif;
+  --fonte-texto: "Nunito", "Helvetica", "Arial", sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--fonte-texto);
+  color: var(--cinza-escuro);
+  background-color: var(--bege);
+  line-height: 1.6;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 16px;
+}
+
+a {
+  color: var(--destaque);
+  text-decoration: none;
+}
+
+a:focus,
+a:hover {
+  text-decoration: underline;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 10px;
+  background: var(--branco);
+  padding: 8px 16px;
+  border-radius: 8px;
+  z-index: 999;
+}
+
+.skip-link:focus {
+  left: 16px;
+}
