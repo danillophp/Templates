@@ -91,7 +91,7 @@ class MapaPoliticoPublic
              FROM {$politiciansTable} p
              INNER JOIN {$locationsTable} l ON l.id = p.location_id
              WHERE p.data_status <> 'rejeitado'
-               AND p.position <> 'Vereador'
+               AND p.position = 'Prefeito'
              ORDER BY p.full_name ASC",
             ARRAY_A
         );

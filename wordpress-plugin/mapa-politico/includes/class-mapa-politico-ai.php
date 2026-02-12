@@ -47,15 +47,6 @@ class MapaPoliticoAI
         self::runSync();
     }
 
-    /**
-     * Fluxo fixo por etapas:
-     * 1) Município (IBGE)
-     * 2) Fonte oficial prefeitura (.gov.br)
-     * 3) Prefeito
-     * 4) Vice-prefeito
-     * 5) Partido
-     * 6) Validação final + persistência
-     */
     public static function runSync(): array
     {
         global $wpdb;
@@ -65,7 +56,7 @@ class MapaPoliticoAI
 
         $municipalities = self::fetchGoiasMunicipalities();
         if (empty($municipalities)) {
-            self::logFailure('N/A', 'etapa_1_municipios_ibge', 'Nenhum município retornado pelo IBGE', 'https://servicodados.ibge.gov.br/api/v1/localidades/estados/52/municipios');
+            self::logEvent('erro', 'N/A', 'ibge_municipios', 'Nenhum município retornado pelo IBGE', []);
             return ['processed' => 0, 'created' => 0, 'updated' => 0, 'errors' => 1];
         }
 
@@ -76,189 +67,116 @@ class MapaPoliticoAI
         foreach ($municipalities as $municipality) {
             $city = sanitize_text_field((string) ($municipality['nome'] ?? ''));
             $ibgeCode = (string) ($municipality['id'] ?? '');
-
             if ($city === '' || $ibgeCode === '') {
                 $errors++;
-                self::logFailure('N/A', 'etapa_1_municipios_ibge', 'Município sem nome ou sem código IBGE', 'IBGE');
+                self::logEvent('erro', $city !== '' ? $city : 'N/A', 'validacao_municipio', 'Município sem nome/código', []);
                 continue;
             }
 
-            try {
-                // ETAPA 2 - Fonte oficial prefeitura
-                $prefeituraUrl = self::discoverOfficialPrefeituraUrl($city);
-                if ($prefeituraUrl === '') {
-                    $errors++;
-                    self::logFailure($city, 'etapa_2_fonte_oficial', 'Site oficial da prefeitura (.gov.br) não localizado', 'N/A');
-                    continue;
-                }
-
-                $prefeituraHtml = self::safeGetHtml($prefeituraUrl, true);
-                if ($prefeituraHtml === '') {
-                    $errors++;
-                    self::logFailure($city, 'etapa_2_fonte_oficial', 'Falha ao obter HTML da prefeitura', $prefeituraUrl);
-                    continue;
-                }
-
-                if (!self::isInstitutionalPage($prefeituraHtml)) {
-                    $errors++;
-                    self::logFailure($city, 'etapa_2_fonte_oficial', 'Página não aparenta conteúdo institucional da prefeitura', $prefeituraUrl);
-                    continue;
-                }
-
-                $ibgeCityUrl = self::buildIbgeCityUrl($city);
-                $ibgeHtml = self::safeGetHtml($ibgeCityUrl, false);
-
-                // ETAPA 3 - Prefeito
-                $prefeito = self::extractMayorName($prefeituraHtml);
-                if ($prefeito === '' && $ibgeHtml !== '') {
-                    $prefeito = self::extractMayorName($ibgeHtml);
-                }
-                if (!self::isValidPersonName($prefeito)) {
-                    $errors++;
-                    self::logFailure($city, 'etapa_3_prefeito', 'Nome completo do prefeito não identificado com segurança', $prefeituraUrl);
-                    continue;
-                }
-
-                // ETAPA 4 - Vice-prefeito
-                $vice = self::extractViceName($prefeituraHtml);
-                if ($vice === '' && $ibgeHtml !== '') {
-                    $vice = self::extractViceName($ibgeHtml);
-                }
-                if (!self::isValidPersonName($vice)) {
-                    $errors++;
-                    self::logFailure($city, 'etapa_4_vice_prefeito', 'Nome completo do vice-prefeito não identificado com segurança', $prefeituraUrl);
-                    continue;
-                }
-
-                // ETAPA 5 - Partido
-                $party = self::extractParty($prefeituraHtml);
-                if ($party === '' && $ibgeHtml !== '') {
-                    $party = self::extractParty($ibgeHtml);
-                }
-                $party = self::normalizeParty($party);
-                if ($party === '') {
-                    $errors++;
-                    self::logFailure($city, 'etapa_5_partido', 'Partido político não identificado com clareza', $prefeituraUrl . ' | ' . $ibgeCityUrl);
-                    continue;
-                }
-
-                $address = self::extractAddressFromHtml($prefeituraHtml, $city);
-                if ($address === '') {
-                    $errors++;
-                    self::logFailure($city, 'etapa_6_validacao_final', 'Endereço institucional da prefeitura não encontrado', $prefeituraUrl);
-                    continue;
-                }
-
-                // ETAPA 6 - Validação final
-                $missing = self::validateFinalPayload([
-                    'prefeito' => $prefeito,
-                    'vice' => $vice,
-                    'party' => $party,
-                    'city' => $city,
-                    'source_url' => $prefeituraUrl,
-                ]);
-                if (!empty($missing)) {
-                    $errors++;
-                    self::logFailure($city, 'etapa_6_validacao_final', 'Validação final falhou: ' . implode(', ', $missing), $prefeituraUrl);
-                    continue;
-                }
-
-                $geo = self::geocodeNominatim($address);
-                if (!isset($geo['lat'], $geo['lng'])) {
-                    $errors++;
-                    self::logFailure($city, 'etapa_6_validacao_final', 'Falha ao geocodificar endereço oficial', $address);
-                    continue;
-                }
-
-                $locationId = self::upsertLocation($locationsTable, [
-                    'name' => 'Prefeitura de ' . $city,
-                    'city' => $city,
-                    'state' => 'Goiás',
-                    'postal_code' => '',
-                    'latitude' => $geo['lat'],
-                    'longitude' => $geo['lng'],
-                    'address' => $address,
-                    'ibge_code' => $ibgeCode,
-                    'institution_type' => 'prefeitura',
-                    'source_url' => $prefeituraUrl,
-                    'last_synced_at' => current_time('mysql'),
-                ]);
-
-                if ($locationId < 1) {
-                    $errors++;
-                    self::logFailure($city, 'persistencia_localizacao', 'Falha no upsert de localização', $prefeituraUrl);
-                    continue;
-                }
-
-                $prefeitoResult = self::upsertPolitician($politiciansTable, [
-                    'location_id' => $locationId,
-                    'full_name' => $prefeito,
-                    'position' => 'Prefeito',
-                    'party' => $party,
-                    'phone' => '',
-                    'email' => '',
-                    'biography' => '',
-                    'source_url' => $prefeituraUrl,
-                    'source_name' => 'Prefeitura (.gov.br) + IBGE',
-                    'data_status' => 'completo',
-                    'is_auto' => 1,
-                    'last_synced_at' => current_time('mysql'),
-                    'municipality_code' => $ibgeCode,
-                    'photo_id' => null,
-                    'validation_notes' => 'Fluxo rígido por etapas concluído com sucesso.',
-                ]);
-
-                $viceResult = self::upsertPolitician($politiciansTable, [
-                    'location_id' => $locationId,
-                    'full_name' => $vice,
-                    'position' => 'Vice-prefeito',
-                    'party' => $party,
-                    'phone' => '',
-                    'email' => '',
-                    'biography' => '',
-                    'source_url' => $prefeituraUrl,
-                    'source_name' => 'Prefeitura (.gov.br) + IBGE',
-                    'data_status' => 'completo',
-                    'is_auto' => 1,
-                    'last_synced_at' => current_time('mysql'),
-                    'municipality_code' => $ibgeCode,
-                    'photo_id' => null,
-                    'validation_notes' => 'Fluxo rígido por etapas concluído com sucesso.',
-                ]);
-
-                if ($prefeitoResult === 'error' || $viceResult === 'error') {
-                    $errors++;
-                    self::logFailure($city, 'persistencia_politicos', 'Falha no upsert de prefeito/vice', $prefeituraUrl);
-                    continue;
-                }
-
-                if ($prefeitoResult === 'created') {
-                    $created++;
-                } elseif ($prefeitoResult === 'updated') {
-                    $updated++;
-                }
-
-                if ($viceResult === 'created') {
-                    $created++;
-                } elseif ($viceResult === 'updated') {
-                    $updated++;
-                }
-
-                self::logSuccess($city, 'concluido', 'Prefeito e vice-prefeito validados e sincronizados', $prefeituraUrl);
-            } catch (Throwable $e) {
+            $documents = self::collectSourceDocuments($city);
+            $sourceUrls = array_values(array_unique(array_filter(array_map(static fn($d) => (string) ($d['url'] ?? ''), $documents))));
+            if (empty($documents)) {
                 $errors++;
-                self::logFailure($city, 'erro_inesperado', $e->getMessage(), 'runtime');
+                self::logEvent('erro', $city, 'coleta_fontes', 'Nenhuma fonte acessível encontrada', $sourceUrls);
+                continue;
             }
+
+            $extracted = self::extractStructuredData($city, $documents);
+            $validation = self::validateForRegistration($extracted);
+            if (!$validation['ok']) {
+                $errors++;
+                self::logEvent('erro', $city, 'validacao_dados', implode('; ', $validation['issues']), $sourceUrls, $extracted);
+                continue;
+            }
+
+            $locationId = self::upsertLocation($locationsTable, [
+                'name' => 'Prefeitura de ' . $city,
+                'city' => $city,
+                'state' => 'Goiás',
+                'postal_code' => '',
+                'latitude' => $extracted['latitude'],
+                'longitude' => $extracted['longitude'],
+                'address' => $extracted['address'],
+                'ibge_code' => $ibgeCode,
+                'institution_type' => 'prefeitura',
+                'source_url' => $extracted['primary_source'],
+                'last_synced_at' => current_time('mysql'),
+            ]);
+
+            if ($locationId < 1) {
+                $errors++;
+                self::logEvent('erro', $city, 'persistencia_localizacao', 'Falha ao salvar localização', $sourceUrls);
+                continue;
+            }
+
+            $photoId = self::downloadOfficialPhoto($documents, $city);
+
+            $prefeitoResult = self::upsertPoliticianSafe($politiciansTable, [
+                'location_id' => $locationId,
+                'full_name' => $extracted['prefeito'],
+                'position' => 'Prefeito',
+                'party' => $extracted['party'],
+                'phone' => $extracted['phone'],
+                'email' => $extracted['email'],
+                'biography' => '',
+                'source_url' => $extracted['primary_source'],
+                'source_name' => 'Pesquisa multifonte validada',
+                'data_status' => 'completo',
+                'is_auto' => 1,
+                'last_synced_at' => current_time('mysql'),
+                'municipality_code' => $ibgeCode,
+                'photo_id' => $photoId,
+                'municipality_history' => $extracted['mandate'],
+                'validation_notes' => 'Validação cruzada em no mínimo 2 fontes.',
+            ]);
+
+            $viceResult = self::upsertPoliticianSafe($politiciansTable, [
+                'location_id' => $locationId,
+                'full_name' => $extracted['vice'],
+                'position' => 'Vice-prefeito',
+                'party' => $extracted['party'],
+                'phone' => $extracted['phone'],
+                'email' => $extracted['email'],
+                'biography' => '',
+                'source_url' => $extracted['primary_source'],
+                'source_name' => 'Pesquisa multifonte validada',
+                'data_status' => 'incompleto',
+                'is_auto' => 1,
+                'last_synced_at' => current_time('mysql'),
+                'municipality_code' => $ibgeCode,
+                'photo_id' => null,
+                'municipality_history' => $extracted['mandate'],
+                'validation_notes' => $extracted['vice'] === 'Não localizado' ? 'Vice não localizado após pesquisa multifonte.' : 'Vice validado em fonte oficial/complementar.',
+            ]);
+
+            if ($prefeitoResult === 'error' || $viceResult === 'error') {
+                $errors++;
+                self::logEvent('erro', $city, 'persistencia_politicos', 'Falha ao salvar prefeito/vice', $sourceUrls, $extracted);
+                continue;
+            }
+
+            if ($prefeitoResult === 'created') {
+                $created++;
+            } elseif ($prefeitoResult === 'updated') {
+                $updated++;
+            }
+
+            if ($viceResult === 'created') {
+                $created++;
+            } elseif ($viceResult === 'updated') {
+                $updated++;
+            }
+
+            self::logEvent('sucesso', $city, 'sincronizacao', 'Prefeito sincronizado com sucesso', $sourceUrls, [
+                'prefeito' => $extracted['prefeito'],
+                'vice' => $extracted['vice'],
+                'party' => $extracted['party'],
+            ]);
         }
 
         update_option('mapa_politico_ai_last_sync', current_time('mysql'));
 
-        return [
-            'processed' => count($municipalities),
-            'created' => $created,
-            'updated' => $updated,
-            'errors' => $errors,
-        ];
+        return ['processed' => count($municipalities), 'created' => $created, 'updated' => $updated, 'errors' => $errors];
     }
 
     public static function runManualSearch(string $name, string $position): array
@@ -296,34 +214,63 @@ class MapaPoliticoAI
         $url = 'https://servicodados.ibge.gov.br/api/v1/localidades/estados/52/municipios';
         $response = wp_remote_get($url, [
             'timeout' => 25,
-            'user-agent' => 'MapaPoliticoBot/2.1 (+https://www.andredopremium.com.br/mapapolitico)',
+            'user-agent' => 'MapaPoliticoBot/3.0 (+https://www.andredopremium.com.br/mapapolitico)',
         ]);
 
         if (is_wp_error($response)) {
-            self::logFailure('N/A', 'etapa_1_municipios_ibge', 'Erro IBGE municípios: ' . $response->get_error_message(), $url);
             return [];
         }
 
         $status = (int) wp_remote_retrieve_response_code($response);
         if ($status < 200 || $status >= 300) {
-            self::logFailure('N/A', 'etapa_1_municipios_ibge', 'Status inválido IBGE municípios: ' . $status, $url);
             return [];
         }
 
         $data = json_decode((string) wp_remote_retrieve_body($response), true);
-
         return is_array($data) ? $data : [];
     }
 
-    private static function buildIbgeCityUrl(string $city): string
+    private static function collectSourceDocuments(string $city): array
     {
-        return 'https://cidades.ibge.gov.br/brasil/go/' . sanitize_title($city) . '/panorama';
+        $documents = [];
+        $slug = sanitize_title($city);
+
+        $sources = [
+            ['type' => 'prefeitura', 'url' => self::discoverOfficialPrefeituraUrl($city), 'official' => true],
+            ['type' => 'ibge', 'url' => 'https://cidades.ibge.gov.br/brasil/go/' . $slug . '/panorama', 'official' => true],
+            ['type' => 'tse', 'url' => 'https://www.tse.jus.br', 'official' => true],
+            ['type' => 'transparencia', 'url' => 'https://transparencia.' . $slug . '.go.gov.br', 'official' => true],
+            ['type' => 'estado_goias', 'url' => 'https://goias.gov.br', 'official' => true],
+            ['type' => 'noticias_governo', 'url' => 'https://www.agenciacoradenoticias.go.gov.br', 'official' => true],
+            ['type' => 'wikidata', 'url' => 'https://www.wikidata.org/wiki/Special:Search?search=' . rawurlencode('prefeito ' . $city . ' goias'), 'official' => false],
+            ['type' => 'wikipedia', 'url' => 'https://pt.wikipedia.org/wiki/' . rawurlencode($city), 'official' => false],
+        ];
+
+        foreach ($sources as $source) {
+            $url = (string) ($source['url'] ?? '');
+            if ($url === '') {
+                continue;
+            }
+
+            $html = self::safeGetHtml($url, (bool) ($source['official'] ?? false));
+            if ($html === '') {
+                continue;
+            }
+
+            $documents[] = [
+                'type' => (string) $source['type'],
+                'url' => $url,
+                'official' => (bool) ($source['official'] ?? false),
+                'html' => $html,
+            ];
+        }
+
+        return $documents;
     }
 
     private static function discoverOfficialPrefeituraUrl(string $city): string
     {
         $slug = sanitize_title($city);
-
         $candidates = [
             'https://www.' . $slug . '.go.gov.br',
             'https://' . $slug . '.go.gov.br',
@@ -340,7 +287,7 @@ class MapaPoliticoAI
             $response = wp_remote_head($url, [
                 'timeout' => 10,
                 'redirection' => 4,
-                'user-agent' => 'MapaPoliticoBot/2.1',
+                'user-agent' => 'MapaPoliticoBot/3.0',
             ]);
 
             if (is_wp_error($response)) {
@@ -356,21 +303,21 @@ class MapaPoliticoAI
         return '';
     }
 
-    private static function safeGetHtml(string $url, bool $mustBeGovBr): string
+    private static function safeGetHtml(string $url, bool $mustBeOfficial): string
     {
         $host = (string) wp_parse_url($url, PHP_URL_HOST);
         if ($host === '') {
             return '';
         }
 
-        if ($mustBeGovBr && !str_ends_with($host, '.gov.br')) {
+        if ($mustBeOfficial && !self::isOfficialHost($host)) {
             return '';
         }
 
         $response = wp_remote_get($url, [
-            'timeout' => 18,
+            'timeout' => 16,
             'redirection' => 4,
-            'user-agent' => 'MapaPoliticoBot/2.1',
+            'user-agent' => 'MapaPoliticoBot/3.0',
         ]);
 
         if (is_wp_error($response)) {
@@ -385,81 +332,232 @@ class MapaPoliticoAI
         return (string) wp_remote_retrieve_body($response);
     }
 
-    private static function isInstitutionalPage(string $html): bool
+    private static function isOfficialHost(string $host): bool
     {
-        $text = mb_strtolower(wp_strip_all_tags($html), 'UTF-8');
-        $keywords = ['prefeitura', 'municipal', 'governo', 'gabinete', 'secretaria'];
+        return str_ends_with($host, '.gov.br')
+            || str_ends_with($host, '.jus.br')
+            || str_ends_with($host, '.leg.br')
+            || $host === 'cidades.ibge.gov.br'
+            || str_ends_with($host, '.ibge.gov.br');
+    }
 
-        foreach ($keywords as $keyword) {
-            if (str_contains($text, $keyword)) {
-                return true;
+    private static function extractStructuredData(string $city, array $documents): array
+    {
+        $mayorCandidates = [];
+        $viceCandidates = [];
+        $partyCandidates = [];
+        $address = '';
+        $phone = '';
+        $email = '';
+        $mandate = '';
+        $geo = [];
+
+        foreach ($documents as $doc) {
+            $html = (string) ($doc['html'] ?? '');
+            $text = self::normalizeText(wp_strip_all_tags($html));
+            $sourceType = (string) ($doc['type'] ?? '');
+
+            foreach (self::extractPeopleByRole($text, ['prefeito', 'prefeito municipal', 'prefeita', 'chefe do executivo', 'gestão municipal']) as $name) {
+                $mayorCandidates[] = ['name' => $name, 'source' => $sourceType];
+            }
+
+            foreach (self::extractPeopleByRole($text, ['vice-prefeito', 'vice-prefeita', 'vice prefeito', 'vice prefeita']) as $name) {
+                $viceCandidates[] = ['name' => $name, 'source' => $sourceType];
+            }
+
+            $party = self::extractParty($text);
+            if ($party !== '') {
+                $partyCandidates[] = ['party' => $party, 'source' => $sourceType];
+            }
+
+            if ($address === '') {
+                $address = self::extractAddress($text, $city);
+            }
+
+            if ($phone === '') {
+                $phone = self::findFirstPhone($text);
+            }
+
+            if ($email === '') {
+                $email = self::findFirstEmail($text);
+            }
+
+            if ($mandate === '') {
+                $mandate = self::extractMandate($text);
             }
         }
 
-        return false;
+        $mayor = self::pickCrossValidatedName($mayorCandidates);
+        $vice = self::pickCrossValidatedName($viceCandidates);
+        $party = self::pickCrossValidatedParty($partyCandidates);
+
+        if ($address === '') {
+            $address = 'Prefeitura Municipal de ' . $city . ', Goiás, Brasil';
+        }
+        $geo = self::geocodeNominatim($address);
+
+        $primarySource = '';
+        foreach ($documents as $doc) {
+            if (!empty($doc['official'])) {
+                $primarySource = (string) ($doc['url'] ?? '');
+                break;
+            }
+        }
+
+        return [
+            'prefeito' => $mayor,
+            'vice' => $vice !== '' ? $vice : 'Não localizado',
+            'party' => $party !== '' ? $party : 'Não informado',
+            'city' => $city,
+            'state' => 'Goiás',
+            'address' => $address,
+            'latitude' => isset($geo['lat']) ? (float) $geo['lat'] : null,
+            'longitude' => isset($geo['lng']) ? (float) $geo['lng'] : null,
+            'phone' => $phone,
+            'email' => $email,
+            'mandate' => $mandate,
+            'primary_source' => $primarySource,
+        ];
     }
 
-    private static function extractMayorName(string $html): string
+    private static function validateForRegistration(array $data): array
     {
-        $roles = ['prefeito municipal', 'prefeito', 'prefeita', 'chefe do executivo', 'gestão municipal'];
-        return self::extractPersonByRole($html, $roles);
+        $issues = [];
+
+        if (!self::isValidPersonName((string) ($data['prefeito'] ?? ''))) {
+            $issues[] = 'Nome completo do prefeito não encontrado';
+        }
+
+        if ((string) ($data['city'] ?? '') === '') {
+            $issues[] = 'Município não identificado';
+        }
+
+        if (!self::isValidOfficialSource((string) ($data['primary_source'] ?? ''))) {
+            $issues[] = 'Fonte oficial inválida';
+        }
+
+        if (!is_float($data['latitude']) || !is_float($data['longitude'])) {
+            $issues[] = 'Coordenadas da prefeitura não localizadas';
+        }
+
+        return ['ok' => empty($issues), 'issues' => $issues];
     }
 
-    private static function extractViceName(string $html): string
+    private static function extractPeopleByRole(string $text, array $roles): array
     {
-        $roles = ['vice-prefeito', 'vice-prefeita', 'vice prefeito', 'vice prefeita'];
-        return self::extractPersonByRole($html, $roles);
-    }
-
-    private static function extractPersonByRole(string $html, array $roles): string
-    {
-        $text = self::normalizeText(wp_strip_all_tags($html));
-
+        $results = [];
         foreach ($roles as $role) {
-            $patterns = [
-                "/(?:" . preg_quote($role, '/') . ")\\s*[:\\-–]\\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\\s]{5,100})/iu",
-                "/([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\\s]{5,100})\\s*[-–]\\s*(?:" . preg_quote($role, '/') . ")/iu",
-            ];
+            $patternA = "/(?:" . preg_quote($role, '/') . ")\\s*[:\\-–]\\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\\s]{5,100})/iu";
+            $patternB = "/([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\\s]{5,100})\\s*[-–]\\s*(?:" . preg_quote($role, '/') . ")/iu";
 
-            foreach ($patterns as $pattern) {
-                if (preg_match($pattern, $text, $m)) {
-                    $name = self::normalizePersonName((string) ($m[1] ?? ''));
+            if (preg_match_all($patternA, $text, $mA)) {
+                foreach ($mA[1] as $candidate) {
+                    $name = self::normalizePersonName((string) $candidate);
                     if (self::isValidPersonName($name)) {
-                        return $name;
+                        $results[] = $name;
+                    }
+                }
+            }
+
+            if (preg_match_all($patternB, $text, $mB)) {
+                foreach ($mB[1] as $candidate) {
+                    $name = self::normalizePersonName((string) $candidate);
+                    if (self::isValidPersonName($name)) {
+                        $results[] = $name;
                     }
                 }
             }
         }
 
-        return '';
+        return array_values(array_unique($results));
     }
 
-    private static function extractParty(string $html): string
+    private static function pickCrossValidatedName(array $candidates): string
     {
-        $text = self::normalizeText(wp_strip_all_tags($html));
+        if (empty($candidates)) {
+            return '';
+        }
+
+        $votes = [];
+        foreach ($candidates as $c) {
+            $name = (string) ($c['name'] ?? '');
+            $source = (string) ($c['source'] ?? '');
+            if ($name === '' || $source === '') {
+                continue;
+            }
+            if (!isset($votes[$name])) {
+                $votes[$name] = [];
+            }
+            $votes[$name][$source] = true;
+        }
+
+        $bestName = '';
+        $bestCount = 0;
+        foreach ($votes as $name => $sources) {
+            $count = count($sources);
+            if ($count > $bestCount) {
+                $bestName = $name;
+                $bestCount = $count;
+            }
+        }
+
+        return $bestCount >= 2 ? $bestName : '';
+    }
+
+    private static function pickCrossValidatedParty(array $candidates): string
+    {
+        if (empty($candidates)) {
+            return '';
+        }
+
+        $votes = [];
+        foreach ($candidates as $c) {
+            $party = self::normalizeParty((string) ($c['party'] ?? ''));
+            $source = (string) ($c['source'] ?? '');
+            if ($party === '' || $source === '') {
+                continue;
+            }
+            if (!isset($votes[$party])) {
+                $votes[$party] = [];
+            }
+            $votes[$party][$source] = true;
+        }
+
+        $best = '';
+        $bestCount = 0;
+        foreach ($votes as $party => $sources) {
+            $count = count($sources);
+            if ($count > $bestCount) {
+                $best = $party;
+                $bestCount = $count;
+            }
+        }
+
+        return $bestCount >= 2 ? $best : '';
+    }
+
+    private static function extractParty(string $text): string
+    {
         if (preg_match('/\b(MDB|PL|PSDB|PT|PSD|PP|PSB|REPUBLICANOS|PODEMOS|PDT|PV|CIDADANIA|AVANTE|UNI[ÃA]O BRASIL|SOLIDARIEDADE)\b/iu', $text, $m)) {
             return (string) $m[1];
         }
-
         return '';
     }
 
-    private static function extractAddressFromHtml(string $html, string $city): string
+    private static function extractAddress(string $text, string $city): string
     {
-        $text = self::normalizeText(wp_strip_all_tags($html));
         $patterns = [
             '/(?:endere[cç]o|localiza[cç][aã]o|sede)\s*[:\-]\s*([^\n\r]{12,180})/iu',
-            '/(Rua\s+[^\n\r]{8,180})/iu',
-            '/(Avenida\s+[^\n\r]{8,180})/iu',
-            '/(Pra[cç]a\s+[^\n\r]{8,180})/iu',
+            '/(Rua\s+[^\n\r]{8,160})/iu',
+            '/(Avenida\s+[^\n\r]{8,160})/iu',
+            '/(Pra[cç]a\s+[^\n\r]{8,160})/iu',
         ];
 
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $text, $m)) {
                 $raw = trim((string) ($m[1] ?? ''));
                 if ($raw !== '') {
-                    $full = $raw . ', ' . $city . ', Goiás, Brasil';
-                    return sanitize_text_field($full);
+                    return sanitize_text_field($raw . ', ' . $city . ', Goiás, Brasil');
                 }
             }
         }
@@ -467,31 +565,12 @@ class MapaPoliticoAI
         return '';
     }
 
-    private static function validateFinalPayload(array $payload): array
+    private static function extractMandate(string $text): string
     {
-        $missing = [];
-
-        if (!self::isValidPersonName((string) ($payload['prefeito'] ?? ''))) {
-            $missing[] = 'prefeito';
+        if (preg_match('/(20\d{2}\s*[\-–/]\s*20\d{2})/u', $text, $m)) {
+            return sanitize_text_field((string) $m[1]);
         }
-
-        if (!self::isValidPersonName((string) ($payload['vice'] ?? ''))) {
-            $missing[] = 'vice-prefeito';
-        }
-
-        if ((string) ($payload['party'] ?? '') === '') {
-            $missing[] = 'partido';
-        }
-
-        if ((string) ($payload['city'] ?? '') === '') {
-            $missing[] = 'município';
-        }
-
-        if (!self::isValidOfficialSource((string) ($payload['source_url'] ?? ''))) {
-            $missing[] = 'fonte oficial';
-        }
-
-        return $missing;
+        return '';
     }
 
     private static function normalizeText(string $text): string
@@ -503,11 +582,7 @@ class MapaPoliticoAI
     private static function normalizePersonName(string $name): string
     {
         $name = self::normalizeText(sanitize_text_field($name));
-        if ($name === '') {
-            return '';
-        }
-
-        return mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
+        return $name === '' ? '' : mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
     }
 
     private static function isValidPersonName(string $name): bool
@@ -518,15 +593,8 @@ class MapaPoliticoAI
         }
 
         $blocked = [
-            'prefeito',
-            'prefeito municipal',
-            'prefeita',
-            'vice-prefeito',
-            'vice prefeito',
-            'chefe do executivo',
-            'gestão municipal',
-            'gabinete do prefeito',
-            'pendente de validação',
+            'prefeito', 'prefeito municipal', 'prefeita', 'vice-prefeito', 'vice prefeito',
+            'chefe do executivo', 'gestão municipal', 'gabinete do prefeito', 'não localizado',
         ];
 
         $lower = mb_strtolower($name, 'UTF-8');
@@ -542,28 +610,32 @@ class MapaPoliticoAI
     private static function normalizeParty(string $party): string
     {
         $party = strtoupper(self::normalizeText(sanitize_text_field($party)));
-        if ($party === '') {
-            return '';
-        }
-
         $party = str_replace(['UNIAO BRASIL', 'UNIÃO BRASIL'], 'UNIÃO BRASIL', $party);
-
         $valid = ['MDB', 'PL', 'PSDB', 'PT', 'PSD', 'PP', 'PSB', 'REPUBLICANOS', 'PODEMOS', 'PDT', 'PV', 'CIDADANIA', 'AVANTE', 'UNIÃO BRASIL', 'SOLIDARIEDADE'];
         return in_array($party, $valid, true) ? $party : '';
     }
 
     private static function isValidOfficialSource(string $url): bool
     {
-        if ($url === '') {
-            return false;
-        }
-
         $host = (string) wp_parse_url($url, PHP_URL_HOST);
-        if ($host === '') {
-            return false;
-        }
+        return $host !== '' && self::isOfficialHost($host);
+    }
 
-        return str_ends_with($host, '.gov.br') || $host === 'cidades.ibge.gov.br' || str_ends_with($host, '.ibge.gov.br');
+    private static function findFirstEmail(string $text): string
+    {
+        if (preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/iu', $text, $m)) {
+            return sanitize_email((string) $m[0]);
+        }
+        return '';
+    }
+
+    private static function findFirstPhone(string $text): string
+    {
+        if (preg_match('/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9?\d{4})[-\s]?\d{4}/', $text, $m)) {
+            $digits = preg_replace('/[^0-9]/', '', (string) $m[0]);
+            return $digits !== '' ? '+' . $digits : '';
+        }
+        return '';
     }
 
     private static function geocodeNominatim(string $query): array
@@ -571,7 +643,7 @@ class MapaPoliticoAI
         $url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' . rawurlencode($query);
         $response = wp_remote_get($url, [
             'timeout' => 20,
-            'user-agent' => 'MapaPoliticoBot/2.1 (+https://www.andredopremium.com.br/mapapolitico)',
+            'user-agent' => 'MapaPoliticoBot/3.0 (+https://www.andredopremium.com.br/mapapolitico)',
             'headers' => ['Accept' => 'application/json'],
         ]);
 
@@ -591,11 +663,8 @@ class MapaPoliticoAI
 
         $lat = isset($json[0]['lat']) ? (float) $json[0]['lat'] : null;
         $lng = isset($json[0]['lon']) ? (float) $json[0]['lon'] : null;
-        if ($lat === null || $lng === null) {
-            return [];
-        }
 
-        return ['lat' => $lat, 'lng' => $lng];
+        return ($lat !== null && $lng !== null) ? ['lat' => $lat, 'lng' => $lng] : [];
     }
 
     private static function upsertLocation(string $table, array $data): int
@@ -611,72 +680,98 @@ class MapaPoliticoAI
 
         if ($existingId > 0) {
             $ok = $wpdb->update($table, $data, ['id' => $existingId]);
-            if ($ok === false) {
-                return 0;
-            }
-            return $existingId;
+            return $ok === false ? 0 : $existingId;
         }
 
         $ok = $wpdb->insert($table, $data);
-        if ($ok === false) {
-            return 0;
-        }
-
-        return (int) $wpdb->insert_id;
+        return $ok === false ? 0 : (int) $wpdb->insert_id;
     }
 
-    private static function upsertPolitician(string $table, array $data): string
+    private static function upsertPoliticianSafe(string $table, array $data): string
     {
         global $wpdb;
 
-        $existingId = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$table} WHERE municipality_code = %s AND position = %s LIMIT 1",
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, data_status, source_url FROM {$table} WHERE municipality_code = %s AND position = %s LIMIT 1",
             $data['municipality_code'],
             $data['position']
-        ));
+        ), ARRAY_A);
 
-        if ($existingId > 0) {
-            $ok = $wpdb->update($table, $data, ['id' => $existingId]);
-            if ($ok === false) {
-                return 'error';
+        if ($existing) {
+            $isExistingTrusted = (($existing['data_status'] ?? '') === 'completo') && self::isValidOfficialSource((string) ($existing['source_url'] ?? ''));
+            $isNewTrusted = self::isValidOfficialSource((string) ($data['source_url'] ?? ''));
+            if ($isExistingTrusted && !$isNewTrusted) {
+                return 'updated';
             }
-            return 'updated';
+
+            $ok = $wpdb->update($table, $data, ['id' => (int) $existing['id']]);
+            return $ok === false ? 'error' : 'updated';
         }
 
         $ok = $wpdb->insert($table, $data);
-        if ($ok === false) {
-            return 'error';
+        return $ok === false ? 'error' : 'created';
+    }
+
+    private static function downloadOfficialPhoto(array $documents, string $city): ?int
+    {
+        foreach ($documents as $doc) {
+            if (empty($doc['official'])) {
+                continue;
+            }
+
+            $html = (string) ($doc['html'] ?? '');
+            $sourceUrl = (string) ($doc['url'] ?? '');
+            if ($html === '' || $sourceUrl === '') {
+                continue;
+            }
+
+            $imgUrl = '';
+            if (preg_match('/property=["\']og:image["\'][^>]*content=["\']([^"\']+)["\']/i', $html, $m)) {
+                $imgUrl = esc_url_raw((string) $m[1]);
+            }
+            if ($imgUrl === '') {
+                continue;
+            }
+
+            $imgHost = (string) wp_parse_url($imgUrl, PHP_URL_HOST);
+            if ($imgHost === '' || (!str_ends_with($imgHost, '.gov.br') && !str_ends_with($imgHost, '.go.gov.br'))) {
+                continue;
+            }
+
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            require_once ABSPATH . 'wp-admin/includes/media.php';
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+
+            $tmp = download_url($imgUrl, 20);
+            if (is_wp_error($tmp)) {
+                continue;
+            }
+
+            $filename = 'prefeito-' . sanitize_title($city) . '-' . wp_generate_password(6, false) . '.jpg';
+            $id = media_handle_sideload(['name' => $filename, 'tmp_name' => $tmp], 0, 'Foto oficial de prefeito - ' . $city);
+            if (is_wp_error($id)) {
+                @unlink($tmp);
+                continue;
+            }
+
+            return (int) $id;
         }
 
-        return 'created';
+        return null;
     }
 
-    private static function logFailure(string $municipality, string $step, string $reason, string $source): void
+    private static function logEvent(string $type, string $municipality, string $step, string $reason, array $sources, array $data = []): void
     {
-        self::appendLog([
-            'type' => 'erro',
+        $entry = [
+            'type' => $type,
             'municipality' => $municipality,
             'step' => $step,
             'reason' => $reason,
-            'source' => $source,
+            'source' => implode(' | ', $sources),
+            'data' => $data,
             'created_at' => current_time('mysql'),
-        ]);
-    }
+        ];
 
-    private static function logSuccess(string $municipality, string $step, string $reason, string $source): void
-    {
-        self::appendLog([
-            'type' => 'sucesso',
-            'municipality' => $municipality,
-            'step' => $step,
-            'reason' => $reason,
-            'source' => $source,
-            'created_at' => current_time('mysql'),
-        ]);
-    }
-
-    private static function appendLog(array $entry): void
-    {
         $logs = get_option(self::LOG_OPTION, []);
         if (!is_array($logs)) {
             $logs = [];
