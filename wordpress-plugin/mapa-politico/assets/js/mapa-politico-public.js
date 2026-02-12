@@ -1,4 +1,7 @@
 (function () {
+  const GOIAS_CENTER = [-15.8270, -49.8362];
+  const GOIAS_ZOOM = 7;
+
   function escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -10,6 +13,27 @@
 
   function normalize(value) {
     return String(value || '').toLowerCase().trim();
+  }
+
+  function createMarkerIcon() {
+    return L.divIcon({
+      className: 'mapa-politico-custom-marker',
+      html: '<span></span>',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+      popupAnchor: [0, -10],
+    });
+  }
+
+  function buildPopupHtml(entry) {
+    return `
+      <div class="mapa-politico-popup">
+        <strong>${escapeHtml(entry.full_name)}</strong>
+        <div>${escapeHtml(entry.position)} · ${escapeHtml(entry.party)}</div>
+        <div>${escapeHtml(entry.location.city)} - ${escapeHtml(entry.location.state || '')}</div>
+        <div>CEP: ${escapeHtml(entry.location.postal_code || '-')}</div>
+      </div>
+    `;
   }
 
   function openModal(entry) {
@@ -78,9 +102,9 @@
     }
 
     const map = L.map(mapEl, {
-      center: [-14.235, -51.9253],
-      zoom: 4,
-      minZoom: 2,
+      center: GOIAS_CENTER,
+      zoom: GOIAS_ZOOM,
+      minZoom: 3,
       zoomControl: true,
       worldCopyJump: true,
     });
@@ -97,9 +121,15 @@
 
     const res = await fetch(`${MapaPoliticoConfig.ajaxUrl}?${params.toString()}`);
     const payload = await res.json();
-    const allEntries = payload?.data?.entries || [];
 
+    if (!payload?.success) {
+      mapEl.innerHTML = '<p>Erro ao carregar dados do mapa.</p>';
+      return;
+    }
+
+    const allEntries = payload?.data?.entries || [];
     const markerLayer = L.layerGroup().addTo(map);
+    const markerIcon = createMarkerIcon();
 
     const filters = {
       name: document.getElementById('filtro-nome'),
@@ -126,7 +156,8 @@
       markerLayer.clearLayers();
 
       filtered.forEach((entry) => {
-        const marker = L.marker([entry.location.latitude, entry.location.longitude]).addTo(markerLayer);
+        const marker = L.marker([entry.location.latitude, entry.location.longitude], { icon: markerIcon }).addTo(markerLayer);
+        marker.bindPopup(buildPopupHtml(entry));
         marker.on('click', () => openModal(entry));
       });
 

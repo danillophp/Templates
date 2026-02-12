@@ -21,3 +21,6 @@
   .mapa-politico-layout { grid-template-columns: 1fr; }
   .mapa-politico-results { max-height: unset; }
 }
+
+.mapa-politico-custom-marker span{display:block;width:18px;height:18px;border-radius:999px;background:#1f4e8c;border:3px solid #fff;box-shadow:0 0 0 2px rgba(31,78,140,.35);}
+.mapa-politico-popup{font-size:.9rem;line-height:1.35;}

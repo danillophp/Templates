@@ -1,11 +1,10 @@
 # Mapa Político — Plugin WordPress (OpenStreetMap + Leaflet)
 
-Este projeto entrega a versão **WordPress (prioritária)** com:
-
-- cadastro unificado (político + localização) em **uma única tela**;
-- mapa integrado ao formulário de cadastro;
-- página pública com mapa e pesquisa avançada (nome, partido, cidade, CEP);
-- stack 100% gratuita (Leaflet + OpenStreetMap + Nominatim).
+Revisão completa com foco em correção funcional de ponta a ponta:
+- salvamento confiável no banco;
+- atualização correta dos dados no mapa;
+- cadastro unificado (político + localização) em uma única tela;
+- mapa inicial centralizado em Goiás.
 
 ## Estrutura de pastas atualizada
 
@@ -15,100 +14,79 @@ wordpress-plugin/
     mapa-politico.php
     uninstall.php
     includes/
-      class-mapa-politico-db.php        # schema MySQL via $wpdb/dbDelta
-      class-mapa-politico-admin.php     # tela única de cadastro + backend save/edit/delete
-      class-mapa-politico-public.php    # shortcode + endpoint AJAX
+      class-mapa-politico-db.php
+      class-mapa-politico-admin.php
+      class-mapa-politico-public.php
     assets/
-      css/mapa-politico.css             # layout (filtros, mapa, lista e modal)
-      js/mapa-politico-public.js        # Leaflet + filtros avançados (sem reload)
+      css/mapa-politico.css
+      js/mapa-politico-public.js
 ```
 
-## Banco de dados e URL base
+## Erros críticos corrigidos
 
-### WordPress (produção recomendada)
-- Usa `$wpdb` (config do próprio WordPress), sem hardcode de conexão.
-- Tabelas criadas automaticamente na ativação.
+1. **Falhas silenciosas no salvamento**
+   - Foi implementada transação (`START TRANSACTION`, `COMMIT`, `ROLLBACK`) no salvamento.
+   - Agora erros de `INSERT/UPDATE` geram log com `error_log` e feedback para o usuário.
 
-### Fallback standalone (opcional)
-Defaults editáveis:
-- Database: `mapa_politico`
-- Usuário: `mapa_politico`
-- Senha: `Php@3903*`
-- URL base padrão: `https://www.andredopremium.com.br/mapapolitico`
+2. **Inconsistência entre schema e código**
+   - O plugin agora executa migração de schema por versão (`mapa_politico_schema_version`) no `plugins_loaded`, evitando quebra em instalações já existentes.
 
-Arquivos de referência:
-- `.env.example`
-- `config/database.php`
-- `config/app.php`
+3. **Falta de feedback UX no admin**
+   - Mensagens visuais de sucesso/erro/exclusão adicionadas no painel.
 
-## Cadastro unificado (obrigatório)
+4. **Mapa e listagem pública sem robustez de erro**
+   - Endpoint AJAX retorna `wp_send_json_error` em falha de consulta e log de erro.
 
-A tela **Mapa Político > Cadastro Unificado** contém no mesmo formulário:
-- nome do político, cargo, partido
-- cidade (obrigatória), estado, CEP
-- latitude, longitude
-- mapa interativo Leaflet
+## Cadastro unificado (admin)
 
-Fluxo:
-1. Digite cidade/CEP e clique em **Centralizar no mapa** (Nominatim).
-2. Clique no mapa para ajustar o ponto exato.
-3. Salve tudo em uma única ação.
+Na tela **Mapa Político > Cadastro Unificado**, o formulário contém:
+- Nome do político
+- Cargo
+- Partido
+- Cidade (obrigatória)
+- Estado
+- CEP
+- Latitude
+- Longitude
+- Mapa interativo Leaflet
 
-## Código do formulário de cadastro (referência)
+### Comportamento do mapa no formulário
+- O mapa abre em Goiás (`-15.8270`, `-49.8362`, zoom `7`).
+- Ao informar cidade/estado/CEP e clicar em **Centralizar no mapa**, consulta Nominatim.
+- Ao clicar no mapa, latitude/longitude são preenchidas automaticamente.
 
-Arquivo: `includes/class-mapa-politico-admin.php`
+## Front-end público
 
-```php
-<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
-  <?php wp_nonce_field('mapa_politico_save_entry'); ?>
-  <input type="hidden" name="action" value="mapa_politico_save_entry">
-  <input required name="full_name">
-  <input required name="position">
-  <input required name="party">
-  <input required name="city">
-  <input name="state">
-  <input name="postal_code">
-  <input required step="0.000001" name="latitude">
-  <input required step="0.000001" name="longitude">
-  <div id="mapa-politico-admin-map"></div>
-</form>
-```
-
-## Código JavaScript do mapa e pesquisa (referência)
-
-Arquivo: `assets/js/mapa-politico-public.js`
-
-```js
-const map = L.map('mapa-politico-map', { center: [-14.235, -51.9253], zoom: 4 });
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors',
-}).addTo(map);
-
-// filtros sem reload
-const filtered = allEntries.filter((entry) => {
-  return normalize(entry.full_name).includes(name)
-    && normalize(entry.party).includes(party)
-    && normalize(entry.location.city).includes(city)
-    && normalize(entry.location.postal_code).includes(cep);
-});
-```
-
-## Ajustes backend para salvar e filtrar
-
-### Salvamento único
-- A action `mapa_politico_save_entry` salva dados geográficos e políticos em uma única ação.
-- Em edição, atualiza político + localização relacionados.
-
-### Filtro no front-end
-- Endpoint AJAX `mapa_politico_data` retorna registros completos (político + localização).
-- A filtragem acontece em JavaScript sem recarregar página.
-- Clique em resultado centra o mapa e abre o modal com informações do cadastro.
-
-## Shortcode público
+Shortcode:
 
 ```txt
 [mapa_politico]
 ```
+
+Inclui:
+- mapa com OpenStreetMap + Leaflet;
+- pesquisa avançada em tempo real por:
+  - nome do político
+  - partido
+  - cidade
+  - CEP
+- filtro sincronizado de:
+  - marcadores no mapa
+  - lista de resultados
+- clique em resultado:
+  - centraliza no ponto
+  - abre modal com dados do cadastro
+
+## Código principal (referências)
+
+- Formulário e backend unificado:
+  - `includes/class-mapa-politico-admin.php`
+- Mapa + busca avançada (JS):
+  - `assets/js/mapa-politico-public.js`
+- Payload e endpoint de dados:
+  - `includes/class-mapa-politico-public.php`
+- Migração/estrutura do banco:
+  - `includes/class-mapa-politico-db.php`
 
 ## Instalação rápida
 
@@ -117,3 +95,9 @@ const filtered = allEntries.filter((entry) => {
 3. Ative o plugin.
 4. Cadastre registros em **Mapa Político > Cadastro Unificado**.
 5. Publique uma página com `[mapa_politico]`.
+
+## Sugestões futuras
+
+- Adicionar testes automatizados E2E com WordPress de desenvolvimento.
+- Inserir paginação na listagem pública quando houver muitos registros.
+- Criar endpoint REST dedicado com cache para alta escala.

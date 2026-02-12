@@ -86,6 +86,11 @@ class MapaPoliticoPublic
             ARRAY_A
         );
 
+        if ($rows === null) {
+            error_log('[MapaPolitico] ajaxData error: ' . $wpdb->last_error);
+            wp_send_json_error(['message' => 'Erro ao consultar dados do mapa.'], 500);
+        }
+
         $entries = [];
         foreach ($rows as $row) {
             $entries[] = [
