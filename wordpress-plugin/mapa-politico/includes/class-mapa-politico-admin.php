@@ -429,6 +429,11 @@ class MapaPoliticoAdmin
 
         $lastSync = get_option('mapa_politico_ai_last_sync', 'nunca');
         $deleteNonce = wp_create_nonce('mapa_politico_delete_records_nonce');
+        $syncLogs = get_option('mapa_politico_ai_sync_logs', []);
+        if (!is_array($syncLogs)) {
+            $syncLogs = [];
+        }
+        $syncLogs = array_reverse(array_slice($syncLogs, -80));
         ?>
         <div class="wrap">
             <h1>Atualização IA Goiás</h1>
@@ -487,6 +492,37 @@ class MapaPoliticoAdmin
                         </td>
                     </tr>
                 <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <h2 style="margin-top:24px;">Logs de sincronização IA</h2>
+            <p>Diagnóstico por município, etapa, motivo e fonte tentada.</p>
+            <table class="widefat striped">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Município</th>
+                        <th>Etapa</th>
+                        <th>Motivo</th>
+                        <th>Fonte</th>
+                        <th>Quando</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if (empty($syncLogs)): ?>
+                    <tr><td colspan="6">Nenhum log registrado até o momento.</td></tr>
+                <?php else: ?>
+                    <?php foreach ($syncLogs as $log): ?>
+                        <tr>
+                            <td><?php echo esc_html((string) ($log['type'] ?? 'n/a')); ?></td>
+                            <td><?php echo esc_html((string) ($log['municipality'] ?? 'n/a')); ?></td>
+                            <td><?php echo esc_html((string) ($log['step'] ?? 'n/a')); ?></td>
+                            <td><?php echo esc_html((string) ($log['reason'] ?? 'n/a')); ?></td>
+                            <td style="max-width:360px;overflow-wrap:anywhere;"><?php echo esc_html((string) ($log['source'] ?? 'n/a')); ?></td>
+                            <td><?php echo esc_html((string) ($log['created_at'] ?? 'n/a')); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
                 </tbody>
             </table>
         </div>
