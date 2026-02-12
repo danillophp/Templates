@@ -115,3 +115,26 @@ Inclui:
   - localização indisponível
   - timeout
   - falha de roteamento
+
+
+## Responsividade + Navegação externa + ligação (final)
+
+### Responsividade
+- Layout público ajustado com CSS Grid/Flex e breakpoints para mobile, tablet e desktop.
+- Botões e áreas clicáveis maiores em telas pequenas.
+- Mapa com altura adaptável por viewport para melhor usabilidade touch.
+
+### Como chegar (Google Maps / Waze)
+- Botão **📍 Como chegar** disponível no popup, modal e resultados.
+- O sistema obtém a posição atual via Geolocation API.
+- Em mobile, tenta abrir Waze primeiro e usa Google Maps como fallback.
+- Em desktop, abre Google Maps em nova aba.
+
+Links oficiais usados:
+- Google Maps: `https://www.google.com/maps/dir/?api=1`
+- Waze: `https://waze.com/ul`
+
+### Ligação direta
+- Botão **📞 Ligar** disponível nos resultados, popup e modal quando há telefone válido.
+- Link no formato `tel:+55...` (normalizado).
+- Em desktop, quando não há telefone válido, o número é exibido como texto.

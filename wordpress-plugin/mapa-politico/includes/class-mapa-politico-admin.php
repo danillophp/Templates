@@ -90,7 +90,7 @@ class MapaPoliticoAdmin
         }
 
         $entries = $wpdb->get_results(
-            "SELECT p.id AS politician_id, p.full_name, p.position, p.party,
+            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.phone,
                     l.city, l.state, l.postal_code, l.latitude, l.longitude
              FROM {$politiciansTable} p
              INNER JOIN {$locationsTable} l ON l.id = p.location_id
@@ -111,6 +111,7 @@ class MapaPoliticoAdmin
                     <tr><th><label for="full_name">Nome do político</label></th><td><input required class="regular-text" id="full_name" name="full_name" value="<?php echo esc_attr($editing['full_name'] ?? ''); ?>"></td></tr>
                     <tr><th><label for="position">Cargo</label></th><td><input required class="regular-text" id="position" name="position" value="<?php echo esc_attr($editing['position'] ?? ''); ?>"></td></tr>
                     <tr><th><label for="party">Partido</label></th><td><input required class="regular-text" id="party" name="party" value="<?php echo esc_attr($editing['party'] ?? ''); ?>"></td></tr>
+                    <tr><th><label for="phone">Telefone</label></th><td><input class="regular-text" id="phone" name="phone" placeholder="(62) 99999-9999" value="<?php echo esc_attr($editing['phone'] ?? ''); ?>"></td></tr>
                     <tr><th><label for="city">Cidade</label></th><td><input required class="regular-text" id="city" name="city" value="<?php echo esc_attr($editing['city'] ?? ''); ?>"></td></tr>
                     <tr><th><label for="state">Estado</label></th><td><input class="regular-text" id="state" name="state" value="<?php echo esc_attr($editing['state'] ?? ''); ?>"></td></tr>
                     <tr><th><label for="postal_code">CEP</label></th><td><input class="regular-text" id="postal_code" name="postal_code" value="<?php echo esc_attr($editing['postal_code'] ?? ''); ?>"></td></tr>
@@ -139,13 +140,14 @@ class MapaPoliticoAdmin
 
             <h2>Registros cadastrados</h2>
             <table class="widefat striped">
-                <thead><tr><th>Nome</th><th>Cargo</th><th>Partido</th><th>Cidade</th><th>Estado</th><th>CEP</th><th>Latitude</th><th>Longitude</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Cargo</th><th>Partido</th><th>Telefone</th><th>Cidade</th><th>Estado</th><th>CEP</th><th>Latitude</th><th>Longitude</th><th>Ações</th></tr></thead>
                 <tbody>
                 <?php foreach ($entries as $entry): ?>
                     <tr>
                         <td><?php echo esc_html($entry['full_name']); ?></td>
                         <td><?php echo esc_html($entry['position']); ?></td>
                         <td><?php echo esc_html($entry['party']); ?></td>
+                        <td><?php echo esc_html($entry['phone']); ?></td>
                         <td><?php echo esc_html($entry['city']); ?></td>
                         <td><?php echo esc_html($entry['state']); ?></td>
                         <td><?php echo esc_html($entry['postal_code']); ?></td>
@@ -268,6 +270,9 @@ class MapaPoliticoAdmin
         $fullName = sanitize_text_field(wp_unslash($_POST['full_name'] ?? ''));
         $position = sanitize_text_field(wp_unslash($_POST['position'] ?? ''));
         $party = sanitize_text_field(wp_unslash($_POST['party'] ?? ''));
+        $phoneRaw = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
+        $phoneDigits = preg_replace('/[^0-9]/', '', $phoneRaw);
+        $phone = $phoneDigits ? '+' . $phoneDigits : '';
         $city = sanitize_text_field(wp_unslash($_POST['city'] ?? ''));
         $state = sanitize_text_field(wp_unslash($_POST['state'] ?? ''));
         $postalCode = sanitize_text_field(wp_unslash($_POST['postal_code'] ?? ''));
@@ -276,6 +281,11 @@ class MapaPoliticoAdmin
 
         if ($fullName === '' || $position === '' || $party === '' || $city === '' || !is_finite($latitude) || !is_finite($longitude)) {
             wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Campos obrigat%C3%B3rios%20inv%C3%A1lidos'));
+            exit;
+        }
+
+        if ($phone !== '' && (strlen($phone) < 11 || strlen($phone) > 16)) {
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Telefone%20inv%C3%A1lido'));
             exit;
         }
 
@@ -324,6 +334,7 @@ class MapaPoliticoAdmin
                     'full_name' => $fullName,
                     'position' => $position,
                     'party' => $party,
+                    'phone' => $phone,
                     'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
                     'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
                 ];
@@ -357,6 +368,7 @@ class MapaPoliticoAdmin
                     'full_name' => $fullName,
                     'position' => $position,
                     'party' => $party,
+                    'phone' => $phone,
                     'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
                     'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
                     'photo_id' => $photoId,
