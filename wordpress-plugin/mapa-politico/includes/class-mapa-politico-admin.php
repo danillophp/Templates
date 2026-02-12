@@ -14,6 +14,7 @@ class MapaPoliticoAdmin
         add_action('admin_notices', [self::class, 'renderNotices']);
         add_action('admin_post_mapa_politico_run_ai_sync', [self::class, 'runAiSync']);
         add_action('admin_post_mapa_politico_update_auto_status', [self::class, 'updateAutoStatus']);
+        add_action('wp_ajax_mapa_politico_delete_records', [self::class, 'ajaxDeleteRecords']);
     }
 
     public static function registerMenu(): void
@@ -414,17 +415,20 @@ class MapaPoliticoAdmin
 
         global $wpdb;
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
 
         $rows = $wpdb->get_results(
-            "SELECT id, full_name, position, party, data_status, source_url, last_synced_at, municipality_code
-             FROM {$politiciansTable}
-             WHERE is_auto = 1
-             ORDER BY last_synced_at DESC, id DESC
-             LIMIT 300",
+            "SELECT p.id, p.full_name, p.position, p.data_status, p.source_url, p.source_name, p.created_at, p.last_synced_at,
+                    l.city
+             FROM {$politiciansTable} p
+             LEFT JOIN {$locationsTable} l ON l.id = p.location_id
+             ORDER BY p.created_at DESC, p.id DESC
+             LIMIT 500",
             ARRAY_A
         );
 
         $lastSync = get_option('mapa_politico_ai_last_sync', 'nunca');
+        $deleteNonce = wp_create_nonce('mapa_politico_delete_records_nonce');
         ?>
         <div class="wrap">
             <h1>Atualização IA Goiás</h1>
@@ -434,46 +438,216 @@ class MapaPoliticoAdmin
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <?php wp_nonce_field('mapa_politico_run_ai_sync'); ?>
                 <input type="hidden" name="action" value="mapa_politico_run_ai_sync">
-                <?php submit_button('Executar sincronização automática agora', 'primary'); ?>
+                <?php submit_button('Executar sincronização automática agora', 'primary', 'submit', false); ?>
             </form>
 
-            <h2>Registros automáticos</h2>
-            <table class="widefat striped">
+            <hr>
+            <h2>Cadastros (manual + IA)</h2>
+            <p>Use as opções abaixo para excluir registros individuais, selecionados ou todos os registros.</p>
+
+            <p>
+                <button type="button" class="button" id="mp-delete-selected">🗑️ Excluir selecionados</button>
+                <button type="button" class="button button-link-delete" id="mp-delete-all">🗑️ Excluir todos</button>
+            </p>
+
+            <div id="mp-delete-feedback" class="notice" style="display:none;"></div>
+
+            <table class="widefat striped" id="mp-entries-table">
                 <thead>
-                    <tr><th>ID</th><th>Nome</th><th>Cargo</th><th>Partido</th><th>Status</th><th>Fonte</th><th>Última atualização</th><th>Ações</th></tr>
+                    <tr>
+                        <th style="width:40px;"><input type="checkbox" id="mp-select-all"></th>
+                        <th>Nome</th>
+                        <th>Cargo</th>
+                        <th>Município</th>
+                        <th>Data de criação</th>
+                        <th>Fonte dos dados</th>
+                        <th>Ações</th>
+                    </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($rows as $row): ?>
-                    <tr>
-                        <td><?php echo esc_html((string) $row['id']); ?></td>
-                        <td><?php echo esc_html($row['full_name']); ?></td>
-                        <td><?php echo esc_html($row['position']); ?></td>
-                        <td><?php echo esc_html($row['party']); ?></td>
-                        <td><?php echo esc_html($row['data_status']); ?></td>
-                        <td><?php if (!empty($row['source_url'])): ?><a href="<?php echo esc_url($row['source_url']); ?>" target="_blank" rel="noopener">Fonte</a><?php endif; ?></td>
-                        <td><?php echo esc_html((string) $row['last_synced_at']); ?></td>
+                    <tr data-id="<?php echo esc_attr((string) $row['id']); ?>">
+                        <td><input type="checkbox" class="mp-select-item" value="<?php echo esc_attr((string) $row['id']); ?>"></td>
+                        <td><?php echo esc_html((string) $row['full_name']); ?></td>
+                        <td><?php echo esc_html((string) $row['position']); ?></td>
+                        <td><?php echo esc_html((string) ($row['city'] ?: 'Não informado')); ?></td>
+                        <td><?php echo esc_html((string) $row['created_at']); ?></td>
+                        <td>
+                            <?php if (!empty($row['source_url'])): ?>
+                                <a href="<?php echo esc_url((string) $row['source_url']); ?>" target="_blank" rel="noopener">
+                                    <?php echo esc_html((string) ($row['source_name'] ?: 'Fonte')); ?>
+                                </a>
+                            <?php else: ?>
+                                <?php echo esc_html((string) ($row['source_name'] ?: 'Cadastro manual')); ?>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=mapa-politico-cadastro&edit=' . absint($row['id']))); ?>">Editar</a>
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
-                                <?php wp_nonce_field('mapa_politico_update_auto_status_' . absint($row['id'])); ?>
-                                <input type="hidden" name="action" value="mapa_politico_update_auto_status">
-                                <input type="hidden" name="id" value="<?php echo esc_attr((string) $row['id']); ?>">
-                                <input type="hidden" name="status" value="completo">
-                                <button class="button" type="submit">Aprovar</button>
-                            </form>
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
-                                <?php wp_nonce_field('mapa_politico_update_auto_status_' . absint($row['id'])); ?>
-                                <input type="hidden" name="action" value="mapa_politico_update_auto_status">
-                                <input type="hidden" name="id" value="<?php echo esc_attr((string) $row['id']); ?>">
-                                <input type="hidden" name="status" value="rejeitado">
-                                <button class="button button-link-delete" type="submit">Rejeitar</button>
-                            </form>
+                            <button type="button" class="button button-link-delete mp-delete-single" data-id="<?php echo esc_attr((string) $row['id']); ?>">🗑️ Excluir individual</button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
+
+        <div id="mp-delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;align-items:center;justify-content:center;">
+            <div style="background:#fff;max-width:520px;width:90%;padding:20px;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.2);">
+                <h2 style="margin-top:0;">Confirmação de exclusão</h2>
+                <p id="mp-delete-modal-message" style="margin-bottom:10px;"></p>
+                <p><strong>Esta ação é irreversível.</strong></p>
+                <div id="mp-delete-all-extra" style="display:none;border:1px solid #ddd;padding:10px;border-radius:6px;margin:12px 0;">
+                    <label style="display:block;margin-bottom:8px;">
+                        <input type="checkbox" id="mp-double-confirm"> Confirmo que desejo excluir todos os cadastros.
+                    </label>
+                    <label for="mp-keyword">Digite <strong>EXCLUIR</strong> para confirmar:</label>
+                    <input type="text" id="mp-keyword" class="regular-text" autocomplete="off" placeholder="EXCLUIR">
+                </div>
+                <p>
+                    <button type="button" class="button" id="mp-delete-cancel">Cancelar</button>
+                    <button type="button" class="button button-primary" id="mp-delete-confirm">Confirmar exclusão</button>
+                </p>
+            </div>
+        </div>
+
+        <script>
+            (() => {
+                const ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+                const nonce = <?php echo wp_json_encode($deleteNonce); ?>;
+
+                const table = document.getElementById('mp-entries-table');
+                const selectAll = document.getElementById('mp-select-all');
+                const feedback = document.getElementById('mp-delete-feedback');
+                const modal = document.getElementById('mp-delete-modal');
+                const modalMessage = document.getElementById('mp-delete-modal-message');
+                const modalAllExtra = document.getElementById('mp-delete-all-extra');
+                const keywordInput = document.getElementById('mp-keyword');
+                const doubleConfirm = document.getElementById('mp-double-confirm');
+                const confirmBtn = document.getElementById('mp-delete-confirm');
+                const cancelBtn = document.getElementById('mp-delete-cancel');
+
+                let pendingAction = null;
+
+                const selectedIds = () => Array.from(document.querySelectorAll('.mp-select-item:checked')).map((item) => Number(item.value)).filter((n) => Number.isInteger(n) && n > 0);
+
+                const showFeedback = (ok, message) => {
+                    feedback.className = ok ? 'notice notice-success' : 'notice notice-error';
+                    feedback.style.display = 'block';
+                    feedback.innerHTML = `<p>${message}</p>`;
+                };
+
+                const removeRows = (ids) => {
+                    ids.forEach((id) => {
+                        const row = table?.querySelector(`tr[data-id="${id}"]`);
+                        if (row) row.remove();
+                    });
+                };
+
+                const openModal = (action, message) => {
+                    pendingAction = action;
+                    modalMessage.textContent = message;
+                    modalAllExtra.style.display = action.scope === 'all' ? 'block' : 'none';
+                    keywordInput.value = '';
+                    doubleConfirm.checked = false;
+                    modal.style.display = 'flex';
+                };
+
+                const closeModal = () => {
+                    pendingAction = null;
+                    modal.style.display = 'none';
+                };
+
+                const sendDelete = async (payload) => {
+                    const body = new URLSearchParams({
+                        action: 'mapa_politico_delete_records',
+                        nonce,
+                        scope: payload.scope,
+                        ids: JSON.stringify(payload.ids || []),
+                        keyword: payload.keyword || '',
+                        double_confirm: payload.doubleConfirm ? '1' : '0',
+                    });
+
+                    const response = await fetch(ajaxUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                        body: body.toString(),
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        throw new Error(data?.data?.message || 'Falha ao excluir registros.');
+                    }
+
+                    return data.data;
+                };
+
+                document.getElementById('mp-delete-selected')?.addEventListener('click', () => {
+                    const ids = selectedIds();
+                    if (ids.length === 0) {
+                        showFeedback(false, 'Selecione pelo menos um cadastro para excluir.');
+                        return;
+                    }
+                    openModal({ scope: 'selected', ids }, `Você está prestes a excluir ${ids.length} cadastro(s) selecionado(s).`);
+                });
+
+                document.getElementById('mp-delete-all')?.addEventListener('click', () => {
+                    openModal({ scope: 'all', ids: [] }, 'Você está prestes a excluir TODOS os cadastros do sistema.');
+                });
+
+                table?.addEventListener('click', (event) => {
+                    const button = event.target.closest('.mp-delete-single');
+                    if (!button) return;
+                    const id = Number(button.getAttribute('data-id'));
+                    if (!Number.isInteger(id) || id <= 0) return;
+                    openModal({ scope: 'single', ids: [id] }, 'Você está prestes a excluir este cadastro individual.');
+                });
+
+                selectAll?.addEventListener('change', () => {
+                    document.querySelectorAll('.mp-select-item').forEach((item) => {
+                        item.checked = !!selectAll.checked;
+                    });
+                });
+
+                cancelBtn?.addEventListener('click', closeModal);
+                modal?.addEventListener('click', (event) => {
+                    if (event.target === modal) closeModal();
+                });
+
+                confirmBtn?.addEventListener('click', async () => {
+                    if (!pendingAction) return;
+
+                    if (pendingAction.scope === 'all') {
+                        if (!doubleConfirm.checked || keywordInput.value.trim().toUpperCase() !== 'EXCLUIR') {
+                            showFeedback(false, 'Para excluir todos os registros, marque a confirmação e digite EXCLUIR.');
+                            return;
+                        }
+                    }
+
+                    confirmBtn.disabled = true;
+                    try {
+                        const result = await sendDelete({
+                            scope: pendingAction.scope,
+                            ids: pendingAction.ids,
+                            keyword: keywordInput.value.trim(),
+                            doubleConfirm: doubleConfirm.checked,
+                        });
+
+                        if (pendingAction.scope === 'all') {
+                            document.querySelectorAll('#mp-entries-table tbody tr').forEach((row) => row.remove());
+                        } else {
+                            removeRows(result.deleted_ids || pendingAction.ids);
+                        }
+
+                        showFeedback(true, `Exclusão concluída. Registros excluídos: ${result.deleted_count}.`);
+                        closeModal();
+                    } catch (error) {
+                        showFeedback(false, error.message || 'Falha ao excluir registros.');
+                    } finally {
+                        confirmBtn.disabled = false;
+                    }
+                });
+            })();
+        </script>
         <?php
     }
 
@@ -510,6 +684,47 @@ class MapaPoliticoAdmin
         exit;
     }
 
+    public static function ajaxDeleteRecords(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
+
+        check_ajax_referer('mapa_politico_delete_records_nonce', 'nonce');
+
+        $scope = sanitize_text_field(wp_unslash($_POST['scope'] ?? 'single'));
+        if (!in_array($scope, ['single', 'selected', 'all'], true)) {
+            wp_send_json_error(['message' => 'Escopo inválido.'], 400);
+        }
+
+        $idsRaw = (string) wp_unslash($_POST['ids'] ?? '[]');
+        $idsDecoded = json_decode($idsRaw, true);
+        $ids = is_array($idsDecoded) ? wp_parse_id_list($idsDecoded) : [];
+
+        if ($scope === 'single') {
+            $ids = array_slice($ids, 0, 1);
+        }
+
+        if ($scope !== 'all' && empty($ids)) {
+            wp_send_json_error(['message' => 'Nenhum registro válido foi informado para exclusão.'], 400);
+        }
+
+        if ($scope === 'all') {
+            $keyword = strtoupper(sanitize_text_field(wp_unslash($_POST['keyword'] ?? '')));
+            $doubleConfirm = sanitize_text_field(wp_unslash($_POST['double_confirm'] ?? '0')) === '1';
+            if (!$doubleConfirm || $keyword !== 'EXCLUIR') {
+                wp_send_json_error(['message' => 'Confirmação dupla obrigatória para excluir todos os registros.'], 400);
+            }
+        }
+
+        $result = self::deletePoliticians($ids, $scope);
+        if (($result['deleted_count'] ?? 0) < 1) {
+            wp_send_json_error(['message' => 'Nenhum registro foi excluído.'], 400);
+        }
+
+        wp_send_json_success($result);
+    }
+
     public static function deleteEntry(): void
     {
         if (!current_user_can('manage_options')) {
@@ -519,18 +734,105 @@ class MapaPoliticoAdmin
         $politicianId = absint($_POST['politician_id'] ?? 0);
         check_admin_referer('mapa_politico_delete_entry_' . $politicianId);
 
-        global $wpdb;
-        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
-        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
-
-        $existing = $wpdb->get_row($wpdb->prepare("SELECT location_id FROM {$politiciansTable} WHERE id = %d", $politicianId), ARRAY_A);
-        if ($existing) {
-            $locationId = (int) $existing['location_id'];
-            $wpdb->delete($politiciansTable, ['id' => $politicianId]);
-            $wpdb->delete($locationsTable, ['id' => $locationId]);
+        $result = self::deletePoliticians([$politicianId], 'single');
+        if (($result['deleted_count'] ?? 0) < 1) {
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Registro%20n%C3%A3o%20encontrado'));
+            exit;
         }
 
         wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&deleted=1'));
         exit;
+    }
+
+    private static function deletePoliticians(array $ids, string $scope): array
+    {
+        global $wpdb;
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+
+        if ($scope === 'all') {
+            $targets = $wpdb->get_results("SELECT id, location_id, photo_id FROM {$politiciansTable}", ARRAY_A);
+        } else {
+            $ids = wp_parse_id_list($ids);
+            if (empty($ids)) {
+                return ['deleted_count' => 0, 'deleted_ids' => []];
+            }
+
+            $in = implode(',', array_map('intval', $ids));
+            $targets = $wpdb->get_results("SELECT id, location_id, photo_id FROM {$politiciansTable} WHERE id IN ({$in})", ARRAY_A);
+        }
+
+        if (empty($targets)) {
+            return ['deleted_count' => 0, 'deleted_ids' => []];
+        }
+
+        $targetIds = array_map('intval', array_column($targets, 'id'));
+        $locationIds = array_values(array_unique(array_map('intval', array_column($targets, 'location_id'))));
+        $photoIds = array_values(array_unique(array_filter(array_map('intval', array_column($targets, 'photo_id')))));
+
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            $inTarget = implode(',', $targetIds);
+            $deleted = $wpdb->query("DELETE FROM {$politiciansTable} WHERE id IN ({$inTarget})");
+            if ($deleted === false) {
+                throw new RuntimeException('Falha ao excluir políticos: ' . $wpdb->last_error);
+            }
+
+            foreach ($locationIds as $locationId) {
+                if ($locationId < 1) {
+                    continue;
+                }
+
+                $remaining = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$politiciansTable} WHERE location_id = %d", $locationId));
+                if ($remaining === 0) {
+                    $wpdb->delete($locationsTable, ['id' => $locationId]);
+                }
+            }
+
+            foreach ($photoIds as $photoId) {
+                $remainingPhotoUsage = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$politiciansTable} WHERE photo_id = %d", $photoId));
+                if ($remainingPhotoUsage === 0) {
+                    wp_delete_attachment($photoId, true);
+                }
+            }
+
+            $wpdb->query('COMMIT');
+
+            self::registerDeletionLog($scope, $targetIds, (int) $deleted);
+
+            return [
+                'deleted_count' => (int) $deleted,
+                'deleted_ids' => $targetIds,
+            ];
+        } catch (Throwable $e) {
+            $wpdb->query('ROLLBACK');
+            error_log('[MapaPolitico] deletePoliticians error: ' . $e->getMessage());
+            return ['deleted_count' => 0, 'deleted_ids' => []];
+        }
+    }
+
+    private static function registerDeletionLog(string $scope, array $deletedIds, int $deletedCount): void
+    {
+        $user = wp_get_current_user();
+        $logs = get_option('mapa_politico_deletion_logs', []);
+        if (!is_array($logs)) {
+            $logs = [];
+        }
+
+        $logs[] = [
+            'scope' => $scope,
+            'deleted_count' => $deletedCount,
+            'deleted_ids' => array_values(array_map('intval', $deletedIds)),
+            'deleted_at' => current_time('mysql'),
+            'user_id' => (int) $user->ID,
+            'user_login' => (string) ($user->user_login ?? ''),
+        ];
+
+        if (count($logs) > 200) {
+            $logs = array_slice($logs, -200);
+        }
+
+        update_option('mapa_politico_deletion_logs', $logs, false);
     }
 }
