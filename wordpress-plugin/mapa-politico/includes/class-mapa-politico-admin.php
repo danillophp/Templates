@@ -12,6 +12,8 @@ class MapaPoliticoAdmin
         add_action('admin_post_mapa_politico_save_entry', [self::class, 'saveEntry']);
         add_action('admin_post_mapa_politico_delete_entry', [self::class, 'deleteEntry']);
         add_action('admin_notices', [self::class, 'renderNotices']);
+        add_action('admin_post_mapa_politico_run_ai_sync', [self::class, 'runAiSync']);
+        add_action('admin_post_mapa_politico_update_auto_status', [self::class, 'updateAutoStatus']);
     }
 
     public static function registerMenu(): void
@@ -19,6 +21,7 @@ class MapaPoliticoAdmin
         add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico', [self::class, 'renderDashboard'], 'dashicons-location-alt', 26);
         add_submenu_page('mapa-politico', 'Visão geral', 'Visão geral', 'manage_options', 'mapa-politico', [self::class, 'renderDashboard']);
         add_submenu_page('mapa-politico', 'Cadastro Unificado', 'Cadastro Unificado', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
+        add_submenu_page('mapa-politico', 'Atualização IA Goiás', 'Atualização IA Goiás', 'manage_options', 'mapa-politico-ia', [self::class, 'renderAiSync']);
     }
 
     public static function renderDashboard(): void
@@ -45,7 +48,7 @@ class MapaPoliticoAdmin
             return;
         }
 
-        if (!isset($_GET['page']) || $_GET['page'] !== 'mapa-politico-cadastro') {
+        if (!isset($_GET['page']) || !in_array((string) $_GET['page'], ['mapa-politico-cadastro', 'mapa-politico-ia'], true)) {
             return;
         }
 
@@ -55,6 +58,10 @@ class MapaPoliticoAdmin
 
         if (isset($_GET['deleted'])) {
             echo '<div class="notice notice-success is-dismissible"><p>Cadastro removido com sucesso.</p></div>';
+        }
+
+        if (isset($_GET['synced'])) {
+            echo '<div class="notice notice-success is-dismissible"><p>Sincronização automática concluída.</p></div>';
         }
 
         if (isset($_GET['error'])) {
@@ -90,7 +97,7 @@ class MapaPoliticoAdmin
         }
 
         $entries = $wpdb->get_results(
-            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.phone,
+            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.phone, p.data_status, p.is_auto, p.source_url,
                     l.city, l.state, l.postal_code, l.latitude, l.longitude
              FROM {$politiciansTable} p
              INNER JOIN {$locationsTable} l ON l.id = p.location_id
@@ -140,7 +147,7 @@ class MapaPoliticoAdmin
 
             <h2>Registros cadastrados</h2>
             <table class="widefat striped">
-                <thead><tr><th>Nome</th><th>Cargo</th><th>Partido</th><th>Telefone</th><th>Cidade</th><th>Estado</th><th>CEP</th><th>Latitude</th><th>Longitude</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Cargo</th><th>Partido</th><th>Telefone</th><th>Status</th><th>Cidade</th><th>Estado</th><th>CEP</th><th>Latitude</th><th>Longitude</th><th>Ações</th></tr></thead>
                 <tbody>
                 <?php foreach ($entries as $entry): ?>
                     <tr>
@@ -148,6 +155,7 @@ class MapaPoliticoAdmin
                         <td><?php echo esc_html($entry['position']); ?></td>
                         <td><?php echo esc_html($entry['party']); ?></td>
                         <td><?php echo esc_html($entry['phone']); ?></td>
+                        <td><?php echo esc_html($entry['data_status'] ?? 'completo'); ?></td>
                         <td><?php echo esc_html($entry['city']); ?></td>
                         <td><?php echo esc_html($entry['state']); ?></td>
                         <td><?php echo esc_html($entry['postal_code']); ?></td>
@@ -337,6 +345,10 @@ class MapaPoliticoAdmin
                     'phone' => $phone,
                     'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
                     'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
+                    'data_status' => 'completo',
+                    'is_auto' => 0,
+                    'last_synced_at' => current_time('mysql'),
+                    'source_name' => 'Cadastro manual',
                 ];
                 if ($photoId) {
                     $politicianData['photo_id'] = $photoId;
@@ -371,6 +383,10 @@ class MapaPoliticoAdmin
                     'phone' => $phone,
                     'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
                     'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
+                    'data_status' => 'completo',
+                    'is_auto' => 0,
+                    'last_synced_at' => current_time('mysql'),
+                    'source_name' => 'Cadastro manual',
                     'photo_id' => $photoId,
                 ]);
 
@@ -388,6 +404,110 @@ class MapaPoliticoAdmin
             wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha%20no%20salvamento'));
             exit;
         }
+    }
+
+    public static function renderAiSync(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+
+        global $wpdb;
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+
+        $rows = $wpdb->get_results(
+            "SELECT id, full_name, position, party, data_status, source_url, last_synced_at, municipality_code
+             FROM {$politiciansTable}
+             WHERE is_auto = 1
+             ORDER BY last_synced_at DESC, id DESC
+             LIMIT 300",
+            ARRAY_A
+        );
+
+        $lastSync = get_option('mapa_politico_ai_last_sync', 'nunca');
+        ?>
+        <div class="wrap">
+            <h1>Atualização IA Goiás</h1>
+            <p>Fonte pública principal: IBGE (municípios de Goiás) + Nominatim para geocodificação institucional.</p>
+            <p><strong>Última sincronização:</strong> <?php echo esc_html((string) $lastSync); ?></p>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('mapa_politico_run_ai_sync'); ?>
+                <input type="hidden" name="action" value="mapa_politico_run_ai_sync">
+                <?php submit_button('Executar sincronização automática agora', 'primary'); ?>
+            </form>
+
+            <h2>Registros automáticos</h2>
+            <table class="widefat striped">
+                <thead>
+                    <tr><th>ID</th><th>Nome</th><th>Cargo</th><th>Partido</th><th>Status</th><th>Fonte</th><th>Última atualização</th><th>Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($rows as $row): ?>
+                    <tr>
+                        <td><?php echo esc_html((string) $row['id']); ?></td>
+                        <td><?php echo esc_html($row['full_name']); ?></td>
+                        <td><?php echo esc_html($row['position']); ?></td>
+                        <td><?php echo esc_html($row['party']); ?></td>
+                        <td><?php echo esc_html($row['data_status']); ?></td>
+                        <td><?php if (!empty($row['source_url'])): ?><a href="<?php echo esc_url($row['source_url']); ?>" target="_blank" rel="noopener">Fonte</a><?php endif; ?></td>
+                        <td><?php echo esc_html((string) $row['last_synced_at']); ?></td>
+                        <td>
+                            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=mapa-politico-cadastro&edit=' . absint($row['id']))); ?>">Editar</a>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
+                                <?php wp_nonce_field('mapa_politico_update_auto_status_' . absint($row['id'])); ?>
+                                <input type="hidden" name="action" value="mapa_politico_update_auto_status">
+                                <input type="hidden" name="id" value="<?php echo esc_attr((string) $row['id']); ?>">
+                                <input type="hidden" name="status" value="completo">
+                                <button class="button" type="submit">Aprovar</button>
+                            </form>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
+                                <?php wp_nonce_field('mapa_politico_update_auto_status_' . absint($row['id'])); ?>
+                                <input type="hidden" name="action" value="mapa_politico_update_auto_status">
+                                <input type="hidden" name="id" value="<?php echo esc_attr((string) $row['id']); ?>">
+                                <input type="hidden" name="status" value="rejeitado">
+                                <button class="button button-link-delete" type="submit">Rejeitar</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php
+    }
+
+    public static function runAiSync(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+
+        check_admin_referer('mapa_politico_run_ai_sync');
+        MapaPoliticoAI::runSync();
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-ia&synced=1'));
+        exit;
+    }
+
+    public static function updateAutoStatus(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+
+        $id = absint($_POST['id'] ?? 0);
+        check_admin_referer('mapa_politico_update_auto_status_' . $id);
+        $status = sanitize_text_field(wp_unslash($_POST['status'] ?? 'aguardando_validacao'));
+        if (!in_array($status, ['completo', 'incompleto', 'aguardando_validacao', 'rejeitado'], true)) {
+            $status = 'aguardando_validacao';
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'mapa_politico_politicians';
+        $wpdb->update($table, ['data_status' => $status, 'last_synced_at' => current_time('mysql')], ['id' => $id]);
+
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-ia'));
+        exit;
     }
 
     public static function deleteEntry(): void

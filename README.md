@@ -1,10 +1,15 @@
 # Mapa Político — Plugin WordPress (OpenStreetMap + Leaflet)
 
-Revisão completa com foco em correção funcional de ponta a ponta:
-- salvamento confiável no banco;
-- atualização correta dos dados no mapa;
-- cadastro unificado (político + localização) em uma única tela;
-- mapa inicial centralizado em Goiás.
+## Visão geral
+Este plugin agora possui:
+
+- cadastro manual unificado (político + localização)
+- mapa público com filtros, rota interna e navegação externa
+- **módulo de cadastro/atualização automática por IA (auditável) para Goiás**
+
+> ⚠️ Conformidade: não há scraping ilegal implementado. O fluxo automático usa fontes públicas e oficiais (IBGE + Nominatim) e deixa dados sensíveis/duvidosos como pendentes de validação humana.
+
+---
 
 ## Estrutura de pastas atualizada
 
@@ -14,48 +19,82 @@ wordpress-plugin/
     mapa-politico.php
     uninstall.php
     includes/
-      class-mapa-politico-db.php
-      class-mapa-politico-admin.php
-      class-mapa-politico-public.php
+      class-mapa-politico-db.php         # schema/migração
+      class-mapa-politico-ai.php         # rotina automática Goiás (cron + importação)
+      class-mapa-politico-admin.php      # painel admin + intervenção humana
+      class-mapa-politico-public.php     # endpoint/mapa público
     assets/
       css/mapa-politico.css
       js/mapa-politico-public.js
 ```
 
-## Erros críticos corrigidos
+---
 
-1. **Falhas silenciosas no salvamento**
-   - Foi implementada transação (`START TRANSACTION`, `COMMIT`, `ROLLBACK`) no salvamento.
-   - Agora erros de `INSERT/UPDATE` geram log com `error_log` e feedback para o usuário.
+## Banco de dados (atualizado)
 
-2. **Inconsistência entre schema e código**
-   - O plugin agora executa migração de schema por versão (`mapa_politico_schema_version`) no `plugins_loaded`, evitando quebra em instalações já existentes.
+### `wp_mapa_politico_locations`
+Campos principais adicionados para automação:
+- `ibge_code`
+- `institution_type` (`prefeitura`/`camara`)
+- `source_url`
+- `last_synced_at`
 
-3. **Falta de feedback UX no admin**
-   - Mensagens visuais de sucesso/erro/exclusão adicionadas no painel.
+### `wp_mapa_politico_politicians`
+Campos principais adicionados para governança/auditoria:
+- `source_url`
+- `source_name`
+- `data_status` (`completo`, `incompleto`, `aguardando_validacao`, `rejeitado`)
+- `validation_notes`
+- `is_auto`
+- `municipality_code`
+- `last_synced_at`
 
-4. **Mapa e listagem pública sem robustez de erro**
-   - Endpoint AJAX retorna `wp_send_json_error` em falha de consulta e log de erro.
+---
 
-## Cadastro unificado (admin)
+## Fluxo da IA (Goiás)
 
-Na tela **Mapa Político > Cadastro Unificado**, o formulário contém:
-- Nome do político
-- Cargo
-- Partido
-- Cidade (obrigatória)
-- Estado
-- CEP
-- Latitude
-- Longitude
-- Mapa interativo Leaflet
+Arquivo principal: `includes/class-mapa-politico-ai.php`
 
-### Comportamento do mapa no formulário
-- O mapa abre em Goiás (`-15.8270`, `-49.8362`, zoom `7`).
-- Ao informar cidade/estado/CEP e clicar em **Centralizar no mapa**, consulta Nominatim.
-- Ao clicar no mapa, latitude/longitude são preenchidas automaticamente.
+### Fontes utilizadas
+1. **IBGE** (lista oficial de municípios de GO):
+   - `https://servicodados.ibge.gov.br/api/v1/localidades/estados/52/municipios`
+2. **Nominatim / OpenStreetMap** para geocodificação institucional:
+   - prefeitura municipal
+   - câmara municipal
 
-## Front-end público
+### O que a rotina faz
+Para cada município de Goiás:
+- cria/atualiza localizações institucionais (prefeitura/câmara)
+- cria/atualiza registros políticos por cargo:
+  - Prefeito
+  - Vice-prefeito
+  - Vereador
+- quando faltam dados oficiais detalhados (nome/partido/telefone):
+  - salva como `Pendente de validação`
+  - marca status `aguardando_validacao`
+
+### Periodicidade
+- cron semanal (`mapa_politico_ai_sync_event`)
+- também pode rodar manualmente no admin
+
+---
+
+## Pontos de intervenção do administrador
+
+Menu: **Mapa Político > Atualização IA Goiás**
+
+Funcionalidades:
+- executar sincronização manual imediata
+- ver lista de registros automáticos
+- visualizar status, fonte e última atualização
+- aprovar/rejeitar registros automáticos
+- editar manualmente via **Cadastro Unificado**
+
+Isso garante trilha auditável e controle humano final.
+
+---
+
+## Mapa público
 
 Shortcode:
 
@@ -63,78 +102,45 @@ Shortcode:
 [mapa_politico]
 ```
 
-Inclui:
-- mapa com OpenStreetMap + Leaflet;
-- pesquisa avançada em tempo real por:
-  - nome do político
-  - partido
-  - cidade
-  - CEP
-- filtro sincronizado de:
-  - marcadores no mapa
-  - lista de resultados
-- clique em resultado:
-  - centraliza no ponto
-  - abre modal com dados do cadastro
+Mostra:
+- marcadores por políticos/localizações
+- filtros por nome, partido, cidade, CEP
+- rota interna (Leaflet Routing + OSRM)
+- navegação externa (Google/Waze)
+- botão de ligação quando telefone disponível
 
-## Código principal (referências)
+---
 
-- Formulário e backend unificado:
-  - `includes/class-mapa-politico-admin.php`
-- Mapa + busca avançada (JS):
-  - `assets/js/mapa-politico-public.js`
-- Payload e endpoint de dados:
-  - `includes/class-mapa-politico-public.php`
-- Migração/estrutura do banco:
-  - `includes/class-mapa-politico-db.php`
+## Limitações técnicas (transparentes)
+
+1. **Nomes/partidos automáticos**
+   - para evitar scraping ilegal, o módulo automático usa fontes oficiais estruturadas.
+   - quando não há endpoint oficial estruturado para nomes/cargos locais detalhados, o sistema cria pendências para validação humana.
+
+2. **Qualidade de geocodificação**
+   - Nominatim pode retornar coordenada aproximada em alguns municípios.
+   - o administrador pode corrigir no cadastro manual.
+
+3. **Escalabilidade multiestado**
+   - código está preparado para expansão, mas atualmente focado em Goiás (UF 52).
+
+---
+
+## Segurança / LGPD
+
+- somente dados institucionais públicos
+- registro de fonte (`source_url`, `source_name`)
+- status de validação explícito
+- possibilidade de correção manual pelo administrador
+
+---
 
 ## Instalação rápida
 
 1. Compacte `wordpress-plugin/mapa-politico` em `.zip`.
 2. WordPress > Plugins > Adicionar novo > Enviar plugin.
 3. Ative o plugin.
-4. Cadastre registros em **Mapa Político > Cadastro Unificado**.
+4. Acesse:
+   - **Cadastro Unificado** (manual)
+   - **Atualização IA Goiás** (automático)
 5. Publique uma página com `[mapa_politico]`.
-
-## Sugestões futuras
-
-- Adicionar testes automatizados E2E com WordPress de desenvolvimento.
-- Inserir paginação na listagem pública quando houver muitos registros.
-- Criar endpoint REST dedicado com cache para alta escala.
-
-
-## Rota / Navegação (novo)
-
-- Botão **📍 Traçar rota** disponível no popup do marcador, no modal e na lista de resultados.
-- Usa **Geolocation API** para origem (posição do usuário).
-- Usa **Leaflet Routing Machine** + **OSRM público** para calcular rota gratuita.
-- Exibe origem (ícone verde), destino (ícone padrão do político), linha da rota e ajuste automático de viewport.
-- Botão **Limpar rota** para remover navegação atual.
-- Tratamento amigável de erros:
-  - permissão negada
-  - localização indisponível
-  - timeout
-  - falha de roteamento
-
-
-## Responsividade + Navegação externa + ligação (final)
-
-### Responsividade
-- Layout público ajustado com CSS Grid/Flex e breakpoints para mobile, tablet e desktop.
-- Botões e áreas clicáveis maiores em telas pequenas.
-- Mapa com altura adaptável por viewport para melhor usabilidade touch.
-
-### Como chegar (Google Maps / Waze)
-- Botão **📍 Como chegar** disponível no popup, modal e resultados.
-- O sistema obtém a posição atual via Geolocation API.
-- Em mobile, tenta abrir Waze primeiro e usa Google Maps como fallback.
-- Em desktop, abre Google Maps em nova aba.
-
-Links oficiais usados:
-- Google Maps: `https://www.google.com/maps/dir/?api=1`
-- Waze: `https://waze.com/ul`
-
-### Ligação direta
-- Botão **📞 Ligar** disponível nos resultados, popup e modal quando há telefone válido.
-- Link no formato `tel:+55...` (normalizado).
-- Em desktop, quando não há telefone válido, o número é exibido como texto.

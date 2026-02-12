@@ -86,10 +86,11 @@ class MapaPoliticoPublic
 
         $rows = $wpdb->get_results(
             "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.age, p.biography, p.career_history,
-                    p.municipality_history, p.phone, p.email, p.advisors, p.photo_id,
+                    p.municipality_history, p.phone, p.email, p.advisors, p.photo_id, p.source_url, p.source_name, p.data_status,
                     l.id AS location_id, l.name AS location_name, l.city, l.state, l.postal_code, l.latitude, l.longitude, l.city_info, l.region_info
              FROM {$politiciansTable} p
              INNER JOIN {$locationsTable} l ON l.id = p.location_id
+             WHERE p.data_status <> 'rejeitado'
              ORDER BY p.full_name ASC",
             ARRAY_A
         );
@@ -113,6 +114,9 @@ class MapaPoliticoPublic
                 'phone' => $row['phone'],
                 'email' => $row['email'],
                 'advisors' => $row['advisors'],
+                'source_url' => $row['source_url'],
+                'source_name' => $row['source_name'],
+                'data_status' => $row['data_status'],
                 'photo_url' => !empty($row['photo_id']) ? wp_get_attachment_image_url((int) $row['photo_id'], 'medium') : null,
                 'location' => [
                     'id' => (int) $row['location_id'],
