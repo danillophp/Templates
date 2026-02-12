@@ -15,9 +15,26 @@
     return String(value || '').toLowerCase().trim();
   }
 
+  function setStatus(message, type = 'info') {
+    const el = document.getElementById('mapa-politico-status');
+    if (!el) return;
+    el.textContent = message;
+    el.dataset.type = type;
+  }
+
   function createMarkerIcon() {
     return L.divIcon({
       className: 'mapa-politico-custom-marker',
+      html: '<span></span>',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+      popupAnchor: [0, -10],
+    });
+  }
+
+  function createUserIcon() {
+    return L.divIcon({
+      className: 'mapa-politico-user-marker',
       html: '<span></span>',
       iconSize: [18, 18],
       iconAnchor: [9, 9],
@@ -32,6 +49,7 @@
         <div>${escapeHtml(entry.position)} · ${escapeHtml(entry.party)}</div>
         <div>${escapeHtml(entry.location.city)} - ${escapeHtml(entry.location.state || '')}</div>
         <div>CEP: ${escapeHtml(entry.location.postal_code || '-')}</div>
+        <button type="button" class="mapa-politico-route-btn" data-route-id="${entry.politician_id}">📍 Traçar rota</button>
       </div>
     `;
   }
@@ -52,6 +70,7 @@
         <p><strong>CEP:</strong> ${escapeHtml(entry.location.postal_code)}</p>
         <p><strong>Biografia:</strong> ${escapeHtml(entry.biography)}</p>
         <p><strong>Histórico:</strong> ${escapeHtml(entry.career_history)}</p>
+        <p><button type="button" class="mapa-politico-route-btn" data-route-id="${entry.politician_id}">📍 Traçar rota até este político</button></p>
       </article>
     `;
 
@@ -66,7 +85,7 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
-  function renderResults(entries, onSelect) {
+  function renderResults(entries, onSelect, onRoute) {
     const list = document.getElementById('mapa-politico-results-list');
     if (!list) return;
 
@@ -76,19 +95,23 @@
     }
 
     list.innerHTML = entries.map((entry) => `
-      <button type="button" class="mapa-politico-result-item" data-id="${entry.politician_id}">
-        <strong>${escapeHtml(entry.full_name)}</strong>
-        <span>${escapeHtml(entry.party)} · ${escapeHtml(entry.location.city)} (${escapeHtml(entry.location.state)})</span>
-        <small>CEP: ${escapeHtml(entry.location.postal_code)}</small>
-      </button>
+      <div class="mapa-politico-result-item" data-id="${entry.politician_id}">
+        <button type="button" class="mapa-politico-select-btn">
+          <strong>${escapeHtml(entry.full_name)}</strong>
+          <span>${escapeHtml(entry.party)} · ${escapeHtml(entry.location.city)} (${escapeHtml(entry.location.state)})</span>
+          <small>CEP: ${escapeHtml(entry.location.postal_code)}</small>
+        </button>
+        <button type="button" class="mapa-politico-route-btn" data-route-id="${entry.politician_id}">📍 Traçar rota</button>
+      </div>
     `).join('');
 
-    list.querySelectorAll('.mapa-politico-result-item').forEach((button) => {
-      button.addEventListener('click', () => {
-        const id = Number(button.dataset.id);
-        const selected = entries.find((entry) => entry.politician_id === id);
-        if (selected) onSelect(selected);
-      });
+    list.querySelectorAll('.mapa-politico-result-item').forEach((container) => {
+      const id = Number(container.dataset.id);
+      const selected = entries.find((entry) => entry.politician_id === id);
+      if (!selected) return;
+
+      container.querySelector('.mapa-politico-select-btn')?.addEventListener('click', () => onSelect(selected));
+      container.querySelector('.mapa-politico-route-btn')?.addEventListener('click', () => onRoute(selected));
     });
   }
 
@@ -124,12 +147,108 @@
 
     if (!payload?.success) {
       mapEl.innerHTML = '<p>Erro ao carregar dados do mapa.</p>';
+      setStatus('Falha ao carregar os dados do mapa.', 'error');
       return;
     }
 
     const allEntries = payload?.data?.entries || [];
     const markerLayer = L.layerGroup().addTo(map);
     const markerIcon = createMarkerIcon();
+    const userIcon = createUserIcon();
+
+    let routingControl = null;
+    let userMarker = null;
+
+    function clearRoute() {
+      if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+      }
+      if (userMarker) {
+        map.removeLayer(userMarker);
+        userMarker = null;
+      }
+      setStatus('Rota limpa.', 'info');
+    }
+
+    async function traceRoute(entry) {
+      if (!navigator.geolocation) {
+        setStatus('Seu dispositivo não suporta geolocalização.', 'error');
+        return;
+      }
+
+      setStatus('Obtendo sua localização atual...', 'loading');
+
+      navigator.geolocation.getCurrentPosition((position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        const targetLat = Number(entry.location.latitude);
+        const targetLng = Number(entry.location.longitude);
+
+        if (!Number.isFinite(targetLat) || !Number.isFinite(targetLng)) {
+          setStatus('Localização do político inválida para traçar rota.', 'error');
+          return;
+        }
+
+        if (routingControl) {
+          map.removeControl(routingControl);
+          routingControl = null;
+        }
+
+        if (userMarker) {
+          map.removeLayer(userMarker);
+        }
+
+        userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup('Sua localização atual');
+
+        routingControl = L.Routing.control({
+          waypoints: [
+            L.latLng(userLat, userLng),
+            L.latLng(targetLat, targetLng),
+          ],
+          lineOptions: {
+            styles: [{ color: '#1f4e8c', opacity: 0.9, weight: 5 }],
+            addWaypoints: false,
+          },
+          showAlternatives: false,
+          draggableWaypoints: false,
+          fitSelectedRoutes: true,
+          routeWhileDragging: false,
+          createMarker: function (i, waypoint) {
+            if (i === 0) {
+              return L.marker(waypoint.latLng, { icon: userIcon }).bindPopup('Sua localização atual');
+            }
+            return L.marker(waypoint.latLng, { icon: markerIcon }).bindPopup(entry.full_name);
+          },
+          router: L.Routing.osrmv1({
+            serviceUrl: MapaPoliticoConfig.osrmServiceUrl,
+            profile: 'driving',
+          }),
+        }).addTo(map);
+
+        routingControl.on('routingerror', function () {
+          setStatus('Não foi possível calcular a rota agora. Tente novamente em instantes.', 'error');
+        });
+
+        routingControl.on('routesfound', function () {
+          setStatus(`Rota traçada até ${entry.full_name}.`, 'success');
+        });
+      }, (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setStatus('Permissão de localização negada. Ative o GPS para traçar a rota.', 'error');
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          setStatus('Localização indisponível no momento.', 'error');
+        } else if (error.code === error.TIMEOUT) {
+          setStatus('Tempo esgotado ao obter localização. Tente novamente.', 'error');
+        } else {
+          setStatus('Não foi possível obter sua localização.', 'error');
+        }
+      }, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 30000,
+      });
+    }
 
     const filters = {
       name: document.getElementById('filtro-nome'),
@@ -137,6 +256,7 @@
       city: document.getElementById('filtro-cidade'),
       cep: document.getElementById('filtro-cep'),
       clear: document.getElementById('filtro-limpar'),
+      clearRoute: document.getElementById('rota-limpar'),
     };
 
     function applyFilters() {
@@ -161,10 +281,16 @@
         marker.on('click', () => openModal(entry));
       });
 
-      renderResults(filtered, (entry) => {
-        map.setView([entry.location.latitude, entry.location.longitude], 13);
-        openModal(entry);
-      });
+      renderResults(
+        filtered,
+        (entry) => {
+          map.setView([entry.location.latitude, entry.location.longitude], 13);
+          openModal(entry);
+        },
+        traceRoute
+      );
+
+      setStatus(`${filtered.length} resultado(s) encontrado(s).`, 'info');
     }
 
     [filters.name, filters.party, filters.city, filters.cep].forEach((input) => {
@@ -176,6 +302,23 @@
         if (input) input.value = '';
       });
       applyFilters();
+    });
+
+    filters.clearRoute?.addEventListener('click', clearRoute);
+
+    // Delegação para botões de rota presentes em popups/modais
+    document.addEventListener('click', (event) => {
+      const routeBtn = event.target.closest('.mapa-politico-route-btn');
+      if (!routeBtn) return;
+
+      const id = Number(routeBtn.getAttribute('data-route-id'));
+      const entry = allEntries.find((item) => item.politician_id === id);
+      if (!entry) {
+        setStatus('Não foi possível localizar o político para traçar rota.', 'error');
+        return;
+      }
+
+      traceRoute(entry);
     });
 
     applyFilters();

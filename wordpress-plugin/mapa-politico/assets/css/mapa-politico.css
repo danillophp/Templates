@@ -1,14 +1,20 @@
 .mapa-politico-wrapper { margin: 1rem 0; }
-.mapa-politico-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem; margin-bottom: .75rem; }
-.mapa-politico-filters input, .mapa-politico-filters button { padding: .5rem .65rem; border: 1px solid #d1d5db; border-radius: 8px; }
+.mapa-politico-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .5rem; margin-bottom: .75rem; }
+.mapa-politico-filters input, .mapa-politico-filters button { padding: .55rem .7rem; border: 1px solid #d1d5db; border-radius: 8px; }
 .mapa-politico-filters button { background: #1f4e8c; color: #fff; cursor: pointer; }
+.mapa-politico-status { min-height: 1.25rem; margin: .25rem 0 .75rem; font-size: .92rem; }
+.mapa-politico-status[data-type="error"] { color: #b91c1c; }
+.mapa-politico-status[data-type="success"] { color: #166534; }
+.mapa-politico-status[data-type="loading"] { color: #1d4ed8; }
 
-.mapa-politico-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: .75rem; }
+.mapa-politico-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: .75rem; }
 #mapa-politico-map { min-height: 70vh; border-radius: 12px; overflow: hidden; }
 .mapa-politico-results { border: 1px solid #e5e7eb; border-radius: 10px; padding: .75rem; max-height: 70vh; overflow: auto; background: #fff; }
 
-.mapa-politico-result-item { display: block; width: 100%; text-align: left; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: .6rem; margin-bottom: .5rem; cursor: pointer; }
-.mapa-politico-result-item span, .mapa-politico-result-item small { display: block; color: #4b5563; }
+.mapa-politico-result-item { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: .55rem; margin-bottom: .5rem; }
+.mapa-politico-select-btn { width: 100%; text-align: left; background: #fff; border: none; padding: 0; cursor: pointer; }
+.mapa-politico-select-btn span, .mapa-politico-select-btn small { display: block; color: #4b5563; }
+.mapa-politico-route-btn { margin-top: .45rem; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e40af; border-radius: 6px; padding: .35rem .55rem; cursor: pointer; }
 
 #mapa-politico-modal { position: fixed; inset: 0; display: none; background: rgba(0,0,0,.5); align-items: center; justify-content: center; padding: 1rem; z-index: 99999; }
 #mapa-politico-modal.open { display: flex; }
@@ -17,10 +23,13 @@
 .mapa-politico-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: .75rem; margin-bottom: .75rem; }
 .mapa-politico-card img { max-width: 160px; border-radius: 8px; }
 
+.mapa-politico-custom-marker span { display:block; width:18px; height:18px; border-radius:999px; background:#1f4e8c; border:3px solid #fff; box-shadow:0 0 0 2px rgba(31,78,140,.35); }
+.mapa-politico-user-marker span { display:block; width:18px; height:18px; border-radius:999px; background:#16a34a; border:3px solid #fff; box-shadow:0 0 0 2px rgba(22,163,74,.35); }
+.mapa-politico-popup { font-size:.9rem; line-height:1.35; }
+
+.leaflet-routing-container { max-height: 220px; overflow: auto; font-size: .85rem; }
+
 @media (max-width: 900px) {
   .mapa-politico-layout { grid-template-columns: 1fr; }
   .mapa-politico-results { max-height: unset; }
 }
-
-.mapa-politico-custom-marker span{display:block;width:18px;height:18px;border-radius:999px;background:#1f4e8c;border:3px solid #fff;box-shadow:0 0 0 2px rgba(31,78,140,.35);}
-.mapa-politico-popup{font-size:.9rem;line-height:1.35;}

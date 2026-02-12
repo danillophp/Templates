@@ -19,8 +19,12 @@ class MapaPoliticoPublic
         wp_register_style('mapa-politico-leaflet-css', 'https://unpkg.com/leaflet/dist/leaflet.css', [], '1.9.4');
         wp_register_script('mapa-politico-leaflet-js', 'https://unpkg.com/leaflet/dist/leaflet.js', [], '1.9.4', true);
 
-        wp_register_style('mapa-politico-css', MAPA_POLITICO_URL . 'assets/css/mapa-politico.css', ['mapa-politico-leaflet-css'], MAPA_POLITICO_VERSION);
-        wp_register_script('mapa-politico-js', MAPA_POLITICO_URL . 'assets/js/mapa-politico-public.js', ['mapa-politico-leaflet-js'], MAPA_POLITICO_VERSION, true);
+        // Leaflet Routing Machine + OSRM (gratuito)
+        wp_register_style('mapa-politico-routing-css', 'https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css', ['mapa-politico-leaflet-css'], '3.2.12');
+        wp_register_script('mapa-politico-routing-js', 'https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js', ['mapa-politico-leaflet-js'], '3.2.12', true);
+
+        wp_register_style('mapa-politico-css', MAPA_POLITICO_URL . 'assets/css/mapa-politico.css', ['mapa-politico-routing-css'], MAPA_POLITICO_VERSION);
+        wp_register_script('mapa-politico-js', MAPA_POLITICO_URL . 'assets/js/mapa-politico-public.js', ['mapa-politico-routing-js'], MAPA_POLITICO_VERSION, true);
     }
 
     public static function renderShortcode(): string
@@ -33,13 +37,14 @@ class MapaPoliticoPublic
             'nonce' => wp_create_nonce('mapa_politico_public_nonce'),
             'tilesUrl' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             'tilesAttribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            'osrmServiceUrl' => 'https://router.project-osrm.org/route/v1',
         ]);
 
         ob_start();
         ?>
         <section class="mapa-politico-wrapper">
             <h2>Mapa Político</h2>
-            <p>Pesquise por nome, partido, cidade ou CEP e clique no resultado para centralizar no mapa.</p>
+            <p>Pesquise por nome, partido, cidade ou CEP, e se desejar, trace uma rota até o político selecionado.</p>
 
             <div class="mapa-politico-filters">
                 <input type="text" id="filtro-nome" placeholder="Pesquisar por nome do político">
@@ -47,7 +52,10 @@ class MapaPoliticoPublic
                 <input type="text" id="filtro-cidade" placeholder="Pesquisar por cidade">
                 <input type="text" id="filtro-cep" placeholder="Pesquisar por CEP">
                 <button type="button" id="filtro-limpar">Limpar</button>
+                <button type="button" id="rota-limpar">Limpar rota</button>
             </div>
+
+            <p id="mapa-politico-status" class="mapa-politico-status" role="status" aria-live="polite"></p>
 
             <div class="mapa-politico-layout">
                 <div id="mapa-politico-map"></div>

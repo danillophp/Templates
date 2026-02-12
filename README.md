@@ -101,3 +101,17 @@ Inclui:
 - Adicionar testes automatizados E2E com WordPress de desenvolvimento.
 - Inserir paginação na listagem pública quando houver muitos registros.
 - Criar endpoint REST dedicado com cache para alta escala.
+
+
+## Rota / Navegação (novo)
+
+- Botão **📍 Traçar rota** disponível no popup do marcador, no modal e na lista de resultados.
+- Usa **Geolocation API** para origem (posição do usuário).
+- Usa **Leaflet Routing Machine** + **OSRM público** para calcular rota gratuita.
+- Exibe origem (ícone verde), destino (ícone padrão do político), linha da rota e ajuste automático de viewport.
+- Botão **Limpar rota** para remover navegação atual.
+- Tratamento amigável de erros:
+  - permissão negada
+  - localização indisponível
+  - timeout
+  - falha de roteamento
