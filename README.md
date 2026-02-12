@@ -1,70 +1,149 @@
-# Plugin WordPress: Mapa Político Mundial (OpenStreetMap + Leaflet)
+# Plugin WordPress: Mapa Político (OpenStreetMap + Leaflet)
 
-Este repositório está adaptado para uso como **plugin WordPress** sem dependência de APIs pagas de mapa.
+Este projeto está preparado com **prioridade para WordPress (Opção A)**, removendo totalmente Google Maps e usando stack gratuita:
 
-## O que o plugin entrega
+- **Leaflet** (renderização)
+- **OpenStreetMap** (tiles)
+- **Nominatim** (geocodificação opcional no admin)
 
-- Shortcode público `[mapa_politico]` para renderizar mapa mundial com **Leaflet + OpenStreetMap**.
-- Marcadores dinâmicos por localidade.
-- Modal com dados políticos completos:
-  - nome, cargo, partido, idade
-  - biografia e histórico político
-  - foto
-  - informações do município e região
-  - telefone, e-mail e assessores
-- Painel administrativo no WordPress:
-  - **Mapa Político > Visão geral**
-  - **Mapa Político > Localizações** (CRUD + geocodificação gratuita com Nominatim)
-  - **Mapa Político > Políticos** (CRUD + upload de foto via biblioteca de mídia)
+---
 
-## Bibliotecas do mapa
+## 1) Estrutura de pastas (principal)
 
-No plugin, o equivalente aos includes abaixo é feito via `wp_register_style` e `wp_register_script`:
+```txt
+wordpress-plugin/
+  mapa-politico/
+    mapa-politico.php                         # Arquivo principal do plugin (hooks/boot)
+    uninstall.php                             # Remove tabelas customizadas na desinstalação
+    includes/
+      class-mapa-politico-db.php              # Criação/upgrade das tabelas (dbDelta)
+      class-mapa-politico-admin.php           # Menus admin + CRUD + geocodificação Nominatim
+      class-mapa-politico-public.php          # Shortcode + enqueue + endpoint AJAX
+    assets/
+      css/mapa-politico.css                   # Estilos do mapa/modal
+      js/mapa-politico-public.js              # Leaflet: mapa, marcadores e eventos
+```
+
+> Também existe um fallback standalone no repositório (`app/`, `public/`, `config/`) para ambientes sem WordPress.
+
+---
+
+## 2) Principais arquivos e responsabilidades
+
+- `wordpress-plugin/mapa-politico/mapa-politico.php`
+  - Registra constantes do plugin
+  - Carrega classes
+  - Ativa criação de tabelas no `register_activation_hook`
+- `wordpress-plugin/mapa-politico/includes/class-mapa-politico-public.php`
+  - Registra Leaflet CSS/JS
+  - Disponibiliza shortcode `[mapa_politico]`
+  - Fornece dados via `admin-ajax.php`
+- `wordpress-plugin/mapa-politico/assets/js/mapa-politico-public.js`
+  - Inicializa mapa com `L.map`
+  - Aplica tiles OSM (`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`)
+  - Cria marcadores (`L.marker`) e clique para abrir modal
+- `wordpress-plugin/mapa-politico/includes/class-mapa-politico-admin.php`
+  - CRUD de localizações e políticos
+  - Botão de geocodificação gratuita via Nominatim
+- `wordpress-plugin/mapa-politico/includes/class-mapa-politico-db.php`
+  - Cria tabelas:
+    - `{prefix}mapa_politico_locations`
+    - `{prefix}mapa_politico_politicians`
+
+---
+
+## 3) Código do mapa (Leaflet) — referência de integração
+
+No plugin, o carregamento é feito por enqueue (boas práticas WordPress), equivalente a:
 
 ```html
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 ```
 
-## Estrutura do plugin
+Trecho essencial de inicialização (já implementado em `mapa-politico-public.js`):
 
-```txt
-wordpress-plugin/
-  mapa-politico/
-    mapa-politico.php
-    uninstall.php
-    includes/
-      class-mapa-politico-db.php
-      class-mapa-politico-admin.php
-      class-mapa-politico-public.php
-    assets/
-      css/mapa-politico.css
-      js/mapa-politico-public.js
+```js
+const map = L.map('mapa-politico-map', {
+  center: [12, 0],
+  zoom: 2,
+  minZoom: 2,
+  worldCopyJump: true,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+L.marker([lat, lng]).addTo(map).on('click', () => {
+  // abre modal com dados políticos
+});
 ```
 
-## Instalação no WordPress
+---
 
-1. Compacte a pasta `wordpress-plugin/mapa-politico` em `.zip`.
-2. No WP Admin, vá em **Plugins > Adicionar novo > Enviar plugin**.
-3. Envie o `.zip`, instale e ative.
-4. Em **Mapa Político > Localizações**, cadastre os pontos e, se desejar, use o botão de geocodificação Nominatim.
-5. Crie uma página e adicione o shortcode:
+## 4) Shortcode público
+
+Use em qualquer página/post WordPress:
 
 ```txt
 [mapa_politico]
 ```
 
-## Segurança e boas práticas aplicadas
+---
 
-- Controle de acesso por `manage_options` nas telas administrativas.
-- Nonces (`wp_nonce_field`, `check_admin_referer`, `check_ajax_referer`) em ações sensíveis.
-- Sanitização com funções nativas do WordPress (`sanitize_text_field`, `sanitize_email`, etc.).
-- Escape de saída (`esc_html`, `esc_attr`, `esc_textarea`, `esc_url`).
-- Upload de mídia via APIs nativas do WordPress (`media_handle_upload`).
+## 5) Instalação (Opção A — WordPress, prioridade)
 
-## Observações
+1. Compacte a pasta `wordpress-plugin/mapa-politico` em `.zip`.
+2. WP Admin → **Plugins > Adicionar novo > Enviar plugin**.
+3. Instale e ative.
+4. Cadastre dados em:
+   - **Mapa Político > Localizações**
+   - **Mapa Político > Políticos**
+5. Crie uma página e adicione `[mapa_politico]`.
 
-- O plugin cria duas tabelas customizadas com prefixo do WordPress:
-  - `{prefix}mapa_politico_locations`
-  - `{prefix}mapa_politico_politicians`
-- Na desinstalação (`uninstall.php`), as tabelas são removidas.
+### Base URL dinâmica
+No plugin WordPress, URLs são dinâmicas via funções nativas (`admin_url`, `plugin_dir_url`, etc.), evitando hardcode.
+
+---
+
+## 6) Banco de dados
+
+### Plugin WordPress (produção recomendada)
+- Usa **`$wpdb`** (padrão WordPress), sem arquivo externo de conexão.
+- Tabelas são criadas automaticamente na ativação.
+
+### Fallback standalone (opcional)
+Foram definidos defaults editáveis conforme solicitado:
+
+- Database: `mapa_politico`
+- Usuário: `mapa_politico`
+- Senha: `Php@3903*`
+- URL base padrão: `https://www.andredopremium.com.br/mapapolitico`
+
+Arquivos:
+- `config/database.php`
+- `config/app.php`
+- `.env.example`
+
+> Recomenda-se configurar variáveis de ambiente reais no servidor em produção.
+
+---
+
+## 7) Segurança e boas práticas aplicadas
+
+- `manage_options` no admin.
+- Nonces em formulários e AJAX.
+- Sanitização/escape com APIs nativas WordPress.
+- Upload via `media_handle_upload`.
+- Sem dependência de API paga para mapas.
+
+---
+
+## 8) Resultado
+
+✅ Sistema funcional com mapa gratuito (OpenStreetMap + Leaflet)  
+✅ Sem Google Maps/API key paga  
+✅ Instalação simples via plugin ZIP  
+✅ Adequado para uso institucional
