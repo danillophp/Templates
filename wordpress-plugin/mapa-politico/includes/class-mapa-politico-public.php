@@ -16,8 +16,11 @@ class MapaPoliticoPublic
 
     public static function registerAssets(): void
     {
-        wp_register_style('mapa-politico-css', MAPA_POLITICO_URL . 'assets/css/mapa-politico.css', [], MAPA_POLITICO_VERSION);
-        wp_register_script('mapa-politico-js', MAPA_POLITICO_URL . 'assets/js/mapa-politico-public.js', [], MAPA_POLITICO_VERSION, true);
+        wp_register_style('mapa-politico-leaflet-css', 'https://unpkg.com/leaflet/dist/leaflet.css', [], '1.9.4');
+        wp_register_script('mapa-politico-leaflet-js', 'https://unpkg.com/leaflet/dist/leaflet.js', [], '1.9.4', true);
+
+        wp_register_style('mapa-politico-css', MAPA_POLITICO_URL . 'assets/css/mapa-politico.css', ['mapa-politico-leaflet-css'], MAPA_POLITICO_VERSION);
+        wp_register_script('mapa-politico-js', MAPA_POLITICO_URL . 'assets/js/mapa-politico-public.js', ['mapa-politico-leaflet-js'], MAPA_POLITICO_VERSION, true);
     }
 
     public static function renderShortcode(): string
@@ -28,7 +31,8 @@ class MapaPoliticoPublic
         wp_localize_script('mapa-politico-js', 'MapaPoliticoConfig', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mapa_politico_public_nonce'),
-            'googleMapsApiKey' => get_option('mapa_politico_google_maps_api_key', ''),
+            'tilesUrl' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'tilesAttribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         ]);
 
         ob_start();

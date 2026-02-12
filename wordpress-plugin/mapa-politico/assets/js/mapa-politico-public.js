@@ -48,17 +48,27 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
-  async function initMap() {
+  async function initLeafletMap() {
     const mapEl = document.getElementById('mapa-politico-map');
     if (!mapEl) return;
 
-    const map = new google.maps.Map(mapEl, {
-      center: { lat: 12, lng: 0 },
+    if (typeof L === 'undefined') {
+      mapEl.innerHTML = '<p>Não foi possível carregar o Leaflet.</p>';
+      return;
+    }
+
+    const map = L.map(mapEl, {
+      center: [12, 0],
       zoom: 2,
       minZoom: 2,
-      streetViewControl: false,
-      mapTypeControl: false,
+      zoomControl: true,
+      worldCopyJump: true,
     });
+
+    L.tileLayer(MapaPoliticoConfig.tilesUrl, {
+      attribution: MapaPoliticoConfig.tilesAttribution,
+      maxZoom: 19,
+    }).addTo(map);
 
     const params = new URLSearchParams({
       action: 'mapa_politico_data',
@@ -70,35 +80,12 @@
     const locations = payload?.data?.locations || [];
 
     locations.forEach((location) => {
-      const marker = new google.maps.Marker({
-        map,
-        position: { lat: Number(location.latitude), lng: Number(location.longitude) },
-        title: location.location_name,
-      });
-
-      marker.addListener('click', () => openModal(location));
+      const marker = L.marker([Number(location.latitude), Number(location.longitude)]).addTo(map);
+      marker.on('click', () => openModal(location));
     });
   }
 
-  function loadGoogleMaps() {
-    const mapEl = document.getElementById('mapa-politico-map');
-    if (!mapEl) return;
-
-    const key = MapaPoliticoConfig.googleMapsApiKey || '';
-    if (!key) {
-      mapEl.innerHTML = '<p>Configure a Google Maps API Key no painel do plugin.</p>';
-      return;
-    }
-
-    window.initMapaPoliticoMap = initMap;
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=initMapaPoliticoMap`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  }
-
-  document.addEventListener('DOMContentLoaded', loadGoogleMaps);
+  document.addEventListener('DOMContentLoaded', initLeafletMap);
   document.addEventListener('click', (event) => {
     if (event.target?.id === 'mapa-politico-close' || event.target?.id === 'mapa-politico-modal') {
       closeModal();

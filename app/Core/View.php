@@ -8,7 +8,6 @@ class View
     {
         $appName = Config::get('app.app_name');
         $baseUrl = Config::get('app.base_url');
-        $googleMapsApiKey = Config::get('app.google_maps_api_key');
         extract($data, EXTR_SKIP);
 
         ob_start();

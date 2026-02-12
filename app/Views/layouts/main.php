@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? $appName) ?></title>
     <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
 <header class="site-header">
@@ -14,11 +15,7 @@
 <main>
     <?= $content ?>
 </main>
-<script>
-    window.APP_CONFIG = {
-        googleMapsApiKey: "<?= htmlspecialchars($googleMapsApiKey, ENT_QUOTES) ?>"
-    };
-</script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="/assets/js/map.js" defer></script>
 </body>
 </html>

@@ -9,7 +9,6 @@ class MapaPoliticoAdmin
     public static function init(): void
     {
         add_action('admin_menu', [self::class, 'registerMenu']);
-        add_action('admin_post_mapa_politico_save_settings', [self::class, 'saveSettings']);
 
         add_action('admin_post_mapa_politico_save_location', [self::class, 'saveLocation']);
         add_action('admin_post_mapa_politico_delete_location', [self::class, 'deleteLocation']);
@@ -21,7 +20,7 @@ class MapaPoliticoAdmin
     public static function registerMenu(): void
     {
         add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico', [self::class, 'renderDashboard'], 'dashicons-location-alt', 26);
-        add_submenu_page('mapa-politico', 'Configurações', 'Configurações', 'manage_options', 'mapa-politico', [self::class, 'renderDashboard']);
+        add_submenu_page('mapa-politico', 'Visão geral', 'Visão geral', 'manage_options', 'mapa-politico', [self::class, 'renderDashboard']);
         add_submenu_page('mapa-politico', 'Localizações', 'Localizações', 'manage_options', 'mapa-politico-locations', [self::class, 'renderLocations']);
         add_submenu_page('mapa-politico', 'Políticos', 'Políticos', 'manage_options', 'mapa-politico-politicians', [self::class, 'renderPoliticians']);
     }
@@ -31,40 +30,19 @@ class MapaPoliticoAdmin
         if (!current_user_can('manage_options')) {
             wp_die('Sem permissão.');
         }
-
-        $apiKey = get_option('mapa_politico_google_maps_api_key', '');
         ?>
         <div class="wrap">
-            <h1>Mapa Político - Configurações</h1>
-            <p>Use o shortcode <code>[mapa_politico]</code> em qualquer página/post para exibir o mapa.</p>
-            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('mapa_politico_save_settings'); ?>
-                <input type="hidden" name="action" value="mapa_politico_save_settings">
-                <table class="form-table" role="presentation">
-                    <tr>
-                        <th><label for="google_maps_api_key">Google Maps API Key</label></th>
-                        <td><input id="google_maps_api_key" class="regular-text" type="text" name="google_maps_api_key" value="<?php echo esc_attr($apiKey); ?>"></td>
-                    </tr>
-                </table>
-                <?php submit_button('Salvar configurações'); ?>
-            </form>
+            <h1>Mapa Político - OpenStreetMap + Leaflet</h1>
+            <p>Este plugin utiliza exclusivamente tecnologias gratuitas:</p>
+            <ul>
+                <li><strong>Leaflet</strong> para renderização do mapa.</li>
+                <li><strong>OpenStreetMap</strong> como provedor de tiles.</li>
+                <li><strong>Nominatim (OSM)</strong> para sugestão de coordenadas a partir de endereço.</li>
+            </ul>
+            <p>Use o shortcode <code>[mapa_politico]</code> para exibir o mapa no site.</p>
+            <p>Para cadastrar coordenadas automaticamente, acesse <strong>Mapa Político &gt; Localizações</strong> e use o botão <em>Buscar coordenadas com Nominatim</em>.</p>
         </div>
         <?php
-    }
-
-    public static function saveSettings(): void
-    {
-        if (!current_user_can('manage_options')) {
-            wp_die('Sem permissão.');
-        }
-
-        check_admin_referer('mapa_politico_save_settings');
-
-        $apiKey = isset($_POST['google_maps_api_key']) ? sanitize_text_field(wp_unslash($_POST['google_maps_api_key'])) : '';
-        update_option('mapa_politico_google_maps_api_key', $apiKey);
-
-        wp_safe_redirect(admin_url('admin.php?page=mapa-politico&updated=1'));
-        exit;
     }
 
     public static function renderLocations(): void
@@ -87,15 +65,74 @@ class MapaPoliticoAdmin
                 <input type="hidden" name="id" value="<?php echo esc_attr((string) ($editing['id'] ?? '')); ?>">
                 <table class="form-table" role="presentation">
                     <tr><th>Nome do local</th><td><input required class="regular-text" name="name" value="<?php echo esc_attr($editing['name'] ?? ''); ?>"></td></tr>
-                    <tr><th>Endereço</th><td><input required class="regular-text" name="address" value="<?php echo esc_attr($editing['address'] ?? ''); ?>"></td></tr>
-                    <tr><th>CEP</th><td><input class="regular-text" name="postal_code" value="<?php echo esc_attr($editing['postal_code'] ?? ''); ?>"></td></tr>
-                    <tr><th>Latitude</th><td><input required step="0.000001" type="number" name="latitude" value="<?php echo esc_attr((string) ($editing['latitude'] ?? '')); ?>"></td></tr>
-                    <tr><th>Longitude</th><td><input required step="0.000001" type="number" name="longitude" value="<?php echo esc_attr((string) ($editing['longitude'] ?? '')); ?>"></td></tr>
+                    <tr><th>Endereço</th><td><input id="mapa-politico-address" required class="regular-text" name="address" value="<?php echo esc_attr($editing['address'] ?? ''); ?>"></td></tr>
+                    <tr><th>CEP</th><td><input id="mapa-politico-postal" class="regular-text" name="postal_code" value="<?php echo esc_attr($editing['postal_code'] ?? ''); ?>"></td></tr>
+                    <tr>
+                        <th>Geocodificação</th>
+                        <td>
+                            <button type="button" class="button" id="mapa-politico-geocode-btn">Buscar coordenadas com Nominatim</button>
+                            <p class="description">Geocodificação gratuita via Nominatim (OpenStreetMap). Revise o resultado antes de salvar.</p>
+                            <p id="mapa-politico-geocode-feedback" style="margin:.5rem 0 0;"></p>
+                        </td>
+                    </tr>
+                    <tr><th>Latitude</th><td><input id="mapa-politico-latitude" required step="0.000001" type="number" name="latitude" value="<?php echo esc_attr((string) ($editing['latitude'] ?? '')); ?>"></td></tr>
+                    <tr><th>Longitude</th><td><input id="mapa-politico-longitude" required step="0.000001" type="number" name="longitude" value="<?php echo esc_attr((string) ($editing['longitude'] ?? '')); ?>"></td></tr>
                     <tr><th>Informações do município</th><td><textarea class="large-text" rows="3" name="city_info"><?php echo esc_textarea($editing['city_info'] ?? ''); ?></textarea></td></tr>
                     <tr><th>Informações da região</th><td><textarea class="large-text" rows="3" name="region_info"><?php echo esc_textarea($editing['region_info'] ?? ''); ?></textarea></td></tr>
                 </table>
                 <?php submit_button($editing ? 'Atualizar localização' : 'Adicionar localização'); ?>
             </form>
+
+            <script>
+                (function () {
+                    const btn = document.getElementById('mapa-politico-geocode-btn');
+                    const addressInput = document.getElementById('mapa-politico-address');
+                    const postalInput = document.getElementById('mapa-politico-postal');
+                    const latInput = document.getElementById('mapa-politico-latitude');
+                    const lngInput = document.getElementById('mapa-politico-longitude');
+                    const feedback = document.getElementById('mapa-politico-geocode-feedback');
+
+                    if (!btn) return;
+
+                    btn.addEventListener('click', async () => {
+                        const query = [addressInput?.value || '', postalInput?.value || ''].filter(Boolean).join(', ');
+                        if (!query) {
+                            feedback.textContent = 'Informe o endereço (e opcionalmente CEP) para buscar coordenadas.';
+                            return;
+                        }
+
+                        feedback.textContent = 'Consultando Nominatim...';
+                        btn.disabled = true;
+
+                        try {
+                            const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+                            const response = await fetch(url, {
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Falha ao consultar geocodificação.');
+                            }
+
+                            const data = await response.json();
+                            if (!Array.isArray(data) || !data.length) {
+                                feedback.textContent = 'Nenhum resultado encontrado para o endereço informado.';
+                                return;
+                            }
+
+                            latInput.value = Number(data[0].lat).toFixed(6);
+                            lngInput.value = Number(data[0].lon).toFixed(6);
+                            feedback.textContent = 'Coordenadas preenchidas com sucesso.';
+                        } catch (error) {
+                            feedback.textContent = 'Não foi possível obter coordenadas neste momento. Tente novamente.';
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+                })();
+            </script>
 
             <hr>
             <h2>Registros</h2>

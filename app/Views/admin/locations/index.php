@@ -21,7 +21,7 @@
         <label>Informações da região<textarea name="region_info" rows="3"><?= htmlspecialchars($editing['region_info'] ?? '') ?></textarea></label>
         <button type="submit"><?= $editing ? 'Atualizar' : 'Salvar' ?></button>
     </form>
-    <p class="hint">Dica: você pode obter latitude/longitude clicando no mapa público e inspecionando coordenadas no Google Maps.</p>
+    <p class="hint">Dica: você pode obter latitude/longitude clicando no mapa público e inspecionando coordenadas no OpenStreetMap / Leaflet.</p>
 </section>
 
 <section class="card">

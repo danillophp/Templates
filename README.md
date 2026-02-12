@@ -1,10 +1,10 @@
-# Plugin WordPress: Mapa Político Mundial
+# Plugin WordPress: Mapa Político Mundial (OpenStreetMap + Leaflet)
 
-Este repositório foi adaptado para uso como **plugin WordPress**.
+Este repositório está adaptado para uso como **plugin WordPress** sem dependência de APIs pagas de mapa.
 
 ## O que o plugin entrega
 
-- Shortcode público `[mapa_politico]` para renderizar mapa mundial com Google Maps.
+- Shortcode público `[mapa_politico]` para renderizar mapa mundial com **Leaflet + OpenStreetMap**.
 - Marcadores dinâmicos por localidade.
 - Modal com dados políticos completos:
   - nome, cargo, partido, idade
@@ -13,9 +13,18 @@ Este repositório foi adaptado para uso como **plugin WordPress**.
   - informações do município e região
   - telefone, e-mail e assessores
 - Painel administrativo no WordPress:
-  - **Mapa Político > Configurações** (Google Maps API Key)
-  - **Mapa Político > Localizações** (CRUD)
+  - **Mapa Político > Visão geral**
+  - **Mapa Político > Localizações** (CRUD + geocodificação gratuita com Nominatim)
   - **Mapa Político > Políticos** (CRUD + upload de foto via biblioteca de mídia)
+
+## Bibliotecas do mapa
+
+No plugin, o equivalente aos includes abaixo é feito via `wp_register_style` e `wp_register_script`:
+
+```html
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+```
 
 ## Estrutura do plugin
 
@@ -38,7 +47,7 @@ wordpress-plugin/
 1. Compacte a pasta `wordpress-plugin/mapa-politico` em `.zip`.
 2. No WP Admin, vá em **Plugins > Adicionar novo > Enviar plugin**.
 3. Envie o `.zip`, instale e ative.
-4. Em **Mapa Político > Configurações**, configure a Google Maps API Key.
+4. Em **Mapa Político > Localizações**, cadastre os pontos e, se desejar, use o botão de geocodificação Nominatim.
 5. Crie uma página e adicione o shortcode:
 
 ```txt
@@ -58,4 +67,4 @@ wordpress-plugin/
 - O plugin cria duas tabelas customizadas com prefixo do WordPress:
   - `{prefix}mapa_politico_locations`
   - `{prefix}mapa_politico_politicians`
-- Na desinstalação (`uninstall.php`), as tabelas e opção da API key são removidas.
+- Na desinstalação (`uninstall.php`), as tabelas são removidas.

@@ -2,25 +2,24 @@ async function initMap() {
   const mapElement = document.getElementById('map');
   if (!mapElement) return;
 
-  const map = new google.maps.Map(mapElement, {
-    center: { lat: 15, lng: 0 },
+  const map = L.map(mapElement, {
+    center: [15, 0],
     zoom: 2,
     minZoom: 2,
-    streetViewControl: false,
-    mapTypeControl: false,
+    worldCopyJump: true,
   });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  }).addTo(map);
 
   const res = await fetch('/api/map-data');
   const data = await res.json();
 
   data.locations.forEach((location) => {
-    const marker = new google.maps.Marker({
-      position: { lat: location.latitude, lng: location.longitude },
-      map,
-      title: location.location_name,
-    });
-
-    marker.addListener('click', () => openDetails(location));
+    const marker = L.marker([location.latitude, location.longitude]).addTo(map);
+    marker.on('click', () => openDetails(location));
   });
 }
 
@@ -65,14 +64,19 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function loadGoogleMapsScript() {
+function loadLeafletScript() {
   if (document.getElementById('map') === null) return;
-  const key = window.APP_CONFIG?.googleMapsApiKey;
+
+  const leafletCss = document.createElement('link');
+  leafletCss.rel = 'stylesheet';
+  leafletCss.href = 'https://unpkg.com/leaflet/dist/leaflet.css';
+  document.head.appendChild(leafletCss);
+
   const script = document.createElement('script');
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=initMap`;
+  script.src = 'https://unpkg.com/leaflet/dist/leaflet.js';
   script.async = true;
   script.defer = true;
-  window.initMap = initMap;
+  script.onload = initMap;
   document.head.appendChild(script);
 }
 
@@ -85,4 +89,4 @@ document.addEventListener('click', (event) => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', loadGoogleMapsScript);
+document.addEventListener('DOMContentLoaded', loadLeafletScript);
