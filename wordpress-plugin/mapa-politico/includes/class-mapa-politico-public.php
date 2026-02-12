@@ -38,9 +38,24 @@ class MapaPoliticoPublic
         ob_start();
         ?>
         <section class="mapa-politico-wrapper">
-            <h2>Mapa mundial de representantes políticos</h2>
-            <p>Clique na marcação para visualizar os detalhes da localidade e das figuras políticas.</p>
-            <div id="mapa-politico-map"></div>
+            <h2>Mapa Político</h2>
+            <p>Pesquise por nome, partido, cidade ou CEP e clique no resultado para centralizar no mapa.</p>
+
+            <div class="mapa-politico-filters">
+                <input type="text" id="filtro-nome" placeholder="Pesquisar por nome do político">
+                <input type="text" id="filtro-partido" placeholder="Pesquisar por partido">
+                <input type="text" id="filtro-cidade" placeholder="Pesquisar por cidade">
+                <input type="text" id="filtro-cep" placeholder="Pesquisar por CEP">
+                <button type="button" id="filtro-limpar">Limpar</button>
+            </div>
+
+            <div class="mapa-politico-layout">
+                <div id="mapa-politico-map"></div>
+                <aside class="mapa-politico-results">
+                    <h3>Resultados</h3>
+                    <div id="mapa-politico-results-list"></div>
+                </aside>
+            </div>
         </section>
 
         <div id="mapa-politico-modal" aria-hidden="true">
@@ -62,47 +77,44 @@ class MapaPoliticoPublic
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
 
         $rows = $wpdb->get_results(
-            "SELECT l.id AS location_id, l.name AS location_name, l.latitude, l.longitude, l.city_info, l.region_info,
-                    p.id AS politician_id, p.full_name, p.position, p.party, p.age, p.biography, p.career_history,
-                    p.municipality_history, p.phone, p.email, p.advisors, p.photo_id
-             FROM {$locationsTable} l
-             LEFT JOIN {$politiciansTable} p ON p.location_id = l.id
-             ORDER BY l.name ASC, p.full_name ASC",
+            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.age, p.biography, p.career_history,
+                    p.municipality_history, p.phone, p.email, p.advisors, p.photo_id,
+                    l.id AS location_id, l.name AS location_name, l.city, l.state, l.postal_code, l.latitude, l.longitude, l.city_info, l.region_info
+             FROM {$politiciansTable} p
+             INNER JOIN {$locationsTable} l ON l.id = p.location_id
+             ORDER BY p.full_name ASC",
             ARRAY_A
         );
 
-        $grouped = [];
+        $entries = [];
         foreach ($rows as $row) {
-            $locationId = (int) $row['location_id'];
-            if (!isset($grouped[$locationId])) {
-                $grouped[$locationId] = [
-                    'location_id' => $locationId,
-                    'location_name' => $row['location_name'],
+            $entries[] = [
+                'politician_id' => (int) $row['politician_id'],
+                'full_name' => $row['full_name'],
+                'position' => $row['position'],
+                'party' => $row['party'],
+                'age' => $row['age'],
+                'biography' => $row['biography'],
+                'career_history' => $row['career_history'],
+                'municipality_history' => $row['municipality_history'],
+                'phone' => $row['phone'],
+                'email' => $row['email'],
+                'advisors' => $row['advisors'],
+                'photo_url' => !empty($row['photo_id']) ? wp_get_attachment_image_url((int) $row['photo_id'], 'medium') : null,
+                'location' => [
+                    'id' => (int) $row['location_id'],
+                    'name' => $row['location_name'],
+                    'city' => $row['city'],
+                    'state' => $row['state'],
+                    'postal_code' => $row['postal_code'],
                     'latitude' => (float) $row['latitude'],
                     'longitude' => (float) $row['longitude'],
                     'city_info' => $row['city_info'],
                     'region_info' => $row['region_info'],
-                    'politicians' => [],
-                ];
-            }
-
-            if (!empty($row['politician_id'])) {
-                $grouped[$locationId]['politicians'][] = [
-                    'full_name' => $row['full_name'],
-                    'position' => $row['position'],
-                    'party' => $row['party'],
-                    'age' => $row['age'],
-                    'biography' => $row['biography'],
-                    'career_history' => $row['career_history'],
-                    'municipality_history' => $row['municipality_history'],
-                    'phone' => $row['phone'],
-                    'email' => $row['email'],
-                    'advisors' => $row['advisors'],
-                    'photo_url' => !empty($row['photo_id']) ? wp_get_attachment_image_url((int) $row['photo_id'], 'medium') : null,
-                ];
-            }
+                ],
+            ];
         }
 
-        wp_send_json_success(['locations' => array_values($grouped)]);
+        wp_send_json_success(['entries' => $entries]);
     }
 }

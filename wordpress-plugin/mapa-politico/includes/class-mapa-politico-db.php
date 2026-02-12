@@ -16,10 +16,13 @@ class MapaPoliticoDB
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
 
+        // Tabela geográfica (cidade/estado/CEP + coordenadas)
         $sqlLocations = "CREATE TABLE {$locationsTable} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(150) NOT NULL,
-            address VARCHAR(255) NOT NULL,
+            city VARCHAR(120) NOT NULL,
+            state VARCHAR(120) NULL,
+            address VARCHAR(255) NULL,
             postal_code VARCHAR(20) NULL,
             latitude DECIMAL(10,7) NOT NULL,
             longitude DECIMAL(10,7) NOT NULL,
@@ -27,9 +30,12 @@ class MapaPoliticoDB
             region_info TEXT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
+            PRIMARY KEY (id),
+            KEY idx_city (city),
+            KEY idx_postal_code (postal_code)
         ) {$charsetCollate};";
 
+        // Tabela política (dados da figura política)
         $sqlPoliticians = "CREATE TABLE {$politiciansTable} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             location_id BIGINT UNSIGNED NOT NULL,
@@ -47,7 +53,9 @@ class MapaPoliticoDB
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            KEY location_id (location_id)
+            KEY idx_location_id (location_id),
+            KEY idx_full_name (full_name),
+            KEY idx_party (party)
         ) {$charsetCollate};";
 
         dbDelta($sqlLocations);
