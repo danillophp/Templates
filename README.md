@@ -1,50 +1,54 @@
-# Cata Treco
+# CATA TRECO
 
-Sistema web em PHP + MySQL para solicitações de coleta de trecos, com painel administrativo, painel do funcionário, mapa com geolocalização e trilha de auditoria (LGPD).
+Sistema web completo para gestão municipal de coleta de inservíveis, construído com **PHP 8+ (OO/MVC)**, **MySQL**, **Bootstrap 5**, **Leaflet** e **Fetch API**.
 
-## Estrutura de pastas
+## Arquitetura
 
-- `config/` configurações (`app.php`, `db.php`)
-- `includes/` funções utilitárias e autenticação
-- `public/` páginas públicas, administrativas e do funcionário
-- `assets/` CSS e JavaScript
-- `uploads/` fotos enviadas pelos cidadãos
-- `sql/` script SQL completo
+- Backend OO com MVC simples (`app/Controllers`, `app/Models`, `app/Core`)
+- API REST interna em JSON via rotas `?r=api/...`
+- Sessão PHP para autenticação
+- Logs e trilha de auditoria LGPD
+- Front moderno, responsivo e SPA-like (AJAX)
 
-## Requisitos
+## Banco de dados
 
-- PHP 8.0+
-- Extensões PHP: `mysqli`, `fileinfo`, `session`
-- MySQL 5.7+ ou MariaDB compatível
+- Banco: `santo821_treco`
+- Usuário: `catatreco`
+- Senha: `php@3903`
+
+Arquivo de conexão: `config/db.php`.
+SQL completo: `sql/catatreco.sql`.
+
+## Módulos implementados
+
+1. **Cidadão**: formulário com geolocalização automática Nominatim, mapa Leaflet, upload de foto e envio AJAX.
+2. **Login e perfis**: ADMINISTRADOR e FUNCIONARIO com bcrypt.
+3. **Painel admin**: cards de status, filtros (data/status/bairro), ações de aprovar/recusar/reagendar/atribuir.
+4. **Painel funcionário**: tarefas atribuídas, ligar, WhatsApp, rota, iniciar e finalizar coleta.
+5. **WhatsApp automático**: estrutura para Cloud API + fallback wa.me.
+6. **LGPD/Auditoria**: consentimento, IP, logs com usuário responsável e estrutura de anonimização.
 
 ## Instalação na HostGator
 
-1. Faça upload dos arquivos para `www.prefsade.com.br/catatreco`.
-2. No cPanel, crie o banco e usuário com os dados:
-   - Banco: `santo821_treco`
-   - Usuário: `catatreco`
-   - Senha: `php@3903`
-3. Importe o SQL em `sql/catatreco.sql` via phpMyAdmin.
-4. Confirme as credenciais em `config/db.php`.
-5. Garanta permissão de escrita para `uploads/` (ex.: `775`).
-6. Acesse:
-   - Formulário público: `https://www.prefsade.com.br/catatreco/public/index.php`
-   - Login admin/funcionário: `https://www.prefsade.com.br/catatreco/public/admin/login.php`
+1. Faça upload do projeto para `public_html/catatreco`.
+2. Importe `sql/catatreco.sql` no phpMyAdmin.
+3. Verifique permissões de escrita em `uploads/` (`775`).
+4. Acesse: `https://www.prefsade.com.br/catatreco/public/index.php`.
 
 ## Credenciais iniciais
 
 - Admin: `admin` / `Admin@123`
 - Funcionário: `funcionario1` / `Func@123`
 
-> Altere as senhas imediatamente em produção.
+## Rotas principais
 
-## LGPD e auditoria
+- `?r=citizen/home`
+- `?r=auth/login`
+- `?r=admin/dashboard`
+- `?r=employee/dashboard`
 
-- Consentimento obrigatório no formulário público.
-- Registro de IP na solicitação e em logs de ações.
-- Tabela `logs` para trilha de auditoria.
-- Estrutura permite anonimização futura dos campos pessoais na tabela `requests`.
+## Observações de produção
 
-## WhatsApp
-
-As ações administrativas geram link `wa.me` com mensagem pronta para notificação ao cidadão. A estrutura pode ser substituída por API oficial do WhatsApp sem alterar o fluxo do sistema.
+- Ative HTTPS e ajuste cookies de sessão com `secure`/`httponly`.
+- Configure `WA_TOKEN` e `WA_PHONE_NUMBER_ID` em `config/app.php` para ativar WhatsApp Cloud API.
+- Recomenda-se WAF, rate-limit e backup diário do MySQL.
