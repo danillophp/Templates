@@ -10,7 +10,7 @@
 <div class="card shadow-sm mb-3"><div class="card-body">
   <div class="row g-2">
     <div class="col-md-3"><input id="fDate" type="date" class="form-control"></div>
-    <div class="col-md-3"><select id="fStatus" class="form-select"><option value="">Status</option><option>PENDENTE</option><option>APROVADO</option><option>EM_ANDAMENTO</option><option>FINALIZADO</option></select></div>
+    <div class="col-md-3"><select id="fStatus" class="form-select"><option value="">Status</option><option>PENDENTE</option><option>APROVADO</option><option>RECUSADO</option><option>EM_ANDAMENTO</option><option>FINALIZADO</option></select></div>
     <div class="col-md-3"><input id="fDistrict" class="form-control" placeholder="Bairro"></div>
     <div class="col-md-3"><button id="btnFilter" class="btn btn-success w-100">Filtrar</button></div>
   </div>

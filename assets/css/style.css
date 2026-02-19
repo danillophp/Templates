@@ -1,12 +1,60 @@
 /* Layout institucional responsivo da prefeitura */
-body { background: #f4f6f8; }
-.card { border: 0; border-radius: 14px; }
-.navbar-brand { font-weight: 700; letter-spacing: .5px; }
-.table td, .table th { white-space: nowrap; }
-#map { border-radius: 12px; }
-.mini-map { height: 220px; border-radius: 10px; margin-top: 8px; }
+:root {
+  --ct-primary: #0b7a3e;
+  --ct-primary-dark: #066332;
+  --ct-bg: #f4f6f8;
+}
+
+body {
+  background: linear-gradient(180deg, #f8fafb 0%, var(--ct-bg) 100%);
+}
+
+.navbar {
+  background: linear-gradient(90deg, var(--ct-primary-dark), var(--ct-primary)) !important;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.card {
+  border: 0;
+  border-radius: 14px;
+}
+
+.table td,
+.table th {
+  white-space: nowrap;
+}
+
+#map {
+  border-radius: 12px;
+}
+
+.mini-map {
+  height: 220px;
+  border-radius: 10px;
+  margin-top: 8px;
+}
+
+.btn-success {
+  background-color: var(--ct-primary);
+  border-color: var(--ct-primary);
+}
+
+.btn-success:hover {
+  background-color: var(--ct-primary-dark);
+  border-color: var(--ct-primary-dark);
+}
 
 @media (max-width: 767px) {
-  .table td, .table th { font-size: 12px; }
-  .mini-map { height: 180px; }
+  .table td,
+  .table th {
+    font-size: 12px;
+  }
+
+  .mini-map {
+    height: 180px;
+  }
 }

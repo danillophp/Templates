@@ -1,9 +1,10 @@
-// Formulário cidadão com UX moderna e envio AJAX.
+// Formulário cidadão com UX moderna, validações e envio AJAX.
 flatpickr('#pickup_datetime', {
   enableTime: true,
   dateFormat: 'Y-m-d H:i',
   minDate: 'today',
   time_24hr: true,
+  minuteIncrement: 15,
 });
 
 const map = L.map('map').setView([-23.55, -46.63], 12);
@@ -16,24 +17,56 @@ const marker = L.marker([-23.55, -46.63], { draggable: true }).addTo(map);
 const latEl = document.getElementById('latitude');
 const lngEl = document.getElementById('longitude');
 const feedback = document.getElementById('feedback');
+const cepEl = document.getElementById('cep');
+const addressEl = document.getElementById('address');
 
-const setLatLng = (lat, lng) => { latEl.value = lat; lngEl.value = lng; };
+const setLatLng = (lat, lng) => {
+  latEl.value = Number(lat).toFixed(7);
+  lngEl.value = Number(lng).toFixed(7);
+};
 setLatLng(-23.55, -46.63);
-marker.on('dragend', (e) => setLatLng(e.target.getLatLng().lat, e.target.getLatLng().lng));
+marker.on('dragend', (e) => {
+  const pos = e.target.getLatLng();
+  setLatLng(pos.lat, pos.lng);
+});
+
+const setFeedback = (message, kind = 'info') => {
+  feedback.innerHTML = `<div class="alert alert-${kind}">${message}</div>`;
+};
+
+const normalizeCep = (value) => value.replace(/\D+/g, '').slice(0, 8);
+const formatCep = (value) => {
+  const c = normalizeCep(value);
+  return c.length > 5 ? `${c.slice(0, 5)}-${c.slice(5)}` : c;
+};
+
+cepEl.addEventListener('input', () => {
+  cepEl.value = formatCep(cepEl.value);
+});
 
 let geocodeTimer = null;
 const geocode = async () => {
-  const address = document.getElementById('address').value.trim();
-  const cep = document.getElementById('cep').value.trim();
-  if (!address || !cep) return;
+  const address = addressEl.value.trim();
+  const cep = cepEl.value.trim();
 
-  const q = encodeURIComponent(`${address}, ${cep}, Brasil`);
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}`;
+  if (address.length < 6 || normalizeCep(cep).length < 8) {
+    return;
+  }
+
+  const q = encodeURIComponent(`${address}, ${cep}, Santo André, SP, Brasil`);
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`;
 
   try {
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const res = await fetch(url, {
+      headers: {
+        'Accept-Language': 'pt-BR',
+      },
+    });
+
+    if (!res.ok) return;
+
     const data = await res.json();
-    if (data[0]) {
+    if (Array.isArray(data) && data[0]) {
       const lat = parseFloat(data[0].lat);
       const lng = parseFloat(data[0].lon);
       marker.setLatLng([lat, lng]);
@@ -47,34 +80,43 @@ const geocode = async () => {
 
 const debouncedGeocode = () => {
   clearTimeout(geocodeTimer);
-  geocodeTimer = setTimeout(geocode, 400);
+  geocodeTimer = setTimeout(geocode, 450);
 };
 
-document.getElementById('address').addEventListener('input', debouncedGeocode);
-document.getElementById('cep').addEventListener('input', debouncedGeocode);
+addressEl.addEventListener('input', debouncedGeocode);
+cepEl.addEventListener('input', debouncedGeocode);
 
 const form = document.getElementById('citizenForm');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  if (!form.checkValidity()) {
-    form.classList.add('was-validated');
-    feedback.innerHTML = '<div class="alert alert-danger">Verifique os campos obrigatórios.</div>';
+  if (!latEl.value || !lngEl.value) {
+    setFeedback('Não foi possível obter a localização. Revise CEP/endereço e ajuste o marcador no mapa.', 'danger');
     return;
   }
 
-  feedback.innerHTML = '<div class="alert alert-info">Enviando solicitação...</div>';
+  if (!form.checkValidity()) {
+    form.classList.add('was-validated');
+    setFeedback('Verifique os campos obrigatórios.', 'danger');
+    return;
+  }
+
+  setFeedback('Enviando solicitação...', 'info');
   const fd = new FormData(form);
 
   try {
     const res = await fetch('?r=api/citizen/create', { method: 'POST', body: fd });
     const json = await res.json();
-    feedback.innerHTML = `<div class="alert ${json.ok ? 'alert-success' : 'alert-danger'}">${json.message}</div>`;
+
+    setFeedback(json.message, json.ok ? 'success' : 'danger');
     if (json.ok) {
       form.reset();
       form.classList.remove('was-validated');
+      setLatLng(-23.55, -46.63);
+      marker.setLatLng([-23.55, -46.63]);
+      map.setView([-23.55, -46.63], 12);
     }
   } catch (err) {
-    feedback.innerHTML = '<div class="alert alert-danger">Erro de comunicação. Tente novamente.</div>';
+    setFeedback('Erro de comunicação. Tente novamente.', 'danger');
   }
 });

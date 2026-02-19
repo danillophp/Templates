@@ -40,6 +40,9 @@ final class CitizenController extends Controller
             if ($pickup === '1970-01-01 00:00:00') {
                 throw new \RuntimeException('Data/hora de coleta inválida.');
             }
+            if (strtotime($pickup) < time()) {
+                throw new \RuntimeException('Não é permitido agendar coletas em data/hora passada.');
+            }
 
             $photo = $this->savePhoto($_FILES['photo'] ?? []);
             $model = new RequestModel();
