@@ -60,7 +60,8 @@ final class EmployeeController extends Controller
 
         $wa = null;
         if ($notify) {
-            $wa = (new WhatsAppService())->send($request['whatsapp'], "Sua coleta Cata Treco #{$id} foi finalizada.");
+            $message = 'Olá ' . $request['full_name'] . ', Prefeitura de Santo André (Cata Treco): sua coleta #' . $id . ' foi FINALIZADA. Obrigado por colaborar com a cidade.';
+            $wa = (new WhatsAppService())->send((string)$request['whatsapp'], $message, WA_TEMPLATE_FINISHED);
         }
         $this->json(['ok' => true, 'whatsapp' => $wa]);
     }

@@ -79,6 +79,10 @@ final class AdminController extends Controller
                 $this->json(['ok' => false, 'message' => 'Informe uma nova data/hora válida.'], 422);
                 return;
             }
+            if (strtotime($pickup) < time()) {
+                $this->json(['ok' => false, 'message' => 'Não é permitido reagendar para data/hora passada.'], 422);
+                return;
+            }
             $detail = 'Data/hora alterada para ' . date('d/m/Y H:i', strtotime($pickup)) . '.';
             $model->updateStatus($id, $status, $pickup);
         } elseif ($action === 'assign') {
@@ -87,7 +91,7 @@ final class AdminController extends Controller
                 return;
             }
             $status = 'EM_ANDAMENTO';
-            $detail = 'Solicitação atribuída ao funcionário #' . $employeeId . '.';
+            $detail = 'Solicitação atribuída ao funcionário #' . $employeeId . ' e movida para EM_ANDAMENTO.';
             $model->updateStatus($id, $status, null, $employeeId);
         } else {
             $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
