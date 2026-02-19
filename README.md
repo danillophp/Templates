@@ -13,7 +13,7 @@ Sistema web institucional para gestão municipal de coleta de resíduos volumoso
 ## Banco de dados (HostGator)
 
 - Banco: `santo821_treco`
-- Usuário: `santo821_catatreco`
+- Usuário: `catatreco`
 - Senha: `php@3903`
 
 Arquivo de conexão: `config/db.php`.
