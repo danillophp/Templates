@@ -16,8 +16,8 @@ final class Database
             return self::$instance;
         }
 
-        $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', DbConfig::HOST, DbConfig::DATABASE, DbConfig::CHARSET);
-        self::$instance = new PDO($dsn, DbConfig::USERNAME, DbConfig::PASSWORD, [
+        $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', \DbConfig::HOST, \DbConfig::DATABASE, \DbConfig::CHARSET);
+        self::$instance = new PDO($dsn, \DbConfig::USERNAME, \DbConfig::PASSWORD, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);

@@ -24,24 +24,39 @@ final class CitizenController extends Controller
         }
 
         try {
+            $fullName = trim((string)($_POST['full_name'] ?? ''));
+            $address = trim((string)($_POST['address'] ?? ''));
+            $cep = trim((string)($_POST['cep'] ?? ''));
+            $district = trim((string)($_POST['district'] ?? 'Não informado'));
+            $whatsapp = trim((string)($_POST['whatsapp'] ?? ''));
+            $pickupRaw = trim((string)($_POST['pickup_datetime'] ?? ''));
+            $consent = (int)($_POST['consent'] ?? 0) === 1;
+
+            if ($fullName === '' || $address === '' || $cep === '' || $whatsapp === '' || $pickupRaw === '' || !$consent) {
+                throw new \RuntimeException('Preencha todos os campos obrigatórios e aceite o consentimento LGPD.');
+            }
+
+            $pickup = date('Y-m-d H:i:s', strtotime($pickupRaw));
+            if ($pickup === '1970-01-01 00:00:00') {
+                throw new \RuntimeException('Data/hora de coleta inválida.');
+            }
+
             $photo = $this->savePhoto($_FILES['photo'] ?? []);
-            $pickup = date('Y-m-d H:i:s', strtotime($_POST['pickup_datetime'] ?? ''));
-            $address = trim($_POST['address'] ?? '');
-            $district = trim($_POST['district'] ?? 'Não informado');
             $model = new RequestModel();
             $id = $model->create([
-                'full_name' => trim($_POST['full_name'] ?? ''),
+                'full_name' => $fullName,
                 'address' => $address,
-                'cep' => trim($_POST['cep'] ?? ''),
+                'cep' => $cep,
                 'district' => $district,
-                'whatsapp' => trim($_POST['whatsapp'] ?? ''),
+                'whatsapp' => $whatsapp,
                 'photo' => $photo,
                 'pickup' => $pickup,
                 'lat' => (float)($_POST['latitude'] ?? 0),
                 'lng' => (float)($_POST['longitude'] ?? 0),
                 'ip' => $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
             ]);
-            (new LogModel())->register($id, null, 'CIDADAO', 'CRIADA', 'Solicitação criada.');
+
+            (new LogModel())->register($id, null, 'CIDADAO', 'CRIADA', 'Solicitação criada pelo cidadão.');
             $this->json(['ok' => true, 'message' => 'Solicitação enviada com sucesso!']);
         } catch (\Throwable $e) {
             $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -56,16 +71,20 @@ final class CitizenController extends Controller
         if (($file['size'] ?? 0) > MAX_UPLOAD_BYTES) {
             throw new \RuntimeException('Imagem maior que 5MB.');
         }
-        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
-        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
-            throw new \RuntimeException('Formato inválido.');
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name'] ?? '');
+        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+        if (!isset($allowed[$mime])) {
+            throw new \RuntimeException('Formato inválido. Envie JPG, PNG ou WEBP.');
         }
+
         if (!is_dir(UPLOAD_PATH)) {
             mkdir(UPLOAD_PATH, 0775, true);
         }
-        $name = uniqid('treco_', true) . '.' . $ext;
+
+        $name = uniqid('treco_', true) . '.' . $allowed[$mime];
         if (!move_uploaded_file($file['tmp_name'], UPLOAD_PATH . '/' . $name)) {
-            throw new \RuntimeException('Falha no upload.');
+            throw new \RuntimeException('Falha no upload da imagem.');
         }
         return $name;
     }

@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS requests (
     anonymized_at DATETIME NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
-    CONSTRAINT fk_requests_user FOREIGN KEY (assigned_user_id) REFERENCES users(id)
+    CONSTRAINT fk_requests_user FOREIGN KEY (assigned_user_id) REFERENCES users(id),
+    INDEX idx_requests_status (status),
+    INDEX idx_requests_pickup (pickup_datetime),
+    INDEX idx_requests_district (district)
 ) ENGINE=InnoDB;
 
 -- Auditoria e LGPD
@@ -47,9 +50,13 @@ CREATE TABLE IF NOT EXISTS logs (
     actor_ip VARCHAR(45) NOT NULL,
     created_at DATETIME NOT NULL,
     CONSTRAINT fk_logs_requests FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE SET NULL,
-    CONSTRAINT fk_logs_users FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT fk_logs_users FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_logs_request (request_id),
+    INDEX idx_logs_actor (actor_user_id),
+    INDEX idx_logs_created (created_at)
 ) ENGINE=InnoDB;
 
+-- Usuários iniciais (alterar senha em produção)
 INSERT INTO users (username, password_hash, role, full_name) VALUES
 ('admin', '$2y$12$Y7qehFLNLO20wLibm2gL0eBcPoSpuXeng43FC8OIR.mJvvL2Cimwy', 'ADMIN', 'Administrador Geral'),
 ('funcionario1', '$2y$12$pl9kIpvdu3INlC.3LOdGyuZ61pLjHYL/urAZA9DWdfKuvv/O54KGC', 'FUNCIONARIO', 'Equipe Operacional 01');

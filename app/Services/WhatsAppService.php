@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+/**
+ * Serviço de envio WhatsApp.
+ * - Cloud API (oficial) quando habilitada.
+ * - Fallback wa.me para ambientes sem API ativa.
+ */
 final class WhatsAppService
 {
-    public function send(string $phone, string $message): array
+    public function send(string $phone, string $message, ?string $template = null): array
     {
         $cleanPhone = preg_replace('/\D+/', '', $phone) ?? '';
 
@@ -18,12 +23,25 @@ final class WhatsAppService
         }
 
         $endpoint = sprintf('https://graph.facebook.com/%s/%s/messages', WA_API_VERSION, WA_PHONE_NUMBER_ID);
+
         $payload = [
             'messaging_product' => 'whatsapp',
             'to' => '55' . $cleanPhone,
             'type' => 'text',
             'text' => ['body' => $message],
         ];
+
+        if ($template) {
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'to' => '55' . $cleanPhone,
+                'type' => 'template',
+                'template' => [
+                    'name' => $template,
+                    'language' => ['code' => 'pt_BR'],
+                ],
+            ];
+        }
 
         $ch = curl_init($endpoint);
         curl_setopt_array($ch, [
@@ -35,6 +53,7 @@ final class WhatsAppService
             ],
             CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
         ]);
+
         $response = curl_exec($ch);
         $error = curl_error($ch);
         curl_close($ch);
