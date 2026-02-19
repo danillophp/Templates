@@ -1,0 +1,12 @@
+/* Layout institucional responsivo da prefeitura */
+body { background: #f4f6f8; }
+.card { border: 0; border-radius: 14px; }
+.navbar-brand { font-weight: 700; letter-spacing: .5px; }
+.table td, .table th { white-space: nowrap; }
+#map { border-radius: 12px; }
+.mini-map { height: 220px; border-radius: 10px; margin-top: 8px; }
+
+@media (max-width: 767px) {
+  .table td, .table th { font-size: 12px; }
+  .mini-map { height: 180px; }
+}
