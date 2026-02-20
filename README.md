@@ -93,3 +93,9 @@ Ao abrir `https://prefsade.com.br/catatreco`:
 5. Finalizar no funcionário
 6. Validar logs de auditoria
 
+
+## URLs úteis (subpasta /catatreco)
+- Público: `https://prefsade.com.br/catatreco/`
+- Admin: `https://prefsade.com.br/catatreco/admin`
+- Login: `https://prefsade.com.br/catatreco/login`
+- Funcionário: `https://prefsade.com.br/catatreco/funcionario`

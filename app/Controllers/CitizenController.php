@@ -22,17 +22,13 @@ final class CitizenController extends Controller
             'googleMapsKey' => GOOGLE_MAPS_API_KEY,
             'tenant' => $tenant,
             'tenants' => TenantService::allActive(),
-            'tenantWarning' => $tenant === null ? 'Sistema em modo padrão. Você pode preencher o formulário normalmente.' : null,
+            'tenantWarning' => null,
         ]);
     }
 
     public function points(): void
     {
-        $tenantId = TenantService::tenantId();
-        if (!$tenantId) {
-            $this->json(['ok' => false, 'message' => 'Serviço temporariamente indisponível para localização da prefeitura.'], 422);
-            return;
-        }
+        $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
         $this->json(['ok' => true, 'data' => (new PointModel())->active($tenantId)]);
     }
 
@@ -43,11 +39,7 @@ final class CitizenController extends Controller
             return;
         }
 
-        $tenantId = TenantService::tenantId();
-        if (!$tenantId) {
-            $this->json(['ok' => false, 'message' => 'Serviço temporariamente indisponível para localização da prefeitura.'], 422);
-            return;
-        }
+        $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
 
         $sub = (new SubscriptionModel())->activeWithPlan($tenantId);
         if (!$sub) {
@@ -102,7 +94,7 @@ final class CitizenController extends Controller
 
     public function track(): void
     {
-        $tenantId = TenantService::tenantId();
+        $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
         $protocol = trim((string)($_GET['protocol'] ?? ''));
         $phone = preg_replace('/\D+/', '', (string)($_GET['phone'] ?? '')) ?? '';
 

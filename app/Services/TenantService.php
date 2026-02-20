@@ -11,7 +11,6 @@ final class TenantService
     public static function current(): ?array
     {
         try {
-            // 1) parâmetro explícito (?tenant=slug ou ?tenant=1)
             if (isset($_REQUEST['tenant']) && is_string($_REQUEST['tenant'])) {
                 $tenantParam = trim($_REQUEST['tenant']);
                 if ($tenantParam !== '') {
@@ -24,7 +23,6 @@ final class TenantService
                 }
             }
 
-            // 2) subdomínio, quando existir
             $host = $_SERVER['HTTP_HOST'] ?? '';
             $parts = explode('.', $host);
             if (count($parts) >= 3) {
@@ -37,24 +35,27 @@ final class TenantService
                 }
             }
 
-            // 3) tenant padrão por ID (sem dependência de subdomínio)
+            // Regra principal: fallback explícito para tenant padrão (ID 1 por padrão).
             $defaultTenant = self::findById((int) APP_DEFAULT_TENANT);
             if ($defaultTenant) {
                 return $defaultTenant;
             }
 
-            // 4) fallback final
             return self::firstActive();
         } catch (\Throwable $e) {
             error_log('[CataTreco][TENANT] ' . $e->getMessage());
-            return null;
+            return self::defaultTenantObject();
         }
     }
 
     public static function tenantId(): ?int
     {
         $tenant = self::current();
-        return $tenant ? (int)$tenant['id'] : null;
+        if ($tenant && isset($tenant['id'])) {
+            return (int)$tenant['id'];
+        }
+
+        return (int) APP_DEFAULT_TENANT > 0 ? (int) APP_DEFAULT_TENANT : null;
     }
 
     public static function allActive(): array
@@ -63,7 +64,9 @@ final class TenantService
             return Database::connection()->query('SELECT id, nome, slug FROM tenants WHERE ativo = 1 ORDER BY nome')->fetchAll();
         } catch (\Throwable $e) {
             error_log('[CataTreco][TENANT_LIST] ' . $e->getMessage());
-            return [];
+            return [
+                ['id' => (int) APP_DEFAULT_TENANT, 'nome' => 'Prefeitura Padrão', 'slug' => 'padrao'],
+            ];
         }
     }
 
@@ -99,7 +102,7 @@ final class TenantService
             return null;
         }
 
-        $stmt = Database::connection()->prepare('SELECT * FROM tenants WHERE id = :id AND ativo = 1 LIMIT 1');
+        $stmt = Database::connection()->prepare('SELECT * FROM tenants WHERE id = :id LIMIT 1');
         $stmt->execute(['id' => $id]);
         $tenant = $stmt->fetch();
         return $tenant ?: null;
@@ -109,7 +112,17 @@ final class TenantService
     {
         $stmt = Database::connection()->query('SELECT * FROM tenants WHERE ativo = 1 ORDER BY id ASC LIMIT 1');
         $tenant = $stmt->fetch();
-        return $tenant ?: null;
+        return $tenant ?: self::defaultTenantObject();
+    }
+
+    private static function defaultTenantObject(): array
+    {
+        return [
+            'id' => (int) APP_DEFAULT_TENANT,
+            'nome' => 'Prefeitura Padrão',
+            'slug' => 'padrao',
+            'ativo' => 1,
+        ];
     }
 
     private static function defaultConfig(): array

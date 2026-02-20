@@ -15,7 +15,7 @@ final class Router
 {
     public function dispatch(): void
     {
-        $route = $_GET['r'] ?? 'citizen/home';
+        $route = $_GET['r'] ?? $this->detectRouteByPath();
 
         switch ($route) {
             case 'citizen/home': (new CitizenController())->home(); break;
@@ -47,5 +47,24 @@ final class Router
                 http_response_code(404);
                 echo 'Rota não encontrada';
         }
+    }
+
+    private function detectRouteByPath(): string
+    {
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $base = rtrim(APP_BASE_PATH, '/');
+        if ($base !== '' && strpos($path, $base) === 0) {
+            $path = substr($path, strlen($base));
+        }
+
+        $path = '/' . ltrim($path, '/');
+
+        return match ($path) {
+            '/', '/index.php' => 'citizen/home',
+            '/admin' => 'admin/dashboard',
+            '/login' => 'auth/login',
+            '/funcionario' => 'employee/dashboard',
+            default => 'citizen/home',
+        };
     }
 }
