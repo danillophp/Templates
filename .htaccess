@@ -1,3 +1,4 @@
+Options -Indexes
 RewriteEngine On
 RewriteBase /catatreco/
 
@@ -6,7 +7,7 @@ RewriteCond %{HTTPS} !=on [OR]
 RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Front controller na subpasta /catatreco
+# Front controller
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]

@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/database.php';
+
 /**
- * Credenciais MySQL para HostGator.
+ * Compatibilidade com código legado.
  */
 final class DbConfig
 {
-    public const HOST = 'localhost';
-    public const DATABASE = 'santo821_treco';
-    public const USERNAME = 'santo821_catatreco';
-    public const PASSWORD = 'php@3903';
-    public const CHARSET = 'utf8mb4';
+    public const HOST = DatabaseConfig::HOST;
+    public const DATABASE = DatabaseConfig::DATABASE;
+    public const USERNAME = DatabaseConfig::USERNAME;
+    public const PASSWORD = DatabaseConfig::PASSWORD;
+    public const CHARSET = DatabaseConfig::CHARSET;
 }

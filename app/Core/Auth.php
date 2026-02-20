@@ -28,6 +28,7 @@ final class Auth
 
     public static function login(array $user): void
     {
+        session_regenerate_id(true);
         $_SESSION['user'] = [
             'id' => (int)$user['id'],
             'tenant_id' => $user['tenant_id'] !== null ? (int)$user['tenant_id'] : null,

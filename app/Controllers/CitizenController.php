@@ -62,10 +62,10 @@ final class CitizenController extends Controller
         }
 
         try {
-            $nome = trim((string)($_POST['full_name'] ?? ''));
-            $endereco = trim((string)($_POST['address'] ?? ''));
-            $cep = trim((string)($_POST['cep'] ?? ''));
-            $bairro = trim((string)($_POST['district'] ?? 'Não informado'));
+            $nome = trim(strip_tags((string)($_POST['full_name'] ?? '')));
+            $endereco = trim(strip_tags((string)($_POST['address'] ?? '')));
+            $cep = preg_replace('/[^0-9\-]/', '', trim((string)($_POST['cep'] ?? ''))) ?? '';
+            $bairro = trim(strip_tags((string)($_POST['district'] ?? 'Não informado')));
             $telefone = preg_replace('/\D+/', '', (string)($_POST['whatsapp'] ?? '')) ?? '';
             $dataSolicitada = trim((string)($_POST['pickup_datetime'] ?? ''));
 

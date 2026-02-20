@@ -22,7 +22,16 @@ spl_autoload_register(static function (string $class): void {
     }
 });
 
+\App\Core\ErrorHandler::register();
+
 date_default_timezone_set(APP_TIMEZONE);
+
+if (!headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+    header("Content-Security-Policy: default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data:;");
+}
 
 session_name(SESSION_NAME);
 if (session_status() === PHP_SESSION_NONE) {

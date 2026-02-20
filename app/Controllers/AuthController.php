@@ -24,8 +24,12 @@ final class AuthController extends Controller
                 return;
             }
 
-            $email = trim((string)($_POST['email'] ?? ''));
+            $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_SANITIZE_EMAIL);
             $senha = (string)($_POST['senha'] ?? '');
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->view('auth/login', ['error' => 'Informe um e-mail válido.']);
+                return;
+            }
             $rateKey = 'login_' . md5($email . '|' . (string)$tenantId);
             $rate = RateLimitMiddleware::check($rateKey);
 

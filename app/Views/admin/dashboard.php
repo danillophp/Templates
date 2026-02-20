@@ -1,35 +1,40 @@
 <div class="row g-3">
-  <div class="col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h6 class="mb-3">Menu Admin</h6>
-        <a class="btn btn-outline-success w-100 mb-2" href="?r=admin/reports/csv">Exportar CSV</a>
-        <button class="btn btn-outline-secondary w-100 mb-2" disabled>Exportar PDF (roadmap)</button>
-        <button class="btn btn-outline-secondary w-100" disabled>Exportar XLSX (roadmap)</button>
-        <?php if (!empty($subscription)): ?>
-          <hr>
-          <small class="text-muted d-block">Plano: <?= htmlspecialchars($subscription['plano_nome']) ?></small>
-          <small class="text-muted d-block">Limite mensal: <?= (int)$subscription['limite_solicitacoes_mes'] ?></small>
-        <?php endif; ?>
-      </div>
-    </div>
+  <div class="col-xl-3">
+    <aside class="admin-sidebar glass-card p-3 h-100">
+      <h6 class="mb-3 text-uppercase">Painel Admin</h6>
+      <a class="btn btn-outline-success w-100 mb-2" href="?r=admin/reports/csv">Exportar CSV</a>
+      <button class="btn btn-outline-secondary w-100 mb-2" disabled>Exportar PDF</button>
+      <button class="btn btn-outline-secondary w-100 mb-2" disabled>Exportar XLSX</button>
+      <a class="btn btn-outline-primary w-100" href="?r=auth/logout">Sair</a>
+
+      <?php if (!empty($subscription)): ?>
+        <hr>
+        <small class="d-block text-muted">Plano: <?= htmlspecialchars($subscription['plano_nome']) ?></small>
+        <small class="d-block text-muted">Limite mensal: <?= (int)$subscription['limite_solicitacoes_mes'] ?></small>
+      <?php endif; ?>
+    </aside>
   </div>
 
-  <div class="col-lg-9">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4>Painel Administrativo</h4>
-      <a class="btn btn-outline-secondary" href="?r=auth/logout">Sair</a>
+  <div class="col-xl-9">
+    <div class="card shadow-sm glass-card border-0 mb-3">
+      <div class="card-body">
+        <h4 class="mb-3">Dashboard Administrativo</h4>
+        <div class="row g-3">
+          <?php foreach ($summary as $k => $v): ?>
+            <div class="col-6 col-lg-3">
+              <div class="metric-box p-3 rounded-3">
+                <small class="text-muted"><?= $k ?></small>
+                <h3 class="mb-0"><?= $v ?></h3>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
     </div>
 
-    <div class="row g-3 mb-3">
-      <?php foreach ($summary as $k => $v): ?>
-        <div class="col-6 col-lg-3"><div class="card shadow-sm"><div class="card-body"><small><?= $k ?></small><h3><?= $v ?></h3></div></div></div>
-      <?php endforeach; ?>
-    </div>
+    <div class="card shadow-sm glass-card border-0 mb-3"><div class="card-body"><canvas id="chartRequests" height="100"></canvas></div></div>
 
-    <div class="card shadow-sm mb-3"><div class="card-body"><canvas id="chartRequests" height="100"></canvas></div></div>
-
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm glass-card border-0 mb-3">
       <div class="card-body">
         <h6>Cadastrar ponto de coleta</h6>
         <div class="row g-2">
@@ -41,7 +46,7 @@
       </div>
     </div>
 
-    <div class="card shadow-sm mb-3"><div class="card-body">
+    <div class="card shadow-sm glass-card border-0 mb-3"><div class="card-body">
       <div class="row g-2">
         <div class="col-md-4"><input id="fDate" type="date" class="form-control"></div>
         <div class="col-md-4"><select id="fStatus" class="form-select"><option value="">Status</option><option>PENDENTE</option><option>APROVADO</option><option>RECUSADO</option><option>FINALIZADO</option></select></div>
@@ -49,7 +54,7 @@
       </div>
     </div></div>
 
-    <div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>#</th><th>Protocolo</th><th>Nome</th><th>Endereço</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody id="reqRows"></tbody></table></div></div>
+    <div class="card shadow-sm glass-card border-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>#</th><th>Protocolo</th><th>Nome</th><th>Endereço</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody id="reqRows"></tbody></table></div></div>
   </div>
 </div>
 

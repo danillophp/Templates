@@ -1,102 +1,95 @@
-# Cata Treco SaaS (Multi-Tenant)
+# Cata Treco — Versão Profissional (HostGator /catatreco)
 
-Sistema SaaS multi-tenant para gestão municipal de coleta de resíduos volumosos.
+Sistema institucional para prefeitura com arquitetura SaaS simplificada, seguro e compatível com hospedagem compartilhada.
 
-## Arquitetura
-- **PHP 8+**, **MySQL**, MVC simples e legível.
-- Multi-tenant em banco único por `tenant_id`.
-- Funciona sem subdomínio (tenant padrão por ID) e também aceita `?tenant=slug` quando necessário.
-- Perfis: `super_admin`, `admin`, `funcionario`, cidadão.
+## URL e pasta de instalação
+- URL final: `https://prefsade.com.br/catatreco`
+- Pasta: `public_html/catatreco`
 
-## Estrutura de pastas
-- `app/Core`
-- `app/Controllers`
-- `app/Models`
-- `app/Services`
-- `app/Middlewares`
-- `app/Helpers`
-- `public`
-- `resources`
-- `config`
-- `storage`
-- `database`
-- `scripts`
+## Estrutura principal
+- `index.php` (front controller na raiz)
+- `.htaccess` (rewrite + HTTPS + proteção de listagem)
+- `config/app.php`
+- `config/database.php` e `config/db.php` (compatibilidade)
+- `app/Core/ErrorHandler.php`
+- `resources/views/errors/500.php`
+- `storage/logs/app.log`
 
-## Banco de dados
-Importe `sql/catatreco.sql` (ou `database/schema.sql`) no phpMyAdmin.
+## Configuração rápida
+### 1) Banco de dados
+Edite `config/database.php`:
+- host
+- database
+- username
+- password
 
-### Tabelas
-- `super_admin`
-- `tenants`
-- `planos`
-- `assinaturas`
-- `usuarios`
-- `pontos_mapa`
-- `solicitacoes`
-- `logs`
-- `notificacoes`
-- `configuracoes`
-- `pagamentos`
+### 2) App em subpasta
+`config/app.php` já está pronto para:
+- `APP_URL = https://www.prefsade.com.br/catatreco`
+- `APP_BASE_PATH = /catatreco`
+- `APP_DEFAULT_TENANT = 1`
 
-## Login inicial
-- Super Admin: `owner@catatreco.com` / `Admin@123`
-- Admin prefeitura demo: `admin@prefdemo.gov.br` / `Admin@123`
-- Funcionário demo: `funcionario@prefdemo.gov.br` / `Func@123`
+### 3) Importe o SQL
+Importe `sql/catatreco.sql` via phpMyAdmin.
 
-## Funcionalidades entregues
-- Mapa 100% gratuito com **Leaflet + OpenStreetMap + Nominatim** (sem Google Maps pago).
-- Cadastro e resolução de tenant por subdomínio.
-- Super Admin com métricas globais e criação de prefeitura.
-- Admin da prefeitura com:
-  - gestão de pontos;
-  - gestão de solicitações;
-  - gráfico de solicitações por mês (Chart.js);
-  - exportação CSV.
-- Funcionário com painel de coletas e finalização.
-- Cidadão com mapa, formulário AJAX, protocolo `CAT-ANO-ID` e consulta por telefone+protocolo.
-- WhatsApp Cloud API por prefeitura com retry/fallback `wa.me` e log de envio.
-- Segurança: CSRF, prepared statements, validação server-side, upload MIME, rate limit de login.
+### 4) Permissões
+- `uploads/` com escrita (775)
+- `storage/logs/` com escrita (775)
 
-## API interna
-Ver `resources/API.md`.
+## Segurança implementada
+- PDO + prepared statements
+- CSRF
+- Validação server-side e sanitização
+- Upload seguro por MIME real
+- Rate limit de login
+- Senha com bcrypt (`password_hash`/`password_verify`)
+- Session fixation protection (`session_regenerate_id` no login)
+- Headers de segurança:
+  - `X-Frame-Options`
+  - `X-Content-Type-Options`
+  - `Content-Security-Policy`
+- Tratamento centralizado de erro 500 com log em arquivo e tela amigável em produção
 
-## Cron jobs
-Executar diariamente:
-```bash
-php scripts/cron.php
-```
+## Multi-tenant simplificado (sem subdomínio obrigatório)
+Fallback do tenant:
+1. `?tenant=slug` ou `?tenant=id`
+2. subdomínio (quando existir)
+3. `APP_DEFAULT_TENANT`
+4. primeira prefeitura ativa
 
-## HostGator (compartilhada)
-1. Subir projeto para `public_html/catatreco`.
-2. Importar SQL no phpMyAdmin.
-3. Ajustar `config/db.php`.
-4. Ajustar `config/app.php` (`APP_URL`, `APP_BASE_PATH`, `GOOGLE_MAPS_API_KEY`, `APP_DEFAULT_TENANT`).
-5. Garantir permissão de escrita em `uploads/` e `storage/`.
-6. Apontar subdomínios para a pasta `public/`.
+## Mapa gratuito
+- Leaflet.js
+- OpenStreetMap
+- Nominatim
 
-## Migração futura (VPS/Cloud)
-- Código já separado por camadas.
-- Serviços desacoplados (tenant, whatsapp, billing).
-- API interna pronta para app mobile.
+Sem API paga, sem cartão de crédito.
 
-## Resiliência de tenant (acesso público)
-- Se não houver subdomínio válido, o sistema tenta `APP_DEFAULT_TENANT`.
-- Se o tenant padrão não existir, usa a primeira prefeitura ativa.
-- Se ainda não houver tenant ativo, a página pública mostra aviso amigável e seletor de prefeitura (sem erro técnico).
+## Fluxo público
+Ao abrir `https://prefsade.com.br/catatreco`:
+- formulário cidadão abre imediatamente
+- mapa funciona sem login
+- erros técnicos não são exibidos ao cidadão
 
-## Ajuste de hospedagem compartilhada (/catatreco)
-- Entrada principal: `index.php` na raiz do projeto (`/catatreco/index.php`).
-- `APP_BASE_PATH` deve ser `/catatreco` (sem `/public`).
-- `.htaccess` da raiz faz rewrite para `index.php` e força HTTPS.
-- `config/db.php` deve usar usuário do cPanel: `santo821_catatreco`.
-- A URL `https://www.prefsade.com.br/catatreco` deve abrir direto o formulário público.
+## Checklist definitivo de produção
+- [ ] HTTPS ativo e redirecionando 100%
+- [ ] `APP_ENV=production` e `APP_DEBUG=false`
+- [ ] Banco conectado e testado
+- [ ] Tenant padrão existente (`id=1`) ativo
+- [ ] Permissões em `uploads/` e `storage/logs/`
+- [ ] `Options -Indexes` ativo no `.htaccess`
+- [ ] Teste de envio de formulário
+- [ ] Teste de upload (jpg/png/webp)
+- [ ] Teste de login e logout
+- [ ] Teste de bloqueio por tentativas de login
+- [ ] Teste de sessão (regeneração no login)
+- [ ] Teste de erro forçado (checar tela amigável + `storage/logs/app.log`)
+- [ ] Backup diário do banco (via painel HostGator)
 
-## Instalação rápida (HostGator)
-1. Faça upload dos arquivos para `public_html/catatreco`.
-2. Importe `sql/catatreco.sql` no phpMyAdmin.
-3. Edite `config/db.php` com as credenciais do banco.
-4. Confirme `config/app.php` com:
-   - `APP_URL = https://www.prefsade.com.br/catatreco`
-   - `APP_BASE_PATH = /catatreco`
-   - `APP_DEFAULT_TENANT = 1`
-5. Acesse `https://www.prefsade.com.br/catatreco` e o formulário público abrirá automaticamente.
+## Testes recomendados antes de ir ao ar
+1. Abrir home pública
+2. Enviar solicitação completa
+3. Consultar protocolo
+4. Aprovar no admin
+5. Finalizar no funcionário
+6. Validar logs de auditoria
+

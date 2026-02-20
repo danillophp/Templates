@@ -71,3 +71,7 @@ body {
   .table th { font-size: 12px; }
   .mini-map { height: 180px; }
 }
+
+
+.admin-sidebar { border-radius: 16px; }
+.metric-box { background: linear-gradient(135deg, rgba(11,143,98,.10), rgba(29,125,226,.10)); border: 1px solid rgba(29,125,226,.12); }
