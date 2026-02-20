@@ -1,3 +1,4 @@
+const APP_BASE = (window.APP_BASE_PATH || "").replace(/\/$/, "");
 async function action(url, id) {
   const fd = new FormData();
   fd.append('_csrf', window.CSRF);
@@ -8,5 +9,5 @@ async function action(url, id) {
   if (json.ok) setTimeout(() => location.reload(), 500);
 }
 
-document.querySelectorAll('.btnStart').forEach((btn) => btn.addEventListener('click', () => action('?r=api/employee/start', btn.dataset.id)));
-document.querySelectorAll('.btnFinish').forEach((btn) => btn.addEventListener('click', () => action('?r=api/employee/finish', btn.dataset.id)));
+document.querySelectorAll('.btnStart').forEach((btn) => btn.addEventListener('click', () => action(`${APP_BASE}/?r=api/employee/start`, btn.dataset.id)));
+document.querySelectorAll('.btnFinish').forEach((btn) => btn.addEventListener('click', () => action(`${APP_BASE}/?r=api/employee/finish`, btn.dataset.id)));

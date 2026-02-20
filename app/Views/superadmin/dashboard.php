@@ -1,6 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4>Super Admin SaaS</h4>
-  <a class="btn btn-outline-secondary" href="?r=auth/logout">Sair</a>
+  <a class="btn btn-outline-secondary" href="<?= APP_BASE_PATH ?>/?r=auth/logout">Sair</a>
 </div>
 
 <div class="row g-3 mb-4">
@@ -43,7 +43,7 @@ document.getElementById('btnTenant').addEventListener('click', async () => {
   fd.append('nome', document.getElementById('tNome').value);
   fd.append('slug', document.getElementById('tSlug').value);
   fd.append('dominio', document.getElementById('tDominio').value);
-  const res = await fetch('?r=api/superadmin/tenant/create', { method: 'POST', body: fd });
+  const res = await fetch(`${window.APP_BASE_PATH}/?r=api/superadmin/tenant/create`, { method: 'POST', body: fd });
   const json = await res.json();
   showToast(json.message, json.ok ? 'success' : 'danger');
   if (json.ok) setTimeout(() => location.reload(), 600);

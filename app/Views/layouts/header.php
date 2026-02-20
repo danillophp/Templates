@@ -14,13 +14,14 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: var(--tenant-primary)">
   <div class="container-fluid px-4">
-    <a class="navbar-brand" href="?r=citizen/home"><?= htmlspecialchars($_config['nome_prefeitura'] ?? APP_NAME) ?> • Cata Treco</a>
+    <a class="navbar-brand" href="<?= APP_BASE_PATH ?>/?r=citizen/home"><?= htmlspecialchars($_config['nome_prefeitura'] ?? APP_NAME) ?> • Cata Treco</a>
     <div class="ms-auto text-white small">
       <?php if (Auth::check()): ?>
         <?= htmlspecialchars(Auth::user()['nome']) ?> (<?= htmlspecialchars(Auth::user()['tipo']) ?>) |
-        <a class="text-white" href="?r=auth/logout">Sair</a>
+        <a class="text-white" href="<?= APP_BASE_PATH ?>/?r=auth/logout">Sair</a>
       <?php endif; ?>
     </div>
   </div>
 </nav>
+<script>window.APP_BASE_PATH = <?= json_encode(APP_BASE_PATH) ?>;</script>
 <div class="container-fluid px-4 py-4">

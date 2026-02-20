@@ -2,10 +2,10 @@
   <div class="col-xl-3">
     <aside class="admin-sidebar glass-card p-3 h-100">
       <h6 class="mb-3 text-uppercase">Painel Admin</h6>
-      <a class="btn btn-outline-success w-100 mb-2" href="?r=admin/reports/csv">Exportar CSV</a>
+      <a class="btn btn-outline-success w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/csv">Exportar CSV</a>
       <button class="btn btn-outline-secondary w-100 mb-2" disabled>Exportar PDF</button>
       <button class="btn btn-outline-secondary w-100 mb-2" disabled>Exportar XLSX</button>
-      <a class="btn btn-outline-primary w-100" href="?r=auth/logout">Sair</a>
+      <a class="btn btn-outline-primary w-100" href="<?= APP_BASE_PATH ?>/?r=auth/logout">Sair</a>
 
       <?php if (!empty($subscription)): ?>
         <hr>

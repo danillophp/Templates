@@ -1,3 +1,4 @@
+const APP_BASE = (window.APP_BASE_PATH || "").replace(/\/$/, "");
 const rows = document.getElementById('reqRows');
 
 const actionForm = (id) => {
@@ -12,7 +13,7 @@ const actionForm = (id) => {
 
 async function loadRequests() {
   const params = new URLSearchParams({ status: document.getElementById('fStatus').value, date: document.getElementById('fDate').value });
-  const response = await fetch(`?r=api/admin/requests&${params.toString()}`);
+  const response = await fetch(`${APP_BASE}/?r=api/admin/requests&${params.toString()}`);
   const json = await response.json();
   rows.innerHTML = (json.data || []).map((r) => `<tr>
     <td>${r.id}</td><td>${r.protocolo || '-'}</td><td>${r.nome}<br><small>${r.telefone}</small></td><td>${r.endereco}</td><td>${r.data_solicitada}</td><td>${r.status}</td><td>${actionForm(r.id)}</td>
@@ -20,7 +21,7 @@ async function loadRequests() {
 }
 
 async function loadChart() {
-  const response = await fetch('?r=api/admin/dashboard');
+  const response = await fetch(`${APP_BASE}/?r=api/admin/dashboard`);
   const json = await response.json();
   const labels = (json.data || []).map((row) => row.mes);
   const totals = (json.data || []).map((row) => Number(row.total));
@@ -47,7 +48,7 @@ window.addEventListener('click', async (event) => {
   fd.append('pickup_datetime', document.querySelector(`.pickup[data-id="${id}"]`).value);
   fd.append('employee_id', document.querySelector(`.employee[data-id="${id}"]`).value);
 
-  const response = await fetch('?r=api/admin/update', { method: 'POST', body: fd });
+  const response = await fetch(`${APP_BASE}/?r=api/admin/update`, { method: 'POST', body: fd });
   const json = await response.json();
   showToast(json.message, json.ok ? 'success' : 'danger');
   loadRequests();
@@ -60,7 +61,7 @@ document.getElementById('btnPoint').addEventListener('click', async () => {
   fd.append('latitude', document.getElementById('pLat').value);
   fd.append('longitude', document.getElementById('pLng').value);
 
-  const response = await fetch('?r=api/admin/point/create', { method: 'POST', body: fd });
+  const response = await fetch(`${APP_BASE}/?r=api/admin/point/create`, { method: 'POST', body: fd });
   const json = await response.json();
   showToast(json.message, json.ok ? 'success' : 'danger');
 });

@@ -11,7 +11,7 @@
             <h4 class="mb-1">Solicitação de Cata Treco</h4>
             <small class="text-muted">Preencha os dados para agendar sua coleta.</small>
           </div>
-          <a href="?r=auth/login" class="btn btn-outline-primary btn-sm">Acesso da equipe</a>
+          <a href="<?= APP_BASE_PATH ?>/?r=auth/login" class="btn btn-outline-primary btn-sm">Acesso da equipe</a>
         </div>
 
         <form id="citizenForm" enctype="multipart/form-data" novalidate>

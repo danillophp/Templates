@@ -1,3 +1,4 @@
+const APP_BASE = (window.APP_BASE_PATH || "").replace(/\/$/, "");
 const feedback = document.getElementById('feedback');
 const latEl = document.getElementById('latitude');
 const lngEl = document.getElementById('longitude');
@@ -30,7 +31,7 @@ marker.on('dragend', (event) => {
 
 async function loadPoints() {
   try {
-    const res = await fetch('?r=api/citizen/points');
+    const res = await fetch(`${APP_BASE}/?r=api/citizen/points`);
     const json = await res.json();
     if (!json.ok || !Array.isArray(json.data)) return;
 
@@ -92,7 +93,7 @@ document.getElementById('citizenForm').addEventListener('submit', async (event) 
   feedback.innerHTML = '<div class="alert alert-info">Enviando solicitação...</div>';
 
   try {
-    const res = await fetch('?r=api/citizen/create', { method: 'POST', body: fd });
+    const res = await fetch(`${APP_BASE}/?r=api/citizen/create`, { method: 'POST', body: fd });
     const json = await res.json();
 
     feedback.innerHTML = `<div class="alert ${json.ok ? 'alert-success' : 'alert-danger'}">${json.message} ${json.protocolo ? `<br><strong>Protocolo:</strong> ${json.protocolo}` : ''}</div>`;
@@ -115,7 +116,7 @@ document.getElementById('btnTrack').addEventListener('click', async () => {
 
   try {
     const params = new URLSearchParams({ protocol, phone });
-    const res = await fetch(`?r=api/citizen/track&${params.toString()}`);
+    const res = await fetch(`${APP_BASE}/?r=api/citizen/track&${params.toString()}`);
     const json = await res.json();
 
     if (!json.ok) {
