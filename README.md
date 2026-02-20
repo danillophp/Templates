@@ -25,7 +25,7 @@ Edite `config/database.php`:
 
 ### 2) App em subpasta
 `config/app.php` já está pronto para:
-- `APP_URL = https://www.prefsade.com.br/catatreco`
+- `APP_URL = https://prefsade.com.br/catatreco`
 - `APP_BASE_PATH = /catatreco`
 - `APP_DEFAULT_TENANT = 1`
 

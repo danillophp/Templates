@@ -9,7 +9,7 @@ const APP_NAME = 'Cata Treco SaaS';
 const APP_ENV = 'production'; // production | development
 const APP_DEBUG = false;
 
-const APP_URL = 'https://www.prefsade.com.br/catatreco';
+const APP_URL = 'https://prefsade.com.br/catatreco';
 const APP_BASE_PATH = '/catatreco';
 const APP_TIMEZONE = 'America/Sao_Paulo';
 
