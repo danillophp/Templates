@@ -22,7 +22,7 @@ final class CitizenController extends Controller
             'googleMapsKey' => GOOGLE_MAPS_API_KEY,
             'tenant' => $tenant,
             'tenants' => TenantService::allActive(),
-            'tenantWarning' => $tenant === null ? 'Não foi possível identificar a prefeitura automaticamente. Selecione uma opção abaixo.' : null,
+            'tenantWarning' => $tenant === null ? 'Sistema em modo padrão. Você pode preencher o formulário normalmente.' : null,
         ]);
     }
 
@@ -30,7 +30,7 @@ final class CitizenController extends Controller
     {
         $tenantId = TenantService::tenantId();
         if (!$tenantId) {
-            $this->json(['ok' => false, 'message' => 'Não foi possível identificar a prefeitura no momento.'], 422);
+            $this->json(['ok' => false, 'message' => 'Serviço temporariamente indisponível para localização da prefeitura.'], 422);
             return;
         }
         $this->json(['ok' => true, 'data' => (new PointModel())->active($tenantId)]);
@@ -45,7 +45,7 @@ final class CitizenController extends Controller
 
         $tenantId = TenantService::tenantId();
         if (!$tenantId) {
-            $this->json(['ok' => false, 'message' => 'Não foi possível identificar a prefeitura no momento.'], 422);
+            $this->json(['ok' => false, 'message' => 'Serviço temporariamente indisponível para localização da prefeitura.'], 422);
             return;
         }
 

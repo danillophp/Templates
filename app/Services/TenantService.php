@@ -10,37 +10,45 @@ final class TenantService
 {
     public static function current(): ?array
     {
-        $candidates = [];
-
-        if (isset($_REQUEST['tenant']) && is_string($_REQUEST['tenant'])) {
-            $requestSlug = trim($_REQUEST['tenant']);
-            if ($requestSlug !== '') {
-                $candidates[] = $requestSlug;
+        try {
+            // 1) parâmetro explícito (?tenant=slug ou ?tenant=1)
+            if (isset($_REQUEST['tenant']) && is_string($_REQUEST['tenant'])) {
+                $tenantParam = trim($_REQUEST['tenant']);
+                if ($tenantParam !== '') {
+                    $tenant = ctype_digit($tenantParam)
+                        ? self::findById((int)$tenantParam)
+                        : self::findBySlug($tenantParam);
+                    if ($tenant) {
+                        return $tenant;
+                    }
+                }
             }
-        }
 
-        $host = $_SERVER['HTTP_HOST'] ?? '';
-        $parts = explode('.', $host);
-        if (count($parts) >= 3) {
-            $subdomainSlug = trim((string)$parts[0]);
-            if ($subdomainSlug !== '') {
-                $candidates[] = $subdomainSlug;
+            // 2) subdomínio, quando existir
+            $host = $_SERVER['HTTP_HOST'] ?? '';
+            $parts = explode('.', $host);
+            if (count($parts) >= 3) {
+                $subdomainSlug = trim((string)$parts[0]);
+                if ($subdomainSlug !== '') {
+                    $tenant = self::findBySlug($subdomainSlug);
+                    if ($tenant) {
+                        return $tenant;
+                    }
+                }
             }
-        }
 
-        if (APP_DEFAULT_TENANT !== '') {
-            $candidates[] = APP_DEFAULT_TENANT;
-        }
-
-        $candidates = array_values(array_unique($candidates));
-        foreach ($candidates as $slug) {
-            $tenant = self::findBySlug($slug);
-            if ($tenant) {
-                return $tenant;
+            // 3) tenant padrão por ID (sem dependência de subdomínio)
+            $defaultTenant = self::findById((int) APP_DEFAULT_TENANT);
+            if ($defaultTenant) {
+                return $defaultTenant;
             }
-        }
 
-        return self::firstActive();
+            // 4) fallback final
+            return self::firstActive();
+        } catch (\Throwable $e) {
+            error_log('[CataTreco][TENANT] ' . $e->getMessage());
+            return null;
+        }
     }
 
     public static function tenantId(): ?int
@@ -51,31 +59,30 @@ final class TenantService
 
     public static function allActive(): array
     {
-        return Database::connection()->query('SELECT id, nome, slug FROM tenants WHERE ativo = 1 ORDER BY nome')->fetchAll();
+        try {
+            return Database::connection()->query('SELECT id, nome, slug FROM tenants WHERE ativo = 1 ORDER BY nome')->fetchAll();
+        } catch (\Throwable $e) {
+            error_log('[CataTreco][TENANT_LIST] ' . $e->getMessage());
+            return [];
+        }
     }
 
     public static function config(?int $tenantId = null): array
     {
         $tid = $tenantId ?? self::tenantId();
         if (!$tid) {
-            return [
-                'nome_prefeitura' => APP_NAME,
-                'cor_primaria' => '#198754',
-                'logo' => '',
-                'texto_rodape' => 'Cata Treco SaaS',
-            ];
+            return self::defaultConfig();
         }
 
-        $stmt = Database::connection()->prepare('SELECT * FROM configuracoes WHERE tenant_id = :tenant_id LIMIT 1');
-        $stmt->execute(['tenant_id' => $tid]);
-        $config = $stmt->fetch();
-
-        return $config ?: [
-            'nome_prefeitura' => APP_NAME,
-            'cor_primaria' => '#198754',
-            'logo' => '',
-            'texto_rodape' => 'Cata Treco SaaS',
-        ];
+        try {
+            $stmt = Database::connection()->prepare('SELECT * FROM configuracoes WHERE tenant_id = :tenant_id LIMIT 1');
+            $stmt->execute(['tenant_id' => $tid]);
+            $config = $stmt->fetch();
+            return $config ?: self::defaultConfig();
+        } catch (\Throwable $e) {
+            error_log('[CataTreco][TENANT_CONFIG] ' . $e->getMessage());
+            return self::defaultConfig();
+        }
     }
 
     private static function findBySlug(string $slug): ?array
@@ -86,10 +93,32 @@ final class TenantService
         return $tenant ?: null;
     }
 
+    private static function findById(int $id): ?array
+    {
+        if ($id <= 0) {
+            return null;
+        }
+
+        $stmt = Database::connection()->prepare('SELECT * FROM tenants WHERE id = :id AND ativo = 1 LIMIT 1');
+        $stmt->execute(['id' => $id]);
+        $tenant = $stmt->fetch();
+        return $tenant ?: null;
+    }
+
     private static function firstActive(): ?array
     {
         $stmt = Database::connection()->query('SELECT * FROM tenants WHERE ativo = 1 ORDER BY id ASC LIMIT 1');
         $tenant = $stmt->fetch();
         return $tenant ?: null;
+    }
+
+    private static function defaultConfig(): array
+    {
+        return [
+            'nome_prefeitura' => 'Prefeitura Municipal',
+            'cor_primaria' => '#0b8f62',
+            'logo' => '',
+            'texto_rodape' => 'Cata Treco',
+        ];
     }
 }

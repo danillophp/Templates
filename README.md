@@ -5,7 +5,7 @@ Sistema SaaS multi-tenant para gestão municipal de coleta de resíduos volumoso
 ## Arquitetura
 - **PHP 8+**, **MySQL**, MVC simples e legível.
 - Multi-tenant em banco único por `tenant_id`.
-- Isolamento por subdomínio (`prefeitura1.catatreco.com`) ou `?tenant=slug` para ambiente local.
+- Funciona sem subdomínio (tenant padrão por ID) e também aceita `?tenant=slug` quando necessário.
 - Perfis: `super_admin`, `admin`, `funcionario`, cidadão.
 
 ## Estrutura de pastas
@@ -44,6 +44,7 @@ Importe `sql/catatreco.sql` (ou `database/schema.sql`) no phpMyAdmin.
 - Funcionário demo: `funcionario@prefdemo.gov.br` / `Func@123`
 
 ## Funcionalidades entregues
+- Mapa 100% gratuito com **Leaflet + OpenStreetMap + Nominatim** (sem Google Maps pago).
 - Cadastro e resolução de tenant por subdomínio.
 - Super Admin com métricas globais e criação de prefeitura.
 - Admin da prefeitura com:
@@ -89,3 +90,13 @@ php scripts/cron.php
 - `.htaccess` da raiz faz rewrite para `index.php` e força HTTPS.
 - `config/db.php` deve usar usuário do cPanel: `santo821_catatreco`.
 - A URL `https://www.prefsade.com.br/catatreco` deve abrir direto o formulário público.
+
+## Instalação rápida (HostGator)
+1. Faça upload dos arquivos para `public_html/catatreco`.
+2. Importe `sql/catatreco.sql` no phpMyAdmin.
+3. Edite `config/db.php` com as credenciais do banco.
+4. Confirme `config/app.php` com:
+   - `APP_URL = https://www.prefsade.com.br/catatreco`
+   - `APP_BASE_PATH = /catatreco`
+   - `APP_DEFAULT_TENANT = 1`
+5. Acesse `https://www.prefsade.com.br/catatreco` e o formulário público abrirá automaticamente.
