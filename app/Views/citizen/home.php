@@ -85,7 +85,7 @@
 <script>
 window.GOOGLE_MAPS_KEY = <?= json_encode($googleMapsKey ?? '') ?>;
 </script>
-<script src="../assets/js/citizen-form.js"></script>
+<script src="<?= APP_BASE_PATH ?>/assets/js/citizen-form.js"></script>
 <?php if (!empty($googleMapsKey)): ?>
   <script src="https://maps.googleapis.com/maps/api/js?key=<?= urlencode($googleMapsKey) ?>&callback=initCitizenGoogleMap" async defer></script>
 <?php endif; ?>

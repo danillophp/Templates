@@ -5,6 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
 
+ini_set('display_errors', APP_DEBUG ? '1' : '0');
+ini_set('log_errors', '1');
+error_reporting(APP_DEBUG ? E_ALL : 0);
+
 spl_autoload_register(static function (string $class): void {
     $prefix = 'App\\';
     if (strpos($class, $prefix) !== 0) {

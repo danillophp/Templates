@@ -54,4 +54,4 @@
 </div>
 
 <script>window.EMPLOYEES = <?= json_encode($employees) ?>; window.CSRF = <?= json_encode($csrf) ?>;</script>
-<script src="../assets/js/admin-dashboard.js"></script>
+<script src="<?= APP_BASE_PATH ?>/assets/js/admin-dashboard.js"></script>

@@ -82,3 +82,10 @@ php scripts/cron.php
 - Se não houver subdomínio válido, o sistema tenta `APP_DEFAULT_TENANT`.
 - Se o tenant padrão não existir, usa a primeira prefeitura ativa.
 - Se ainda não houver tenant ativo, a página pública mostra aviso amigável e seletor de prefeitura (sem erro técnico).
+
+## Ajuste de hospedagem compartilhada (/catatreco)
+- Entrada principal: `index.php` na raiz do projeto (`/catatreco/index.php`).
+- `APP_BASE_PATH` deve ser `/catatreco` (sem `/public`).
+- `.htaccess` da raiz faz rewrite para `index.php` e força HTTPS.
+- `config/db.php` deve usar usuário do cPanel: `santo821_catatreco`.
+- A URL `https://www.prefsade.com.br/catatreco` deve abrir direto o formulário público.

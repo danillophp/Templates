@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
   <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
-  <link href="../assets/css/style.css" rel="stylesheet">
+  <link href="<?= APP_BASE_PATH ?>/assets/css/style.css" rel="stylesheet">
   <style>:root { --tenant-primary: <?= htmlspecialchars($_config['cor_primaria'] ?? '#198754') ?>; }</style>
 </head>
 <body>
