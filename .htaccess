@@ -2,12 +2,10 @@ Options -Indexes
 RewriteEngine On
 RewriteBase /catatreco/
 
-# Força HTTPS em hospedagem compartilhada
-RewriteCond %{HTTPS} !=on [OR]
-RewriteCond %{HTTP:X-Forwarded-Proto} !https
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# Mantém arquivos/pastas reais funcionando (assets, uploads etc.)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
-# Front controller
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]
+# Todo o restante passa pelo front controller em /public/index.php
+RewriteRule ^ public/index.php [QSA,L]

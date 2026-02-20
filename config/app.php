@@ -16,7 +16,7 @@ const APP_TIMEZONE = 'America/Sao_Paulo';
 // Simplificação multi-tenant: tenant padrão por ID (funciona sem subdomínio).
 const APP_DEFAULT_TENANT = 1;
 
-const APP_FORCE_HTTPS = true;
+const APP_FORCE_HTTPS = false; // Evita loop de redirect em proxy compartilhado
 
 const UPLOAD_PATH = __DIR__ . '/../uploads';
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;

@@ -2,6 +2,5 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/app/bootstrap.php';
-
-(new App\Core\Router())->dispatch();
+// Entrypoint da subpasta /catatreco (compatível com HostGator)
+require __DIR__ . '/public/index.php';

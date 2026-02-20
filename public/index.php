@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-$query = $_SERVER['QUERY_STRING'] ?? '';
-$target = '../index.php' . ($query !== '' ? '?' . $query : '');
-header('Location: ' . $target, true, 302);
-exit;
+require_once __DIR__ . '/../app/bootstrap.php';
+
+(new App\Core\Router())->dispatch();

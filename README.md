@@ -99,3 +99,15 @@ Ao abrir `https://prefsade.com.br/catatreco`:
 - Admin: `https://prefsade.com.br/catatreco/admin`
 - Login: `https://prefsade.com.br/catatreco/login`
 - Funcionário: `https://prefsade.com.br/catatreco/funcionario`
+
+
+## Correção definitiva de loop (ERR_TOO_MANY_REDIRECTS)
+Causa raiz identificada:
+- havia redirecionamentos encadeados entre `public/index.php` e `../index.php`;
+- havia regra de HTTPS forçada no `.htaccess` que pode entrar em loop em proxy/CDN compartilhado.
+
+Correção aplicada:
+- `index.php` da raiz passa a incluir `public/index.php` (sem redirect HTTP);
+- `public/index.php` virou front controller real (bootstrap + router);
+- `.htaccess` da raiz reescreve para `public/index.php` sem forçar HTTPS;
+- `public/.htaccess` sem redirecionamento para raiz.
