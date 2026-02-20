@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 // Configurações principais da aplicação.
 const APP_NAME = 'CATA TRECO';
-const APP_URL = 'https://www.prefsade.com.br/catatreco';
+const APP_URL = 'http://localhost/catatreco';
 const APP_BASE_PATH = '/catatreco/public';
 const APP_TIMEZONE = 'America/Sao_Paulo';
 
@@ -24,3 +24,5 @@ const WA_API_VERSION = 'v20.0';
 
 // Segurança da sessão.
 const SESSION_NAME = 'catatreco_session';
+
+const GOOGLE_MAPS_API_KEY = "";

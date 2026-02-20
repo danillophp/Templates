@@ -15,7 +15,7 @@ final class EmployeeController extends Controller
 {
     private function guard(): void
     {
-        if (!Auth::check() || !Auth::is('FUNCIONARIO')) {
+        if (!Auth::check() || !Auth::is('funcionario')) {
             $this->redirect('/?r=auth/login');
         }
     }
@@ -32,36 +32,39 @@ final class EmployeeController extends Controller
     public function start(): void
     {
         $this->guard();
-        $this->changeStatus('EM_ANDAMENTO', 'INICIO_COLETA');
+        $this->changeStatus('APROVADO', 'Funcionário iniciou deslocamento.');
     }
 
     public function finish(): void
     {
         $this->guard();
-        $this->changeStatus('FINALIZADO', 'FINALIZA_COLETA', true);
+        $this->changeStatus('FINALIZADO', 'Funcionário finalizou o Cata Treco.', true);
     }
 
-    private function changeStatus(string $status, string $action, bool $notify = false): void
+    private function changeStatus(string $status, string $logMessage, bool $notify = false): void
     {
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            $this->json(['ok' => false], 422);
+            $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
             return;
         }
+
         $id = (int)($_POST['request_id'] ?? 0);
         $model = new RequestModel();
         $request = $model->find($id);
+
         if (!$request) {
             $this->json(['ok' => false, 'message' => 'Solicitação não encontrada.'], 404);
             return;
         }
 
         $model->updateStatus($id, $status);
-        (new LogModel())->register($id, (int)Auth::user()['id'], 'FUNCIONARIO', $action, 'Ação do funcionário.');
+        (new LogModel())->register($id, (int)Auth::user()['id'], $logMessage);
 
         $wa = null;
         if ($notify) {
-            $wa = (new WhatsAppService())->send($request['whatsapp'], "Sua coleta Cata Treco #{$id} foi finalizada.");
+            $wa = (new WhatsAppService())->send((string)$request['telefone'], 'Sua coleta de Cata Treco foi finalizada. Prefeitura Municipal.');
         }
-        $this->json(['ok' => true, 'whatsapp' => $wa]);
+
+        $this->json(['ok' => true, 'message' => 'Status atualizado.', 'whatsapp' => $wa]);
     }
 }

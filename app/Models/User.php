@@ -8,16 +8,17 @@ use App\Core\Database;
 
 final class User
 {
-    public function findByUsername(string $username): ?array
+    public function findByEmail(string $email): ?array
     {
-        $stmt = Database::connection()->prepare('SELECT * FROM users WHERE username = :username AND is_active = 1 LIMIT 1');
-        $stmt->execute(['username' => $username]);
+        $stmt = Database::connection()->prepare('SELECT * FROM usuarios WHERE email = :email LIMIT 1');
+        $stmt->execute(['email' => $email]);
         $row = $stmt->fetch();
+
         return $row ?: null;
     }
 
     public function employees(): array
     {
-        return Database::connection()->query("SELECT id, full_name FROM users WHERE role='FUNCIONARIO' AND is_active=1 ORDER BY full_name")->fetchAll();
+        return Database::connection()->query("SELECT id, nome FROM usuarios WHERE tipo='funcionario' ORDER BY nome")->fetchAll();
     }
 }

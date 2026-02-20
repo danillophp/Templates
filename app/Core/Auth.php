@@ -18,16 +18,16 @@ final class Auth
 
     public static function is(string $role): bool
     {
-        return ($_SESSION['user']['role'] ?? '') === $role;
+        return ($_SESSION['user']['tipo'] ?? '') === $role;
     }
 
     public static function login(array $user): void
     {
         $_SESSION['user'] = [
             'id' => (int) $user['id'],
-            'name' => $user['full_name'],
-            'role' => $user['role'],
-            'username' => $user['username'],
+            'nome' => $user['nome'],
+            'tipo' => $user['tipo'],
+            'email' => $user['email'],
         ];
     }
 

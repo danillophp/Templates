@@ -21,12 +21,15 @@ final class AuthController extends Controller
             }
 
             $model = new User();
-            $user = $model->findByUsername(trim($_POST['username'] ?? ''));
-            if ($user && password_verify($_POST['password'] ?? '', $user['password_hash'])) {
+            $user = $model->findByEmail(trim((string)($_POST['email'] ?? '')));
+
+            if ($user && password_verify((string)($_POST['senha'] ?? ''), (string)$user['senha'])) {
                 Auth::login($user);
-                (new LogModel())->register(null, (int)$user['id'], $user['role'], 'LOGIN', 'Login efetuado.');
-                $this->redirect($user['role'] === 'ADMIN' ? '/?r=admin/dashboard' : '/?r=employee/dashboard');
+                (new LogModel())->register(null, (int)$user['id'], 'Login efetuado no sistema.');
+                $this->redirect($user['tipo'] === 'admin' ? '/?r=admin/dashboard' : '/?r=employee/dashboard');
+                return;
             }
+
             $this->view('auth/login', ['error' => 'Usuário ou senha inválidos.']);
             return;
         }

@@ -21,7 +21,9 @@ final class Router
             case 'auth/logout': (new AuthController())->logout(); break;
             case 'admin/dashboard': (new AdminController())->dashboard(); break;
             case 'employee/dashboard': (new EmployeeController())->dashboard(); break;
+            case 'api/citizen/points': (new CitizenController())->points(); break;
             case 'api/citizen/create': (new CitizenController())->store(); break;
+            case 'api/admin/point/create': (new AdminController())->createPoint(); break;
             case 'api/admin/requests': (new AdminController())->requests(); break;
             case 'api/admin/update': (new AdminController())->update(); break;
             case 'api/employee/start': (new EmployeeController())->start(); break;

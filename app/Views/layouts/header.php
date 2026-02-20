@@ -14,7 +14,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4">
   <div class="container"><a class="navbar-brand" href="?r=citizen/home">CATA TRECO</a>
     <div class="ms-auto text-white small">
-      <?php if (Auth::check()): ?><?= htmlspecialchars(Auth::user()['name']) ?> | <a class="text-white" href="?r=auth/logout">Sair</a><?php endif; ?>
+      <?php if (Auth::check()): ?><?= htmlspecialchars(Auth::user()['nome']) ?> | <a class="text-white" href="?r=auth/logout">Sair</a><?php endif; ?>
     </div>
   </div>
 </nav>
