@@ -1,3 +1,18 @@
+<?php if (!empty($tenantWarning)): ?>
+  <div class="alert alert-warning d-flex justify-content-between align-items-center">
+    <span><?= htmlspecialchars($tenantWarning) ?></span>
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <input type="hidden" name="r" value="citizen/home">
+      <select name="tenant" class="form-select form-select-sm">
+        <?php foreach (($tenants ?? []) as $item): ?>
+          <option value="<?= htmlspecialchars($item['slug']) ?>"><?= htmlspecialchars($item['nome']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <button class="btn btn-sm btn-primary">Acessar</button>
+    </form>
+  </div>
+<?php endif; ?>
+
 <div class="row g-4">
   <div class="col-lg-8">
     <div class="card shadow-sm">

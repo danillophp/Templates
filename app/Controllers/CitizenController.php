@@ -17,15 +17,12 @@ final class CitizenController extends Controller
     public function home(): void
     {
         $tenant = TenantService::current();
-        if (!$tenant) {
-            http_response_code(404);
-            echo 'Prefeitura não encontrada.';
-            return;
-        }
 
         $this->view('citizen/home', [
             'googleMapsKey' => GOOGLE_MAPS_API_KEY,
             'tenant' => $tenant,
+            'tenants' => TenantService::allActive(),
+            'tenantWarning' => $tenant === null ? 'Não foi possível identificar a prefeitura automaticamente. Selecione uma opção abaixo.' : null,
         ]);
     }
 
@@ -33,7 +30,7 @@ final class CitizenController extends Controller
     {
         $tenantId = TenantService::tenantId();
         if (!$tenantId) {
-            $this->json(['ok' => false, 'message' => 'Tenant inválido.'], 404);
+            $this->json(['ok' => false, 'message' => 'Não foi possível identificar a prefeitura no momento.'], 422);
             return;
         }
         $this->json(['ok' => true, 'data' => (new PointModel())->active($tenantId)]);
@@ -48,19 +45,19 @@ final class CitizenController extends Controller
 
         $tenantId = TenantService::tenantId();
         if (!$tenantId) {
-            $this->json(['ok' => false, 'message' => 'Tenant inválido.'], 404);
+            $this->json(['ok' => false, 'message' => 'Não foi possível identificar a prefeitura no momento.'], 422);
             return;
         }
 
         $sub = (new SubscriptionModel())->activeWithPlan($tenantId);
         if (!$sub) {
-            $this->json(['ok' => false, 'message' => 'Prefeitura sem assinatura ativa.'], 403);
+            $this->json(['ok' => false, 'message' => 'Serviço temporariamente indisponível para esta prefeitura.'], 403);
             return;
         }
 
         $used = (new SubscriptionModel())->requestsInMonth($tenantId);
         if ($used >= (int)$sub['limite_solicitacoes_mes']) {
-            $this->json(['ok' => false, 'message' => 'Limite mensal de solicitações do plano atingido.'], 403);
+            $this->json(['ok' => false, 'message' => 'Limite mensal de solicitações atingido. Tente novamente mais tarde.'], 403);
             return;
         }
 

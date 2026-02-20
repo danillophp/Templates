@@ -77,3 +77,8 @@ php scripts/cron.php
 - Código já separado por camadas.
 - Serviços desacoplados (tenant, whatsapp, billing).
 - API interna pronta para app mobile.
+
+## Resiliência de tenant (acesso público)
+- Se não houver subdomínio válido, o sistema tenta `APP_DEFAULT_TENANT`.
+- Se o tenant padrão não existir, usa a primeira prefeitura ativa.
+- Se ainda não houver tenant ativo, a página pública mostra aviso amigável e seletor de prefeitura (sem erro técnico).

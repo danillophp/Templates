@@ -10,29 +10,48 @@ final class TenantService
 {
     public static function current(): ?array
     {
+        $candidates = [];
+
         if (isset($_REQUEST['tenant']) && is_string($_REQUEST['tenant'])) {
-            $slug = trim($_REQUEST['tenant']);
-        } else {
-            $host = $_SERVER['HTTP_HOST'] ?? '';
-            $parts = explode('.', $host);
-            $slug = count($parts) >= 3 ? $parts[0] : APP_DEFAULT_TENANT;
+            $requestSlug = trim($_REQUEST['tenant']);
+            if ($requestSlug !== '') {
+                $candidates[] = $requestSlug;
+            }
         }
 
-        if ($slug === '') {
-            return null;
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        $parts = explode('.', $host);
+        if (count($parts) >= 3) {
+            $subdomainSlug = trim((string)$parts[0]);
+            if ($subdomainSlug !== '') {
+                $candidates[] = $subdomainSlug;
+            }
         }
 
-        $stmt = Database::connection()->prepare('SELECT * FROM tenants WHERE slug = :slug AND ativo = 1 LIMIT 1');
-        $stmt->execute(['slug' => $slug]);
-        $tenant = $stmt->fetch();
+        if (APP_DEFAULT_TENANT !== '') {
+            $candidates[] = APP_DEFAULT_TENANT;
+        }
 
-        return $tenant ?: null;
+        $candidates = array_values(array_unique($candidates));
+        foreach ($candidates as $slug) {
+            $tenant = self::findBySlug($slug);
+            if ($tenant) {
+                return $tenant;
+            }
+        }
+
+        return self::firstActive();
     }
 
     public static function tenantId(): ?int
     {
         $tenant = self::current();
         return $tenant ? (int)$tenant['id'] : null;
+    }
+
+    public static function allActive(): array
+    {
+        return Database::connection()->query('SELECT id, nome, slug FROM tenants WHERE ativo = 1 ORDER BY nome')->fetchAll();
     }
 
     public static function config(?int $tenantId = null): array
@@ -57,5 +76,20 @@ final class TenantService
             'logo' => '',
             'texto_rodape' => 'Cata Treco SaaS',
         ];
+    }
+
+    private static function findBySlug(string $slug): ?array
+    {
+        $stmt = Database::connection()->prepare('SELECT * FROM tenants WHERE slug = :slug AND ativo = 1 LIMIT 1');
+        $stmt->execute(['slug' => $slug]);
+        $tenant = $stmt->fetch();
+        return $tenant ?: null;
+    }
+
+    private static function firstActive(): ?array
+    {
+        $stmt = Database::connection()->query('SELECT * FROM tenants WHERE ativo = 1 ORDER BY id ASC LIMIT 1');
+        $tenant = $stmt->fetch();
+        return $tenant ?: null;
     }
 }
