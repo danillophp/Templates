@@ -36,8 +36,16 @@ final class ApiController extends Controller
                 $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
                 return;
             }
-            $id = (int)($payload['id'] ?? 0);
-            $status = (string)($payload['status'] ?? 'PENDENTE');
+
+            $id = (int)($payload['id'] ?? ($_GET['id'] ?? 0));
+            $status = strtoupper(trim((string)($payload['status'] ?? 'PENDENTE')));
+            $allowed = ['PENDENTE', 'APROVADO', 'RECUSADO', 'FINALIZADO'];
+
+            if ($id <= 0 || !in_array($status, $allowed, true)) {
+                $this->json(['ok' => false, 'message' => 'Dados inválidos para atualização.'], 422);
+                return;
+            }
+
             (new RequestModel())->updateStatus($id, (int)$tenantId, $status);
             $this->json(['ok' => true]);
             return;

@@ -13,6 +13,22 @@ use App\Controllers\SuperAdminController;
 
 final class Router
 {
+    private const PATH_ROUTES = [
+        'api/citizen/points',
+        'api/citizen/create',
+        'api/citizen/track',
+        'api/superadmin/tenant/create',
+        'api/admin/point/create',
+        'api/admin/requests',
+        'api/admin/update',
+        'api/admin/dashboard',
+        'api/employee/start',
+        'api/employee/finish',
+        'api/solicitacoes',
+        'api/dashboard',
+        'admin/reports/csv',
+    ];
+
     public function dispatch(): void
     {
         $route = $_GET['r'] ?? $this->detectRouteByPath();
@@ -58,6 +74,16 @@ final class Router
         }
 
         $path = '/' . ltrim($path, '/');
+        $normalized = trim($path, '/');
+
+        if (in_array($normalized, self::PATH_ROUTES, true)) {
+            return $normalized;
+        }
+
+        if (preg_match('#^api/solicitacoes/(\d+)$#', $normalized, $matches) === 1) {
+            $_GET['id'] = $matches[1];
+            return 'api/solicitacoes';
+        }
 
         return match ($path) {
             '/', '/index.php' => 'citizen/home',

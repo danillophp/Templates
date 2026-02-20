@@ -1,6 +1,8 @@
 # API Interna - Cata Treco SaaS
 
-Base local: `/?r=`
+Base de produção (HostGator): `https://dominio.com/catatreco`
+
+A API aceita tanto rotas amigáveis quanto fallback com query string (`?r=`), mantendo compatibilidade em hospedagem compartilhada.
 
 ## Solicitações
 ### GET `/api/solicitacoes`
@@ -9,9 +11,10 @@ Lista solicitações do tenant autenticado.
 ### POST `/api/solicitacoes`
 Cria solicitação (mesmo payload do formulário cidadão).
 
-### PATCH `/api/solicitacoes`
+### PATCH `/api/solicitacoes/{id}`
 Atualiza status de solicitação.
-Campos: `_csrf`, `id`, `status`.
+Campos esperados no body: `_csrf`, `status`.
+Status aceitos: `PENDENTE`, `APROVADO`, `RECUSADO`, `FINALIZADO`.
 
 ## Dashboard
 ### GET `/api/dashboard`
@@ -22,9 +25,9 @@ Retorna dados analíticos para o painel admin.
 Pontos ativos da prefeitura.
 
 ### POST `/api/citizen/create`
-Criar solicitação.
+Cria solicitação.
 
-### GET `/api/citizen/track&protocol=...&phone=...`
+### GET `/api/citizen/track?protocol=...&phone=...`
 Consulta status por protocolo + telefone.
 
 ## Admin
