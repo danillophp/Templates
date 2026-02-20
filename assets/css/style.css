@@ -75,3 +75,20 @@ body {
 
 .admin-sidebar { border-radius: 16px; }
 .metric-box { background: linear-gradient(135deg, rgba(11,143,98,.10), rgba(29,125,226,.10)); border: 1px solid rgba(29,125,226,.12); }
+
+
+#map,
+.map-canvas {
+  width: 100%;
+  min-height: 400px;
+  height: 500px;
+  border-radius: 12px;
+}
+
+@media (max-width: 767px) {
+  #map,
+  .map-canvas {
+    height: 360px;
+    min-height: 320px;
+  }
+}

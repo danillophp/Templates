@@ -1,3 +1,10 @@
+<?php
+$googleApiKey = defined('GOOGLE_MAPS_API_KEY') && GOOGLE_MAPS_API_KEY !== null
+    ? trim((string) GOOGLE_MAPS_API_KEY)
+    : '';
+$mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
+?>
+
 <?php if (!empty($tenantWarning)): ?>
   <div class="alert alert-info glass-card mb-4"><?= htmlspecialchars($tenantWarning) ?></div>
 <?php endif; ?>
@@ -44,9 +51,10 @@
   <div class="col-lg-6">
     <div class="card shadow-sm glass-card border-0">
       <div class="card-body p-3">
-        <h5 class="mb-2">Mapa de confirmação (gratuito)</h5>
-        <div id="map" style="height: 500px"></div>
-        <small class="text-muted d-block mt-2">Leaflet + OpenStreetMap + Nominatim. Arraste o marcador para ajustar o local.</small>
+        <h5 class="mb-2">Mapa de confirmação</h5>
+        <div id="map" class="map-canvas"></div>
+        <noscript><small class="text-danger">Ative JavaScript para carregar o mapa.</small></noscript>
+        <small class="text-muted d-block mt-2">Modo atual: <?= $mapProvider === 'google' ? 'Google Maps' : 'Leaflet + OpenStreetMap (fallback gratuito)' ?>. Arraste o marcador para ajustar o local.</small>
         <div id="geoFeedback" class="mt-2"></div>
       </div>
     </div>
@@ -63,4 +71,21 @@
   </div>
 </div>
 
-<script src="<?= APP_BASE_PATH ?>/assets/js/citizen-form.js"></script>
+<script>
+  window.CATA_MAP_CONFIG = {
+    provider: <?= json_encode($mapProvider) ?>,
+    hasGoogleKey: <?= json_encode($googleApiKey !== '') ?>,
+    defaultLat: -23.55052,
+    defaultLng: -46.633308,
+  };
+</script>
+<?php if ($googleApiKey !== ''): ?>
+  <script>
+    window.cataGoogleLoadError = function () {
+      console.warn('Google Maps indisponível, fallback para Leaflet/OSM será utilizado.');
+      window.__cataGoogleFailed = true;
+    };
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=<?= urlencode($googleApiKey) ?>&libraries=places&loading=async&callback=cataInitGoogleMap" async defer onerror="cataGoogleLoadError()"></script>
+<?php endif; ?>
+<script src="<?= APP_BASE_PATH ?>/assets/js/citizen-form.js" defer></script>

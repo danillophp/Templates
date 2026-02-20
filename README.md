@@ -120,3 +120,22 @@ Correção aplicada:
 - Após cadastro, o sistema exibe comprovante com: nome, endereço, data, telefone, protocolo e status inicial.
 - Página pública dedicada para consulta de protocolo: `/?r=citizen/track` (ou `/consultar`).
 - Painel admin com ação de exclusão, alteração de data/status `ALTERADO` e acesso à tela de detalhes da solicitação.
+
+
+## Diagnóstico e correção definitiva do mapa (produção)
+Causas tratadas na correção:
+- Inicialização de mapa antes do carregamento completo do DOM/script.
+- Falhas de carregamento do Google Maps (key inválida, domínio não autorizado ou erro 403).
+- Ausência de fallback automático quando Google falha.
+- Garantia de altura/largura do container `#map` para evitar renderização invisível.
+
+Implementação final:
+- `#map` com dimensões fixas responsivas no CSS (`width:100%`, `min-height:400px`).
+- Inicialização somente após `DOMContentLoaded`.
+- Se `GOOGLE_MAPS_API_KEY` estiver configurada: tenta Google Maps com script `defer/async` + callback.
+- Em qualquer falha do Google: fallback automático para Leaflet + OpenStreetMap (sem chave paga).
+- Geocoding continua via Nominatim com debounce e marcador arrastável.
+
+Compatibilidade:
+- Mantida instalação em subpasta `/catatreco` sem quebrar rotas existentes.
+- Sem dependência de VPS; pronto para HostGator compartilhado.
