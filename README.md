@@ -111,3 +111,12 @@ Correção aplicada:
 - `public/index.php` virou front controller real (bootstrap + router);
 - `.htaccess` da raiz reescreve para `public/index.php` sem forçar HTTPS;
 - `public/.htaccess` sem redirecionamento para raiz.
+
+
+## Melhorias aplicadas no fluxo do cidadão e admin
+- Campo de data no formulário cidadão com `<input type="date">`, bloqueando datas passadas no frontend e backend.
+- Geolocalização automática por endereço/CEP usando Nominatim + Leaflet com debounce e fallback por ajuste manual do marcador.
+- Campo de upload renomeado para **Foto dos Trecos**.
+- Após cadastro, o sistema exibe comprovante com: nome, endereço, data, telefone, protocolo e status inicial.
+- Página pública dedicada para consulta de protocolo: `/?r=citizen/track` (ou `/consultar`).
+- Painel admin com ação de exclusão, alteração de data/status `ALTERADO` e acesso à tela de detalhes da solicitação.

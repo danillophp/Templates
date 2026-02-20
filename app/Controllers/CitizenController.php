@@ -26,6 +26,12 @@ final class CitizenController extends Controller
         ]);
     }
 
+
+    public function trackPage(): void
+    {
+        $this->view('citizen/track');
+    }
+
     public function points(): void
     {
         $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
@@ -65,10 +71,16 @@ final class CitizenController extends Controller
                 throw new \RuntimeException('Preencha todos os campos obrigatórios.');
             }
 
-            $dataMysql = date('Y-m-d H:i:s', strtotime($dataSolicitada));
-            if ($dataMysql === '1970-01-01 00:00:00') {
-                throw new \RuntimeException('Data inválida.');
+            $today = new \DateTimeImmutable('today');
+            $requestedDate = \DateTimeImmutable::createFromFormat('Y-m-d', $dataSolicitada);
+            if (!$requestedDate || $requestedDate->format('Y-m-d') !== $dataSolicitada) {
+                throw new \RuntimeException('Data inválida. Use o calendário para selecionar uma data válida.');
             }
+            if ($requestedDate < $today) {
+                throw new \RuntimeException('Não é permitido selecionar data de coleta no passado.');
+            }
+
+            $dataMysql = $requestedDate->format('Y-m-d');
 
             $foto = $this->savePhoto($_FILES['photo'] ?? []);
             $id = (new RequestModel())->create([
@@ -86,7 +98,19 @@ final class CitizenController extends Controller
 
             $request = (new RequestModel())->find($id, $tenantId);
             (new LogModel())->register($tenantId, $id, null, 'SOLICITACAO_CRIADA', 'Solicitação criada pelo cidadão.');
-            $this->json(['ok' => true, 'message' => 'Solicitação enviada com sucesso.', 'protocolo' => $request['protocolo'] ?? '']);
+            $this->json([
+                'ok' => true,
+                'message' => 'Solicitação enviada com sucesso.',
+                'protocolo' => $request['protocolo'] ?? '',
+                'receipt' => [
+                    'nome' => $nome,
+                    'endereco' => $endereco,
+                    'data_solicitada' => $dataMysql,
+                    'telefone' => $telefone,
+                    'protocolo' => $request['protocolo'] ?? '',
+                    'status' => $request['status'] ?? 'PENDENTE',
+                ],
+            ]);
         } catch (\Throwable $e) {
             $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
         }
@@ -115,7 +139,7 @@ final class CitizenController extends Controller
     private function savePhoto(array $file): string
     {
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            throw new \RuntimeException('Foto obrigatória.');
+            throw new \RuntimeException('Foto dos Trecos é obrigatória.');
         }
         if (($file['size'] ?? 0) > MAX_UPLOAD_BYTES) {
             throw new \RuntimeException('Imagem maior que 5MB.');

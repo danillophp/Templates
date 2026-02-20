@@ -49,7 +49,7 @@
     <div class="card shadow-sm glass-card border-0 mb-3"><div class="card-body">
       <div class="row g-2">
         <div class="col-md-4"><input id="fDate" type="date" class="form-control"></div>
-        <div class="col-md-4"><select id="fStatus" class="form-select"><option value="">Status</option><option>PENDENTE</option><option>APROVADO</option><option>RECUSADO</option><option>FINALIZADO</option></select></div>
+        <div class="col-md-4"><select id="fStatus" class="form-select"><option value="">Status</option><option>PENDENTE</option><option>APROVADO</option><option>RECUSADO</option><option>ALTERADO</option><option>FINALIZADO</option></select></div>
         <div class="col-md-4"><button id="btnFilter" class="btn btn-success w-100">Filtrar</button></div>
       </div>
     </div></div>

@@ -8,14 +8,14 @@ use App\Core\Database;
 
 final class WhatsAppService
 {
-    public function send(int $tenantId, string $phone, string $message, ?string $template = null): array
+    public function sendMessage(int $tenantId, string $phone, string $message, ?string $template = null): array
     {
         $cleanPhone = preg_replace('/\D+/', '', $phone) ?? '';
         $config = $this->tenantWhatsAppConfig($tenantId);
 
         if (!$config || empty($config['wa_token']) || empty($config['wa_phone_number_id'])) {
             $fallback = ['mode' => 'fallback', 'url' => 'https://wa.me/55' . $cleanPhone . '?text=' . rawurlencode($message)];
-            $this->log($tenantId, $cleanPhone, 'FALLBACK', json_encode($fallback));
+            $this->logMessage($tenantId, $cleanPhone, 'FALLBACK', json_encode($fallback));
             return $fallback;
         }
 
@@ -31,19 +31,40 @@ final class WhatsAppService
             $payload['text'] = ['body' => $message];
         }
 
+        $result = $this->retrySimples((string)$config['wa_token'], (string)$config['wa_phone_number_id'], $payload, 2);
+        if (empty($result['error'])) {
+            $this->logMessage($tenantId, $cleanPhone, 'ENVIADO', json_encode($result));
+            return ['mode' => 'cloud_api', 'response' => $result['response']];
+        }
+
+        $this->logMessage($tenantId, $cleanPhone, 'ERRO', json_encode($result));
+        return ['mode' => 'erro', 'error' => $result['error'] ?? 'Falha no envio'];
+    }
+
+    public function send(int $tenantId, string $phone, string $message, ?string $template = null): array
+    {
+        return $this->sendMessage($tenantId, $phone, $message, $template);
+    }
+
+    public function retrySimples(string $token, string $phoneNumberId, array $payload, int $maxRetries = 2): array
+    {
         $attempt = 0;
-        $maxRetries = 2;
+        $result = ['response' => null, 'error' => 'Falha no envio'];
+
         do {
             $attempt++;
-            $result = $this->callCloudApi((string)$config['wa_token'], (string)$config['wa_phone_number_id'], $payload);
+            $result = $this->callCloudApi($token, $phoneNumberId, $payload);
             if (empty($result['error'])) {
-                $this->log($tenantId, $cleanPhone, 'ENVIADO', json_encode($result));
-                return ['mode' => 'cloud_api', 'response' => $result['response']];
+                return $result;
             }
         } while ($attempt <= $maxRetries);
 
-        $this->log($tenantId, $cleanPhone, 'ERRO', json_encode($result));
-        return ['mode' => 'erro', 'error' => $result['error'] ?? 'Falha no envio'];
+        return $result;
+    }
+
+    public function logMessage(int $tenantId, string $telefone, string $status, string $resposta): void
+    {
+        $this->log($tenantId, $telefone, $status, $resposta);
     }
 
     private function tenantWhatsAppConfig(int $tenantId): ?array

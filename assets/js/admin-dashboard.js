@@ -4,8 +4,9 @@ const rows = document.getElementById('reqRows');
 const actionForm = (id) => {
   const employeeOptions = (window.EMPLOYEES || []).map((e) => `<option value="${e.id}">${e.nome}</option>`).join('');
   return `<div class="d-flex flex-column gap-1">
-    <select class="form-select form-select-sm action" data-id="${id}"><option value="">Ação</option><option value="approve">Aprovar</option><option value="reject">Recusar</option><option value="schedule">Alterar data</option><option value="assign">Atribuir funcionário</option></select>
-    <input type="datetime-local" class="form-control form-control-sm pickup" data-id="${id}">
+    <a class="btn btn-sm btn-outline-primary" href="${APP_BASE}/?r=admin/request&id=${id}">Selecionar</a>
+    <select class="form-select form-select-sm action" data-id="${id}"><option value="">Ação</option><option value="approve">Aprovar</option><option value="reject">Recusar</option><option value="schedule">Alterar data</option><option value="assign">Atribuir funcionário</option><option value="delete">Excluir</option></select>
+    <input type="date" class="form-control form-control-sm pickup" data-id="${id}">
     <select class="form-select form-select-sm employee" data-id="${id}"><option value="">Funcionário</option>${employeeOptions}</select>
     <button class="btn btn-sm btn-success doAction" data-id="${id}">Aplicar</button>
   </div>`;

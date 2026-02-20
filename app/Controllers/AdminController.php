@@ -61,6 +61,24 @@ final class AdminController extends Controller
         $this->json(['ok' => true, 'message' => 'Ponto cadastrado com sucesso.']);
     }
 
+    public function requestDetail(): void
+    {
+        $tenantId = $this->guard();
+        $id = (int)($_GET['id'] ?? 0);
+        $request = (new RequestModel())->find($id, $tenantId);
+
+        if (!$request) {
+            http_response_code(404);
+            echo 'Solicitação não encontrada';
+            return;
+        }
+
+        $this->view('admin/request-detail', [
+            'request' => $request,
+            'csrf' => Csrf::token(),
+        ]);
+    }
+
     public function requests(): void
     {
         $tenantId = $this->guard();
@@ -81,7 +99,7 @@ final class AdminController extends Controller
 
         $id = (int)($_POST['request_id'] ?? 0);
         $action = (string)($_POST['action'] ?? '');
-        $date = !empty($_POST['pickup_datetime']) ? date('Y-m-d H:i:s', strtotime((string)$_POST['pickup_datetime'])) : null;
+        $date = !empty($_POST['pickup_datetime']) ? trim((string)$_POST['pickup_datetime']) : null;
         $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
 
         $model = new RequestModel();
@@ -99,12 +117,13 @@ final class AdminController extends Controller
             $model->updateStatus($id, $tenantId, 'RECUSADO');
             $statusTexto = 'RECUSADA';
         } elseif ($action === 'schedule') {
-            if (!$date || $date === '1970-01-01 00:00:00') {
-                $this->json(['ok' => false, 'message' => 'Data inválida.'], 422);
+            $requestedDate = $date ? \DateTimeImmutable::createFromFormat('Y-m-d', $date) : false;
+            if (!$requestedDate || $requestedDate->format('Y-m-d') !== $date || $requestedDate < new \DateTimeImmutable('today')) {
+                $this->json(['ok' => false, 'message' => 'Data inválida. Use uma data atual ou futura.'], 422);
                 return;
             }
-            $model->updateStatus($id, $tenantId, (string)$request['status'], $date);
-            $statusTexto = 'REAGENDADA';
+            $model->updateStatus($id, $tenantId, 'ALTERADO', $requestedDate->format('Y-m-d'));
+            $statusTexto = 'ALTERADA';
         } elseif ($action === 'assign') {
             if (!$employeeId) {
                 $this->json(['ok' => false, 'message' => 'Selecione um funcionário.'], 422);
@@ -112,6 +131,11 @@ final class AdminController extends Controller
             }
             $model->updateStatus($id, $tenantId, 'APROVADO', null, $employeeId);
             $statusTexto = 'ATRIBUÍDA';
+        } elseif ($action === 'delete') {
+            $model->delete($id, $tenantId);
+            (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_EXCLUIDA', 'Solicitação excluída pelo administrador.');
+            $this->json(['ok' => true, 'message' => 'Solicitação excluída com sucesso.']);
+            return;
         } else {
             $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
             return;
@@ -119,7 +143,7 @@ final class AdminController extends Controller
 
         (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_ATUALIZADA', $statusTexto);
         $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $request['nome'], $request['protocolo'], $statusTexto);
-        $wa = (new WhatsAppService())->send($tenantId, (string)$request['telefone'], $mensagem);
+        $wa = (new WhatsAppService())->sendMessage($tenantId, (string)$request['telefone'], $mensagem);
 
         $this->json(['ok' => true, 'message' => 'Solicitação atualizada.', 'whatsapp' => $wa]);
     }

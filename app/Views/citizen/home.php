@@ -11,7 +11,10 @@
             <h4 class="mb-1">Solicitação de Cata Treco</h4>
             <small class="text-muted">Preencha os dados para agendar sua coleta.</small>
           </div>
-          <a href="<?= APP_BASE_PATH ?>/?r=auth/login" class="btn btn-outline-primary btn-sm">Acesso da equipe</a>
+          <div class="d-flex gap-2">
+            <a href="<?= APP_BASE_PATH ?>/?r=citizen/track" class="btn btn-outline-secondary btn-sm">Consultar protocolo</a>
+            <a href="<?= APP_BASE_PATH ?>/?r=auth/login" class="btn btn-outline-primary btn-sm">Acesso da equipe</a>
+          </div>
         </div>
 
         <form id="citizenForm" enctype="multipart/form-data" novalidate>
@@ -23,14 +26,15 @@
             <div class="col-md-4"><label class="form-label">CEP</label><input class="form-control" id="cep" name="cep" required></div>
             <div class="col-md-6"><label class="form-label">Bairro</label><input class="form-control" id="district" name="district" required></div>
             <div class="col-md-6"><label class="form-label">Telefone (WhatsApp)</label><input class="form-control" name="whatsapp" required></div>
-            <div class="col-md-6"><label class="form-label">Data de coleta</label><input class="form-control" id="pickup_datetime" name="pickup_datetime" required></div>
-            <div class="col-md-6"><label class="form-label">Foto</label><input class="form-control" type="file" name="photo" accept="image/*" required></div>
+            <div class="col-md-6"><label class="form-label">Data de coleta</label><input class="form-control" type="date" min="<?= date('Y-m-d') ?>" id="pickup_datetime" name="pickup_datetime" required></div>
+            <div class="col-md-6"><label class="form-label">Foto dos Trecos</label><input class="form-control" type="file" name="photo" accept="image/*" required></div>
           </div>
 
           <input type="hidden" id="latitude" name="latitude">
           <input type="hidden" id="longitude" name="longitude">
 
           <div id="feedback" class="mt-3"></div>
+          <div id="receipt" class="mt-3 d-none"></div>
           <button class="btn btn-success mt-3 w-100">Enviar Solicitação</button>
         </form>
       </div>
@@ -43,6 +47,7 @@
         <h5 class="mb-2">Mapa de confirmação (gratuito)</h5>
         <div id="map" style="height: 500px"></div>
         <small class="text-muted d-block mt-2">Leaflet + OpenStreetMap + Nominatim. Arraste o marcador para ajustar o local.</small>
+        <div id="geoFeedback" class="mt-2"></div>
       </div>
     </div>
 

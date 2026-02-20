@@ -25,7 +25,7 @@ final class RequestModel
 
     public function summary(int $tenantId): array
     {
-        $statuses = ['PENDENTE', 'APROVADO', 'RECUSADO', 'FINALIZADO'];
+        $statuses = ['PENDENTE', 'APROVADO', 'RECUSADO', 'ALTERADO', 'FINALIZADO'];
         $result = [];
 
         foreach ($statuses as $status) {
@@ -104,6 +104,14 @@ final class RequestModel
         $stmt = Database::connection()->prepare('SELECT * FROM solicitacoes WHERE tenant_id = :tenant_id AND funcionario_id = :funcionario_id AND status IN ("APROVADO", "PENDENTE") ORDER BY data_solicitada ASC');
         $stmt->execute(['tenant_id' => $tenantId, 'funcionario_id' => $userId]);
         return $stmt->fetchAll();
+    }
+
+
+
+    public function delete(int $id, int $tenantId): void
+    {
+        $stmt = Database::connection()->prepare('DELETE FROM solicitacoes WHERE id = :id AND tenant_id = :tenant_id');
+        $stmt->execute(['id' => $id, 'tenant_id' => $tenantId]);
     }
 
     public function chartByMonth(int $tenantId): array

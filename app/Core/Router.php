@@ -36,9 +36,11 @@ final class Router
         switch ($route) {
             case 'citizen/home': (new CitizenController())->home(); break;
             case 'auth/login': (new AuthController())->login(); break;
+            case 'citizen/track': (new CitizenController())->trackPage(); break;
             case 'auth/logout': (new AuthController())->logout(); break;
             case 'superadmin/dashboard': (new SuperAdminController())->dashboard(); break;
             case 'admin/dashboard': (new AdminController())->dashboard(); break;
+            case 'admin/request': (new AdminController())->requestDetail(); break;
             case 'employee/dashboard': (new EmployeeController())->dashboard(); break;
 
             case 'api/citizen/points': (new CitizenController())->points(); break;
@@ -88,7 +90,9 @@ final class Router
         return match ($path) {
             '/', '/index.php' => 'citizen/home',
             '/admin' => 'admin/dashboard',
+            '/admin/solicitacao' => 'admin/request',
             '/login' => 'auth/login',
+            '/consultar' => 'citizen/track',
             '/funcionario' => 'employee/dashboard',
             default => 'citizen/home',
         };
