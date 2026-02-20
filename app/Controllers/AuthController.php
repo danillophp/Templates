@@ -14,6 +14,10 @@ final class AuthController extends Controller
 {
     public function login(): void
     {
+        if (function_exists('wp_login_url')) {
+            $this->redirect(wp_login_url(admin_url('admin.php?page=cata-treco-admin')));
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::validate($_POST['_csrf'] ?? null)) {
                 $this->view('auth/login', ['error' => 'Token inválido.']);
@@ -37,6 +41,11 @@ final class AuthController extends Controller
     public function logout(): void
     {
         Auth::logout();
+
+        if (function_exists('wp_login_url')) {
+            $this->redirect(wp_login_url());
+        }
+
         $this->redirect('/?r=auth/login');
     }
 }

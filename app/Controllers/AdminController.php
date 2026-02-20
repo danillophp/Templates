@@ -11,11 +11,19 @@ use App\Models\LogModel;
 use App\Models\RequestModel;
 use App\Models\User;
 use App\Services\WhatsAppService;
+use App\WordPress\Capabilities;
 
 final class AdminController extends Controller
 {
     private function guard(): void
     {
+        if (function_exists('current_user_can')) {
+            if (!current_user_can(Capabilities::ACCESS_ADMIN_PANEL)) {
+                wp_die('Sem permissão para acessar o painel administrativo.');
+            }
+            return;
+        }
+
         if (!Auth::check() || !Auth::is('ADMIN')) {
             $this->redirect('/?r=auth/login');
         }
@@ -35,6 +43,11 @@ final class AdminController extends Controller
     public function requests(): void
     {
         $this->guard();
+        if (function_exists('current_user_can') && !current_user_can(Capabilities::VIEW_ALL_REQUESTS)) {
+            $this->json(['ok' => false, 'message' => 'Sem permissão para visualizar solicitações.'], 403);
+            return;
+        }
+
         $filters = [
             'status' => $_GET['status'] ?? '',
             'date' => $_GET['date'] ?? '',
@@ -53,6 +66,15 @@ final class AdminController extends Controller
 
         $id = (int)($_POST['request_id'] ?? 0);
         $action = (string)($_POST['action'] ?? '');
+
+        if (function_exists('current_user_can')) {
+            $capability = $action === 'assign' ? Capabilities::ASSIGN_REQUESTS : Capabilities::APPROVE_REQUESTS;
+            if (!current_user_can($capability)) {
+                $this->json(['ok' => false, 'message' => 'Sem permissão para esta ação.'], 403);
+                return;
+            }
+        }
+
         $pickup = !empty($_POST['pickup_datetime']) ? date('Y-m-d H:i:s', strtotime((string)$_POST['pickup_datetime'])) : null;
         $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
 
@@ -100,7 +122,11 @@ final class AdminController extends Controller
         $template = null;
         if ($action === 'approve') { $template = WA_TEMPLATE_APPROVED; }
         if ($action === 'schedule') { $template = WA_TEMPLATE_RESCHEDULED; }
-        $wa = (new WhatsAppService())->send((string)$request['whatsapp'], $message, $template);
+
+        $wa = null;
+        if (!function_exists('current_user_can') || current_user_can(Capabilities::CONFIGURE_WHATSAPP)) {
+            $wa = (new WhatsAppService())->send((string)$request['whatsapp'], $message, $template);
+        }
 
         $this->json(['ok' => true, 'message' => 'Atualização concluída.', 'whatsapp' => $wa]);
     }

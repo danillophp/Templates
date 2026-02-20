@@ -78,3 +78,14 @@ Script SQL completo: `sql/catatreco.sql`.
 - Ative HTTPS e cookies de sessão seguros.
 - Configure `WA_TOKEN`, `WA_PHONE_NUMBER_ID` e templates em `config/app.php`.
 - Recomendado: backup diário, monitoramento e WAF.
+
+
+## Integração com WordPress
+
+- Plugin principal: `cata-treco-plugin.php`.
+- Na ativação, cria as roles `cata_treco_administrador` e `cata_treco_funcionario` com capabilities granulares.
+- Painéis no `/wp-admin`:
+  - **Cata Treco** (admin completo)
+  - **Funcionário** (painel simplificado)
+- Endpoints REST (`/wp-json/cata-treco/v1/...`) e AJAX (`wp_ajax_*`) protegidos com `current_user_can(...)`.
+- A autenticação passa a usar o login padrão do WordPress (com fallback legado fora do WP).
