@@ -24,3 +24,7 @@ session_name(SESSION_NAME);
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+if (class_exists('App\WordPress\CataTrecoPlugin')) {
+    App\WordPress\CataTrecoPlugin::init();
+}

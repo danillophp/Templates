@@ -24,7 +24,8 @@ class Controller
 
     protected function redirect(string $path): void
     {
-        header('Location: ' . APP_BASE_PATH . $path);
+        $location = preg_match('#^https?://#i', $path) ? $path : APP_BASE_PATH . $path;
+        header('Location: ' . $location);
         exit;
     }
 }
