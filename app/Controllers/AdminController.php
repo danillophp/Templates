@@ -10,34 +10,38 @@ use App\Core\Csrf;
 use App\Models\LogModel;
 use App\Models\PointModel;
 use App\Models\RequestModel;
+use App\Models\SubscriptionModel;
 use App\Models\User;
 use App\Services\WhatsAppService;
 
 final class AdminController extends Controller
 {
-    private function guard(): void
+    private function guard(): int
     {
         if (!Auth::check() || !Auth::is('admin')) {
             $this->redirect('/?r=auth/login');
         }
+        return (int)Auth::tenantId();
     }
 
     public function dashboard(): void
     {
-        $this->guard();
+        $tenantId = $this->guard();
         $model = new RequestModel();
+        $subscription = (new SubscriptionModel())->activeWithPlan($tenantId);
 
         $this->view('admin/dashboard', [
-            'summary' => $model->summary(),
-            'employees' => (new User())->employees(),
-            'points' => (new PointModel())->active(),
+            'summary' => $model->summary($tenantId),
+            'employees' => (new User())->employees($tenantId),
+            'points' => (new PointModel())->active($tenantId),
+            'subscription' => $subscription,
             'csrf' => Csrf::token(),
         ]);
     }
 
     public function createPoint(): void
     {
-        $this->guard();
+        $tenantId = $this->guard();
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
             return;
@@ -52,24 +56,24 @@ final class AdminController extends Controller
             return;
         }
 
-        (new PointModel())->create($titulo, $latitude, $longitude);
-        (new LogModel())->register(null, (int)Auth::user()['id'], 'Novo ponto de coleta cadastrado.');
+        (new PointModel())->create($tenantId, $titulo, $latitude, $longitude);
+        (new LogModel())->register($tenantId, null, (int)Auth::user()['id'], 'PONTO_CRIADO', 'Novo ponto de coleta cadastrado.');
         $this->json(['ok' => true, 'message' => 'Ponto cadastrado com sucesso.']);
     }
 
     public function requests(): void
     {
-        $this->guard();
+        $tenantId = $this->guard();
         $filters = [
             'status' => $_GET['status'] ?? '',
             'date' => $_GET['date'] ?? '',
         ];
-        $this->json(['ok' => true, 'data' => (new RequestModel())->list($filters)]);
+        $this->json(['ok' => true, 'data' => (new RequestModel())->list($tenantId, $filters)]);
     }
 
     public function update(): void
     {
-        $this->guard();
+        $tenantId = $this->guard();
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
             return;
@@ -81,48 +85,64 @@ final class AdminController extends Controller
         $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
 
         $model = new RequestModel();
-        $request = $model->find($id);
-
+        $request = $model->find($id, $tenantId);
         if (!$request) {
             $this->json(['ok' => false, 'message' => 'Solicitação não encontrada.'], 404);
             return;
         }
 
+        $statusTexto = 'ATUALIZADA';
         if ($action === 'approve') {
-            $model->updateStatus($id, 'APROVADO');
+            $model->updateStatus($id, $tenantId, 'APROVADO');
             $statusTexto = 'APROVADA';
         } elseif ($action === 'reject') {
-            $model->updateStatus($id, 'RECUSADO');
+            $model->updateStatus($id, $tenantId, 'RECUSADO');
             $statusTexto = 'RECUSADA';
         } elseif ($action === 'schedule') {
             if (!$date || $date === '1970-01-01 00:00:00') {
                 $this->json(['ok' => false, 'message' => 'Data inválida.'], 422);
                 return;
             }
-            $model->updateStatus($id, (string)$request['status'], $date);
+            $model->updateStatus($id, $tenantId, (string)$request['status'], $date);
             $statusTexto = 'REAGENDADA';
         } elseif ($action === 'assign') {
             if (!$employeeId) {
                 $this->json(['ok' => false, 'message' => 'Selecione um funcionário.'], 422);
                 return;
             }
-            $model->updateStatus($id, 'APROVADO', null, $employeeId);
+            $model->updateStatus($id, $tenantId, 'APROVADO', null, $employeeId);
             $statusTexto = 'ATRIBUÍDA';
         } else {
             $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
             return;
         }
 
-        (new LogModel())->register($id, (int)Auth::user()['id'], 'Admin atualizou a solicitação.');
+        (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_ATUALIZADA', $statusTexto);
+        $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $request['nome'], $request['protocolo'], $statusTexto);
+        $wa = (new WhatsAppService())->send($tenantId, (string)$request['telefone'], $mensagem);
 
-        $mensagem = sprintf(
-            'Olá, %s. Sua solicitação de Cata Treco foi %s para o dia %s. Prefeitura Municipal.',
-            $request['nome'],
-            $statusTexto,
-            date('d/m/Y', strtotime($date ?? (string)$request['data_solicitada']))
-        );
-
-        $wa = (new WhatsAppService())->send((string)$request['telefone'], $mensagem);
         $this->json(['ok' => true, 'message' => 'Solicitação atualizada.', 'whatsapp' => $wa]);
+    }
+
+    public function dashboardApi(): void
+    {
+        $tenantId = $this->guard();
+        $chart = (new RequestModel())->chartByMonth($tenantId);
+        $this->json(['ok' => true, 'data' => $chart]);
+    }
+
+    public function exportCsv(): void
+    {
+        $tenantId = $this->guard();
+        $rows = (new RequestModel())->list($tenantId);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=relatorio_solicitacoes.csv');
+        $fp = fopen('php://output', 'wb');
+        fputcsv($fp, ['Protocolo', 'Nome', 'Endereço', 'Telefone', 'Status', 'Data solicitada']);
+        foreach ($rows as $row) {
+            fputcsv($fp, [$row['protocolo'], $row['nome'], $row['endereco'], $row['telefone'], $row['status'], $row['data_solicitada']]);
+        }
+        fclose($fp);
     }
 }

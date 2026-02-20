@@ -8,13 +8,15 @@ use App\Core\Database;
 
 final class LogModel
 {
-    public function register(?int $solicitacaoId, ?int $usuarioId, string $acao): void
+    public function register(int $tenantId, ?int $solicitacaoId, ?int $usuarioId, string $acao, string $detalhes = ''): void
     {
-        $stmt = Database::connection()->prepare('INSERT INTO logs (solicitacao_id, usuario_id, acao, criado_em) VALUES (:solicitacao_id,:usuario_id,:acao,NOW())');
+        $stmt = Database::connection()->prepare('INSERT INTO logs (tenant_id, solicitacao_id, usuario_id, acao, detalhes, criado_em) VALUES (:tenant_id,:solicitacao_id,:usuario_id,:acao,:detalhes,NOW())');
         $stmt->execute([
+            'tenant_id' => $tenantId,
             'solicitacao_id' => $solicitacaoId,
             'usuario_id' => $usuarioId,
             'acao' => $acao,
+            'detalhes' => $detalhes,
         ]);
     }
 }

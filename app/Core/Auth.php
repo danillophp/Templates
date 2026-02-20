@@ -21,10 +21,16 @@ final class Auth
         return ($_SESSION['user']['tipo'] ?? '') === $role;
     }
 
+    public static function tenantId(): ?int
+    {
+        return $_SESSION['user']['tenant_id'] ?? null;
+    }
+
     public static function login(array $user): void
     {
         $_SESSION['user'] = [
-            'id' => (int) $user['id'],
+            'id' => (int)$user['id'],
+            'tenant_id' => $user['tenant_id'] !== null ? (int)$user['tenant_id'] : null,
             'nome' => $user['nome'],
             'tipo' => $user['tipo'],
             'email' => $user['email'],

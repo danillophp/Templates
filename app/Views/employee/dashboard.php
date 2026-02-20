@@ -4,23 +4,17 @@
   <div class="col-12">
     <div class="card shadow-sm"><div class="card-body">
       <div class="d-flex justify-content-between">
-        <strong>#<?= (int)$r['id'] ?> - <?= htmlspecialchars($r['nome']) ?></strong>
+        <strong><?= htmlspecialchars($r['protocolo'] ?? ('#' . $r['id'])) ?> - <?= htmlspecialchars($r['nome']) ?></strong>
         <span class="badge bg-primary"><?= htmlspecialchars($r['status']) ?></span>
       </div>
-
-      <div class="small text-muted mb-2">
-        <?= htmlspecialchars($r['endereco']) ?> | <?= htmlspecialchars($r['data_solicitada']) ?>
-      </div>
-
+      <div class="small text-muted mb-2"><?= htmlspecialchars($r['endereco']) ?> | <?= htmlspecialchars($r['data_solicitada']) ?></div>
       <div class="d-flex flex-wrap gap-2 mb-2">
         <a class="btn btn-sm btn-outline-secondary" href="tel:+55<?= preg_replace('/\D+/', '', $r['telefone']) ?>">Ligar</a>
         <a class="btn btn-sm btn-outline-success" target="_blank" href="https://wa.me/55<?= preg_replace('/\D+/', '', $r['telefone']) ?>">WhatsApp</a>
         <a class="btn btn-sm btn-outline-primary" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=<?= urlencode($r['latitude'] . ',' . $r['longitude']) ?>">Como chegar</a>
         <a class="btn btn-sm btn-outline-dark" target="_blank" href="../uploads/<?= htmlspecialchars($r['foto']) ?>">Foto</a>
       </div>
-
       <div class="mini-map" data-lat="<?= htmlspecialchars((string)$r['latitude']) ?>" data-lng="<?= htmlspecialchars((string)$r['longitude']) ?>"></div>
-
       <div class="mt-3 d-flex gap-2">
         <button class="btn btn-warning btnStart" data-id="<?= (int)$r['id'] ?>">Iniciar Cata Treco</button>
         <button class="btn btn-success btnFinish" data-id="<?= (int)$r['id'] ?>">Finalizar Cata Treco</button>

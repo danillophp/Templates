@@ -1,6 +1,9 @@
 body { background: #f4f6f8; }
 .card { border: 0; border-radius: 14px; }
-.navbar-brand { font-weight: 700; letter-spacing: .5px; }
+.navbar-brand { font-weight: 700; letter-spacing: .3px; }
+.btn-success { background: var(--tenant-primary); border-color: var(--tenant-primary); }
+.btn-outline-success { color: var(--tenant-primary); border-color: var(--tenant-primary); }
+.btn-outline-success:hover { background: var(--tenant-primary); border-color: var(--tenant-primary); }
 .table td, .table th { white-space: nowrap; }
 #mainGoogleMap, #confirmMap, .mini-map { border-radius: 12px; }
 .mini-map { height: 220px; margin-top: 8px; }
