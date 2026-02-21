@@ -1,23 +1,16 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Models;
 
 use App\Core\Database;
 
-final class LogModel
+class LogModel
 {
-    public function register(?int $requestId, ?int $userId, string $role, string $action, string $details): void
+    public function create(array $data): bool
     {
-        $stmt = Database::connection()->prepare('INSERT INTO logs (request_id, actor_user_id, actor_role, action, details, actor_ip, created_at) VALUES (:request_id,:user_id,:role,:action,:details,:ip,NOW())');
-        $stmt->execute([
-            'request_id' => $requestId,
-            'user_id' => $userId,
-            'role' => $role,
-            'action' => $action,
-            'details' => $details,
-            'ip' => $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
+        $st = Database::connection()->prepare('INSERT INTO logs_auditoria(usuario_id,acao,entidade,entidade_id,dados_antes,dados_depois,ip,user_agent,criado_em) VALUES(:u,:a,:e,:eid,:da,:dd,:ip,:ua,NOW())');
+        return $st->execute([
+            'u'=>$data['usuario_id'],'a'=>$data['acao'],'e'=>$data['entidade'],'eid'=>$data['entidade_id'],
+            'da'=>$data['dados_antes'],'dd'=>$data['dados_depois'],'ip'=>$data['ip'],'ua'=>$data['user_agent']
         ]);
     }
 }

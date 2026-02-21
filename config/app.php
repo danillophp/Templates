@@ -1,26 +1,12 @@
 <?php
-
-declare(strict_types=1);
-
-// Configurações principais da aplicação.
-const APP_NAME = 'CATA TRECO';
-const APP_URL = 'https://www.prefsade.com.br/catatreco';
-const APP_BASE_PATH = '/catatreco/public';
-const APP_TIMEZONE = 'America/Sao_Paulo';
-
-// Uploads.
-const UPLOAD_PATH = __DIR__ . '/../uploads';
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-
-// WhatsApp Cloud API (Meta) - preencher em produção.
-const WA_API_ENABLED = false;
-const WA_TOKEN = '';
-const WA_PHONE_NUMBER_ID = '';
-const WA_BUSINESS_NUMBER = '5511999999999';
-const WA_TEMPLATE_APPROVED = 'cata_treco_aprovada';
-const WA_TEMPLATE_RESCHEDULED = 'cata_treco_reagendada';
-const WA_TEMPLATE_FINISHED = 'cata_treco_finalizada';
-const WA_API_VERSION = 'v20.0';
-
-// Segurança da sessão.
-const SESSION_NAME = 'catatreco_session';
+return [
+    'APP_ENV' => getenv('APP_ENV') ?: 'development',
+    'APP_URL' => getenv('APP_URL') ?: 'https://prefsade.com.br/catatreco',
+    'APP_BASE_PATH' => getenv('APP_BASE_PATH') ?: '/catatreco',
+    'APP_NAME' => getenv('APP_NAME') ?: 'Cata Treco',
+    'TIMEZONE' => getenv('TIMEZONE') ?: 'America/Sao_Paulo',
+    'MAIL_FROM' => getenv('MAIL_FROM') ?: 'no-reply@prefsade.com.br',
+    'MAIL_FROM_NAME' => getenv('MAIL_FROM_NAME') ?: 'Cata Treco',
+    'WHATSAPP_API_URL' => getenv('WHATSAPP_API_URL') ?: '',
+    'WHATSAPP_API_TOKEN' => getenv('WHATSAPP_API_TOKEN') ?: '',
+];
