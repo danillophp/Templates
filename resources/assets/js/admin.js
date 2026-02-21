@@ -1,0 +1,10 @@
+document.getElementById('all')?.addEventListener('change',e=>document.querySelectorAll('tbody input[type=checkbox],table input[type=checkbox]').forEach(c=>c.checked=e.target.checked));
+new Chart(document.getElementById('statusChart'),{type:'bar',data:{labels:window.statusData.map(x=>x.status),datasets:[{data:window.statusData.map(x=>x.total)}]}});
+new Chart(document.getElementById('monthChart'),{type:'line',data:{labels:window.monthData.map(x=>x.mes),datasets:[{data:window.monthData.map(x=>x.total)}]}});
+if ('Notification' in window) Notification.requestPermission();
+let lastId=Number(localStorage.getItem('notif_last_id')||0);
+setInterval(async()=>{const r=await fetch(`${window.pollUrl}?last_id=${lastId}`);const data=await r.json();data.forEach(n=>{lastId=n.id;localStorage.setItem('notif_last_id',String(lastId));
+const p=JSON.parse(n.payload_json||'{}');const toast=document.createElement('div');toast.className='toast';toast.textContent=`Novo agendamento: ${p.protocolo||''}`;document.body.appendChild(toast);setTimeout(()=>toast.remove(),4000);
+if(Notification.permission==='granted') new Notification('Novo agendamento',{body:p.nome||''});
+const s=document.getElementById('notifySound'); if(s) s.play().catch(()=>{});
+});},12000);

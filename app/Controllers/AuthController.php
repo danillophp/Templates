@@ -1,42 +1,44 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Controllers;
 
-use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Auth;
 use App\Core\Csrf;
-use App\Models\LogModel;
-use App\Models\User;
+use App\Services\EmailService;
+use App\Services\AuditService;
+use App\Models\UserModel;
 
-final class AuthController extends Controller
+class AuthController extends Controller
 {
+    public function loginForm(): void { $this->view('auth/login', ['csrf' => Csrf::token()]); }
+
     public function login(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-                $this->view('auth/login', ['error' => 'Token inválido.']);
-                return;
-            }
-
-            $model = new User();
-            $user = $model->findByUsername(trim($_POST['username'] ?? ''));
-            if ($user && password_verify($_POST['password'] ?? '', $user['password_hash'])) {
-                Auth::login($user);
-                (new LogModel())->register(null, (int)$user['id'], $user['role'], 'LOGIN', 'Login efetuado.');
-                $this->redirect($user['role'] === 'ADMIN' ? '/?r=admin/dashboard' : '/?r=employee/dashboard');
-            }
-            $this->view('auth/login', ['error' => 'Usuário ou senha inválidos.']);
-            return;
+        \App\Middlewares\CsrfMiddleware::handle();
+        if (Auth::attempt($this->input('login'), $this->input('senha'))) {
+            $this->redirect('/admin/dashboard');
         }
-
-        $this->view('auth/login');
+        $this->view('auth/login', ['error' => 'Credenciais inválidas', 'csrf' => Csrf::token()]);
     }
 
     public function logout(): void
     {
         Auth::logout();
-        $this->redirect('/?r=auth/login');
+        $this->redirect('/login');
+    }
+
+    public function forgotForm(): void { $this->view('auth/forgot_password', ['csrf' => Csrf::token()]); }
+
+    public function forgotSend(): void
+    {
+        \App\Middlewares\CsrfMiddleware::handle();
+        $email = trim($this->input('email'));
+        $temp = bin2hex(random_bytes(5)) . 'A!9';
+        $ok = (new UserModel())->updatePasswordByEmail($email, password_hash($temp, PASSWORD_BCRYPT));
+        (new AuditService())->log('reset_password', 'usuarios', null, null, ['email'=>$email,'sucesso'=>$ok]);
+        if ($ok) {
+            (new EmailService())->send($email, 'Nova senha temporária', 'Senha temporária: <b>' . htmlspecialchars($temp) . '</b>');
+        }
+        $this->view('auth/forgot_password', ['success' => 'Se o email existir, uma nova senha foi enviada.', 'csrf' => Csrf::token()]);
     }
 }

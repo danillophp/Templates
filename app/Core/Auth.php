@@ -1,39 +1,42 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Core;
 
-final class Auth
-{
-    public static function user(): ?array
-    {
-        return $_SESSION['user'] ?? null;
-    }
+use App\Models\UserModel;
 
+class Auth
+{
     public static function check(): bool
     {
-        return isset($_SESSION['user']);
+        return !empty($_SESSION['admin_user']);
     }
 
-    public static function is(string $role): bool
+    public static function user(): ?array
     {
-        return ($_SESSION['user']['role'] ?? '') === $role;
+        return $_SESSION['admin_user'] ?? null;
     }
 
-    public static function login(array $user): void
+    public static function attempt(string $login, string $password): bool
     {
-        $_SESSION['user'] = [
-            'id' => (int) $user['id'],
-            'name' => $user['full_name'],
+        $user = (new UserModel())->findByLogin($login);
+        if (!$user || !$user['ativo']) {
+            return false;
+        }
+        if (!password_verify($password, $user['senha_hash'])) {
+            return false;
+        }
+        session_regenerate_id(true);
+        $_SESSION['admin_user'] = [
+            'id' => $user['id'],
+            'nome' => $user['nome'],
+            'usuario' => $user['usuario'],
+            'email' => $user['email'],
             'role' => $user['role'],
-            'username' => $user['username'],
         ];
+        return true;
     }
 
     public static function logout(): void
     {
-        $_SESSION = [];
-        session_destroy();
+        unset($_SESSION['admin_user']);
     }
 }

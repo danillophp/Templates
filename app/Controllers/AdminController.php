@@ -1,120 +1,91 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Controllers;
 
-use App\Core\Auth;
 use App\Core\Controller;
+use App\Middlewares\AuthMiddleware;
+use App\Middlewares\CsrfMiddleware;
 use App\Core\Csrf;
-use App\Models\LogModel;
 use App\Models\RequestModel;
-use App\Models\User;
-use App\Services\WhatsAppService;
+use App\Models\PointModel;
+use App\Services\MessageQueueService;
+use App\Services\AuditService;
+use App\Services\PdfReportService;
 
-final class AdminController extends Controller
+class AdminController extends Controller
 {
-    private function guard(): void
-    {
-        if (!Auth::check() || !Auth::is('ADMIN')) {
-            $this->redirect('/?r=auth/login');
-        }
-    }
-
     public function dashboard(): void
     {
-        $this->guard();
-        $requestModel = new RequestModel();
+        AuthMiddleware::handle();
+        $date = $_GET['data'] ?? date('Y-m-d');
+        $m = new RequestModel();
         $this->view('admin/dashboard', [
-            'summary' => $requestModel->summary(),
-            'employees' => (new User())->employees(),
+            'requests' => $m->listByDate($date),
+            'date' => $date,
+            'statusData' => $m->statusCount(),
+            'monthData' => $m->monthlyCount(),
             'csrf' => Csrf::token(),
         ]);
     }
 
-    public function requests(): void
+    public function requestDetail(): void
     {
-        $this->guard();
-        $filters = [
-            'status' => $_GET['status'] ?? '',
-            'date' => $_GET['date'] ?? '',
-            'district' => $_GET['district'] ?? '',
-        ];
-        $this->json(['ok' => true, 'data' => (new RequestModel())->list($filters)]);
+        AuthMiddleware::handle();
+        $req = (new RequestModel())->find((int)($_GET['id'] ?? 0));
+        $this->view('admin/request_detail', ['request' => $req, 'csrf' => Csrf::token()]);
     }
 
-    public function update(): void
+    public function updateRequest(): void
     {
-        $this->guard();
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
-            return;
-        }
-
-        $id = (int)($_POST['request_id'] ?? 0);
-        $action = (string)($_POST['action'] ?? '');
-        $pickup = !empty($_POST['pickup_datetime']) ? date('Y-m-d H:i:s', strtotime((string)$_POST['pickup_datetime'])) : null;
-        $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
-
-        $model = new RequestModel();
-        $request = $model->find($id);
-        if (!$request) {
-            $this->json(['ok' => false, 'message' => 'Solicitação não encontrada.'], 404);
-            return;
-        }
-
-        $status = $request['status'];
-        $detail = '';
-
-        if ($action === 'approve') {
-            $status = 'APROVADO';
-            $detail = 'Solicitação aprovada.';
-            $model->updateStatus($id, $status);
-        } elseif ($action === 'reject') {
-            $status = 'RECUSADO';
-            $detail = 'Solicitação recusada.';
-            $model->updateStatus($id, $status);
-        } elseif ($action === 'schedule') {
-            if (!$pickup || $pickup === '1970-01-01 00:00:00') {
-                $this->json(['ok' => false, 'message' => 'Informe uma nova data/hora válida.'], 422);
-                return;
-            }
-            $detail = 'Data/hora alterada para ' . date('d/m/Y H:i', strtotime($pickup)) . '.';
-            $model->updateStatus($id, $status, $pickup);
-        } elseif ($action === 'assign') {
-            if (!$employeeId) {
-                $this->json(['ok' => false, 'message' => 'Selecione um funcionário.'], 422);
-                return;
-            }
-            $status = 'EM_ANDAMENTO';
-            $detail = 'Solicitação atribuída ao funcionário #' . $employeeId . '.';
-            $model->updateStatus($id, $status, null, $employeeId);
-        } else {
-            $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
-            return;
-        }
-
-        (new LogModel())->register($id, (int)Auth::user()['id'], 'ADMIN', 'UPDATE_STATUS', $detail);
-
-        $message = $this->buildCitizenMessage((string)$request['full_name'], $id, $status, $pickup);
-        $template = null;
-        if ($action === 'approve') { $template = WA_TEMPLATE_APPROVED; }
-        if ($action === 'schedule') { $template = WA_TEMPLATE_RESCHEDULED; }
-        $wa = (new WhatsAppService())->send((string)$request['whatsapp'], $message, $template);
-
-        $this->json(['ok' => true, 'message' => 'Atualização concluída.', 'whatsapp' => $wa]);
+        AuthMiddleware::handle(); CsrfMiddleware::handle();
+        $id = (int)$this->input('id'); $action = $this->input('acao');
+        $m = new RequestModel(); $before = $m->find($id);
+        if ($action === 'aprovar') $m->updateStatus($id, 'APROVADO');
+        if ($action === 'recusar') $m->updateStatus($id, 'RECUSADO');
+        if ($action === 'alterar') $m->updateDate($id, $this->input('nova_data'));
+        if ($action === 'finalizar') $m->updateStatus($id, 'FINALIZADO');
+        if ($action === 'excluir') $m->delete($id);
+        $after = $m->find($id) ?: ['id'=>$id,'status'=>'EXCLUIDO'];
+        (new AuditService())->log('admin_'.$action, 'solicitacoes', $id, $before, $after);
+        if ($action !== 'excluir') (new MessageQueueService())->enqueueStatusMessages($after, 'status_update');
+        $this->redirect('/admin/dashboard');
     }
 
-    private function buildCitizenMessage(string $name, int $id, string $status, ?string $pickup): string
+    public function points(): void
     {
-        $base = "Olá {$name}, Prefeitura de Santo André (Cata Treco): solicitação #{$id}.";
-        return match ($status) {
-            'APROVADO' => $base . ' Sua solicitação foi APROVADA.',
-            'FINALIZADO' => $base . ' Sua coleta foi FINALIZADA. Obrigado!',
-            'RECUSADO' => $base . ' Sua solicitação foi RECUSADA. Em caso de dúvida, contate a central.',
-            default => $pickup
-                ? $base . ' Sua coleta foi reagendada para ' . date('d/m/Y H:i', strtotime($pickup)) . '.'
-                : $base . ' Sua solicitação está em atualização. Status: ' . $status . '.',
-        };
+        AuthMiddleware::handle();
+        $this->view('admin/points', ['points' => (new PointModel())->all(), 'csrf' => Csrf::token()]);
+    }
+
+    public function pointStore(): void
+    {
+        AuthMiddleware::handle(); CsrfMiddleware::handle();
+        (new PointModel())->create([
+            'nome'=>$this->input('nome'),'descricao'=>$this->input('descricao'),'latitude'=>$this->input('latitude'),'longitude'=>$this->input('longitude'),'ativo'=>1
+        ]);
+        $this->redirect('/admin/points');
+    }
+
+    public function reports(): void
+    {
+        AuthMiddleware::handle();
+        $m = new RequestModel();
+        if (isset($_GET['export']) && $_GET['export']==='csv') {
+            header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename=relatorio.csv');
+            $f = fopen('php://output', 'w');
+            fputcsv($f, ['Protocolo','Nome','Status','Data']);
+            foreach ($m->listByDate($_GET['data'] ?? date('Y-m-d')) as $r) fputcsv($f, [$r['protocolo'],$r['nome'],$r['status'],$r['data_agendada']]);
+            fclose($f); return;
+        }
+        if (isset($_GET['export']) && $_GET['export']==='pdf') {
+            $path = (new PdfReportService())->generate('<h1>Relatório Cata Treco</h1>', 'relatorio_' . date('His') . '.pdf');
+            header('Content-Type: application/pdf'); readfile($path); return;
+        }
+        $this->view('admin/reports');
+    }
+
+    public function notifications(): void
+    {
+        AuthMiddleware::handle();
+        $this->view('admin/notifications');
     }
 }

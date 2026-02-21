@@ -1,26 +1,38 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-declare(strict_types=1);
+$appConfig = require __DIR__ . '/../config/app.php';
+date_default_timezone_set($appConfig['TIMEZONE']);
 
-require_once __DIR__ . '/../config/app.php';
-require_once __DIR__ . '/../config/db.php';
-
-spl_autoload_register(static function (string $class): void {
+spl_autoload_register(function ($class) {
     $prefix = 'App\\';
     if (strpos($class, $prefix) !== 0) {
         return;
     }
-
-    $relative = substr($class, strlen($prefix));
-    $path = __DIR__ . '/' . str_replace('\\', '/', $relative) . '.php';
-    if (is_file($path)) {
+    $path = __DIR__ . '/' . str_replace('App\\', '', $class) . '.php';
+    $path = str_replace('\\', '/', $path);
+    if (file_exists($path)) {
         require_once $path;
     }
 });
 
-date_default_timezone_set(APP_TIMEZONE);
+function config(string $key, $default = null)
+{
+    static $cfg = null;
+    if ($cfg === null) {
+        $cfg = require __DIR__ . '/../config/app.php';
+    }
+    return $cfg[$key] ?? $default;
+}
 
-session_name(SESSION_NAME);
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+function base_path(string $path = ''): string
+{
+    return rtrim(config('APP_BASE_PATH', '/catatreco'), '/') . '/' . ltrim($path, '/');
+}
+
+function asset_url(string $path): string
+{
+    return base_path('resources/assets/' . ltrim($path, '/'));
 }

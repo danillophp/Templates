@@ -1,34 +1,32 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Core;
 
-use App\Controllers\AdminController;
-use App\Controllers\AuthController;
-use App\Controllers\CitizenController;
-use App\Controllers\EmployeeController;
-
-final class Router
+class Router
 {
-    public function dispatch(): void
-    {
-        $route = $_GET['r'] ?? 'citizen/home';
+    private array $routes = [];
 
-        switch ($route) {
-            case 'citizen/home': (new CitizenController())->home(); break;
-            case 'auth/login': (new AuthController())->login(); break;
-            case 'auth/logout': (new AuthController())->logout(); break;
-            case 'admin/dashboard': (new AdminController())->dashboard(); break;
-            case 'employee/dashboard': (new EmployeeController())->dashboard(); break;
-            case 'api/citizen/create': (new CitizenController())->store(); break;
-            case 'api/admin/requests': (new AdminController())->requests(); break;
-            case 'api/admin/update': (new AdminController())->update(); break;
-            case 'api/employee/start': (new EmployeeController())->start(); break;
-            case 'api/employee/finish': (new EmployeeController())->finish(); break;
-            default:
-                http_response_code(404);
-                echo 'Rota não encontrada';
+    public function get(string $uri, $action): void { $this->add('GET', $uri, $action); }
+    public function post(string $uri, $action): void { $this->add('POST', $uri, $action); }
+
+    private function add(string $method, string $uri, $action): void
+    {
+        $this->routes[$method][rtrim($uri, '/') ?: '/'] = $action;
+    }
+
+    public function dispatch(string $method, string $uri): void
+    {
+        $path = rtrim($uri, '/') ?: '/';
+        $action = $this->routes[$method][$path] ?? null;
+        if (!$action) {
+            http_response_code(404);
+            require __DIR__ . '/../../resources/views/errors/404.php';
+            return;
         }
+        if (is_callable($action)) {
+            $action();
+            return;
+        }
+        [$class, $methodAction] = $action;
+        (new $class())->$methodAction();
     }
 }

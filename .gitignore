@@ -1,0 +1,9 @@
+/uploads/*
+!/uploads/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/reports/*
+!/storage/reports/.gitkeep
+/playwright-report/
+/test-results/
+/screenshots/
