@@ -14,7 +14,7 @@ final class WhatsAppService
         $config = $this->tenantWhatsAppConfig($tenantId);
 
         if (!$config || empty($config['wa_token']) || empty($config['wa_phone_number_id'])) {
-            $fallback = ['mode' => 'fallback', 'url' => 'https://wa.me/55' . $cleanPhone . '?text=' . rawurlencode($message)];
+            $fallback = ['mode' => 'fallback', 'ok' => false, 'url' => 'https://wa.me/55' . $cleanPhone . '?text=' . rawurlencode($message), 'error' => 'WhatsApp não configurado'];
             $this->logMessage($tenantId, $cleanPhone, 'FALLBACK', json_encode($fallback));
             return $fallback;
         }
@@ -34,16 +34,12 @@ final class WhatsAppService
         $result = $this->retrySimples((string)$config['wa_token'], (string)$config['wa_phone_number_id'], $payload, 2);
         if (empty($result['error'])) {
             $this->logMessage($tenantId, $cleanPhone, 'ENVIADO', json_encode($result));
-            return ['mode' => 'cloud_api', 'response' => $result['response']];
+            return ['mode' => 'cloud_api', 'ok' => true, 'response' => $result['response']];
         }
 
-        $this->logMessage($tenantId, $cleanPhone, 'ERRO', json_encode($result));
-        return ['mode' => 'erro', 'error' => $result['error'] ?? 'Falha no envio'];
-    }
-
-    public function send(int $tenantId, string $phone, string $message, ?string $template = null): array
-    {
-        return $this->sendMessage($tenantId, $phone, $message, $template);
+        $fallback = ['mode' => 'fallback', 'ok' => false, 'url' => 'https://wa.me/55' . $cleanPhone . '?text=' . rawurlencode($message), 'error' => $result['error'] ?? 'Falha no envio'];
+        $this->logMessage($tenantId, $cleanPhone, 'ERRO', json_encode($fallback));
+        return $fallback;
     }
 
     public function retrySimples(string $token, string $phoneNumberId, array $payload, int $maxRetries = 2): array
@@ -64,7 +60,13 @@ final class WhatsAppService
 
     public function logMessage(int $tenantId, string $telefone, string $status, string $resposta): void
     {
-        $this->log($tenantId, $telefone, $status, $resposta);
+        $stmt = Database::connection()->prepare('INSERT INTO notificacoes (tenant_id, canal, destino, status, resposta, criado_em) VALUES (:tenant_id, "whatsapp", :destino, :status, :resposta, NOW())');
+        $stmt->execute([
+            'tenant_id' => $tenantId,
+            'destino' => $telefone,
+            'status' => $status,
+            'resposta' => $resposta,
+        ]);
     }
 
     private function tenantWhatsAppConfig(int $tenantId): ?array
@@ -87,22 +89,22 @@ final class WhatsAppService
                 'Authorization: Bearer ' . $token,
             ],
             CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 15,
         ]);
         $response = curl_exec($ch);
         $error = curl_error($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return ['response' => $response, 'error' => $error];
-    }
+        if ($error !== '') {
+            return ['response' => $response, 'error' => $error];
+        }
 
-    private function log(int $tenantId, string $telefone, string $status, string $resposta): void
-    {
-        $stmt = Database::connection()->prepare('INSERT INTO notificacoes (tenant_id, canal, destino, status, resposta, criado_em) VALUES (:tenant_id, "whatsapp", :destino, :status, :resposta, NOW())');
-        $stmt->execute([
-            'tenant_id' => $tenantId,
-            'destino' => $telefone,
-            'status' => $status,
-            'resposta' => $resposta,
-        ]);
+        if ($status < 200 || $status >= 300) {
+            return ['response' => $response, 'error' => 'HTTP ' . $status];
+        }
+
+        return ['response' => $response, 'error' => null];
     }
 }

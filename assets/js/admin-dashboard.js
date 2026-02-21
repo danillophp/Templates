@@ -18,6 +18,40 @@ function selectedIds(singleId = null) {
   return Array.from(document.querySelectorAll('.row-check:checked')).map((el) => el.value);
 }
 
+function renderComm(report) {
+  if (!report) return;
+  const sent = document.getElementById('commSent');
+  const err = document.getElementById('commErr');
+  const rate = document.getElementById('commRate');
+  const avg = document.getElementById('commAvg');
+  const fails = document.getElementById('commFails');
+
+  if (sent) sent.textContent = Number(report.enviadas || 0);
+  if (err) err.textContent = Number(report.erros || 0);
+  if (rate) rate.textContent = `${Number(report.taxa_entrega || 0)}%`;
+  if (avg) avg.textContent = `${Number(report.tempo_medio || 0)}s`;
+
+  if (fails) {
+    const rows = report.falhas || [];
+    if (!rows.length) {
+      fails.innerHTML = '<span class="text-muted">Sem falhas recentes.</span>';
+    } else {
+      fails.innerHTML = rows.map((r) => {
+        const url = `https://wa.me/55${(r.telefone_destino || '').replace(/\D+/g, '')}`;
+        return `<div class="border rounded p-2 mb-1"><strong>Fila #${r.id}</strong> • Solicitação ${r.solicitacao_id} • Tentativas ${r.tentativas}<br><span class="text-danger">${r.erro_mensagem || 'Erro'}</span><br><a href="${url}" target="_blank">Envio manual necessário</a></div>`;
+      }).join('');
+    }
+  }
+}
+
+async function loadCommReport() {
+  try {
+    const res = await fetch(`${APP_BASE}/?r=api/admin/comm-report`);
+    const json = await res.json();
+    if (json.ok) renderComm(json.data);
+  } catch (_) {}
+}
+
 async function loadRequests() {
   const params = new URLSearchParams({ status: document.getElementById('fStatus').value, date: document.getElementById('fDate').value });
   const response = await fetch(`${APP_BASE}/?r=api/admin/requests&${params.toString()}`);
@@ -81,6 +115,7 @@ window.addEventListener('click', async (event) => {
   const json = await response.json();
   showToast(json.message, json.ok ? 'success' : 'danger');
   await loadRequests();
+  await loadCommReport();
 });
 
 document.getElementById('btnPoint')?.addEventListener('click', async () => {
@@ -105,5 +140,7 @@ document.getElementById('btnExportPdf')?.addEventListener('click', async () => {
   if (json.ok && json.file) window.open(json.file, '_blank');
 });
 
+renderComm(window.COMM_REPORT || null);
 loadRequests();
 loadChart();
+loadCommReport();

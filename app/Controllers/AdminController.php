@@ -7,12 +7,11 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
-use App\Models\LogModel;
 use App\Models\PointModel;
 use App\Models\RequestModel;
-use App\Services\EmailService;
+use App\Services\AuditoriaService;
+use App\Services\FilaMensagemService;
 use App\Services\TenantService;
-use App\Services\WhatsAppService;
 
 final class AdminController extends Controller
 {
@@ -28,6 +27,7 @@ final class AdminController extends Controller
     {
         $tenantId = $this->guard();
         $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        $report = (new FilaMensagemService())->report($tenantId);
 
         $this->view('admin/dashboard', [
             'summary' => (new RequestModel())->summary($tenantId),
@@ -35,6 +35,7 @@ final class AdminController extends Controller
             'csrf' => Csrf::token(),
             'today' => $today,
             'whatsAppReady' => $this->isWhatsAppReady($tenantId),
+            'commReport' => $report,
         ]);
     }
 
@@ -56,7 +57,7 @@ final class AdminController extends Controller
         }
 
         (new PointModel())->create($tenantId, $titulo, $latitude, $longitude);
-        (new LogModel())->register($tenantId, null, (int)Auth::user()['id'], 'PONTO_CRIADO', 'Novo ponto de coleta cadastrado.');
+        (new AuditoriaService())->registrar((int)Auth::user()['id'], 'CRIAR', 'pontos_mapa', 0, null, ['titulo' => $titulo, 'lat' => $latitude, 'lng' => $longitude]);
         $this->json(['ok' => true, 'message' => 'Ponto cadastrado com sucesso.']);
     }
 
@@ -111,10 +112,12 @@ final class AdminController extends Controller
         $action = (string)($_POST['action'] ?? '');
         $date = !empty($_POST['pickup_datetime']) ? trim((string)$_POST['pickup_datetime']) : null;
         $model = new RequestModel();
+        $fila = new FilaMensagemService();
+        $audit = new AuditoriaService();
 
         foreach ($ids as $id) {
-            $request = $model->find($id, $tenantId);
-            if (!$request) {
+            $before = $model->find($id, $tenantId);
+            if (!$before) {
                 continue;
             }
 
@@ -122,9 +125,11 @@ final class AdminController extends Controller
             if ($action === 'approve') {
                 $model->updateStatus($id, $tenantId, 'APROVADO');
                 $statusTexto = 'APROVADA';
+                $tipo = 'aprovado';
             } elseif ($action === 'reject') {
                 $model->updateStatus($id, $tenantId, 'RECUSADO');
                 $statusTexto = 'RECUSADA';
+                $tipo = 'recusado';
             } elseif ($action === 'schedule') {
                 $requestedDate = $date ? \DateTimeImmutable::createFromFormat('Y-m-d', $date) : false;
                 if (!$requestedDate || $requestedDate->format('Y-m-d') !== $date || $requestedDate < new \DateTimeImmutable('today')) {
@@ -133,32 +138,33 @@ final class AdminController extends Controller
                 }
                 $model->updateStatus($id, $tenantId, 'ALTERADO', $requestedDate->format('Y-m-d'));
                 $statusTexto = 'ALTERADA';
+                $tipo = 'alterado';
             } elseif ($action === 'delete') {
                 $model->delete($id, $tenantId);
-                (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_EXCLUIDA', 'Solicitação excluída pelo administrador.');
+                $audit->registrar((int)Auth::user()['id'], 'EXCLUIR', 'solicitacoes', $id, $before, null);
                 continue;
             } else {
                 $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
                 return;
             }
 
-            (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_ATUALIZADA', $statusTexto);
-            $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $request['nome'], $request['protocolo'], $statusTexto);
-            (new WhatsAppService())->sendMessage($tenantId, (string)$request['telefone'], $mensagem);
-            if (!empty($request['email'])) {
-                (new EmailService())->sendReceipt($tenantId, (string)$request['email'], [
-                    'nome' => (string)$request['nome'],
-                    'endereco' => (string)$request['endereco'],
-                    'data_solicitada' => (string)$request['data_solicitada'],
-                    'telefone' => (string)$request['telefone'],
-                    'email' => (string)$request['email'],
-                    'protocolo' => (string)$request['protocolo'],
-                    'status' => $statusTexto,
-                ]);
-            }
+            $after = $model->find($id, $tenantId);
+            $audit->registrar((int)Auth::user()['id'], strtoupper($action), 'solicitacoes', $id, $before, $after);
+
+            $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $before['nome'], $before['protocolo'], $statusTexto);
+            $fila->enqueue($tenantId, $id, (string)$before['telefone'], $tipo, [
+                'mensagem' => $mensagem,
+                'email' => (string)($before['email'] ?? ''),
+                'nome' => (string)$before['nome'],
+                'endereco' => (string)$before['endereco'],
+                'data_solicitada' => (string)($after['data_solicitada'] ?? $before['data_solicitada']),
+                'protocolo' => (string)$before['protocolo'],
+                'status' => (string)($after['status'] ?? $before['status']),
+                'telefone' => (string)$before['telefone'],
+            ]);
         }
 
-        $this->json(['ok' => true, 'message' => 'Solicitações atualizadas com sucesso.']);
+        $this->json(['ok' => true, 'message' => 'Solicitações atualizadas e enfileiradas para comunicação.']);
     }
 
     public function dashboardApi(): void
@@ -166,6 +172,12 @@ final class AdminController extends Controller
         $tenantId = $this->guard();
         $chart = (new RequestModel())->chartByMonth($tenantId);
         $this->json(['ok' => true, 'data' => $chart]);
+    }
+
+    public function commReportApi(): void
+    {
+        $tenantId = $this->guard();
+        $this->json(['ok' => true, 'data' => (new FilaMensagemService())->report($tenantId)]);
     }
 
     public function exportCsv(): void
@@ -179,6 +191,24 @@ final class AdminController extends Controller
         fputcsv($fp, ['Protocolo', 'Nome', 'Endereço', 'Telefone', 'E-mail', 'Status', 'Data solicitada']);
         foreach ($rows as $row) {
             fputcsv($fp, [$row['protocolo'], $row['nome'], $row['endereco'], $row['telefone'], $row['email'] ?? '', $row['status'], $row['data_solicitada']]);
+        }
+        fclose($fp);
+    }
+
+    public function exportCommCsv(): void
+    {
+        $tenantId = $this->guard();
+        $report = (new FilaMensagemService())->report($tenantId);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=relatorio_comunicacao.csv');
+        $fp = fopen('php://output', 'wb');
+        fputcsv($fp, ['Enviadas', 'Erros', 'Taxa de entrega', 'Tempo médio(s)']);
+        fputcsv($fp, [$report['enviadas'], $report['erros'], $report['taxa_entrega'], $report['tempo_medio']]);
+        fputcsv($fp, []);
+        fputcsv($fp, ['ID fila', 'Solicitação', 'Telefone', 'Tentativas', 'Erro', 'Última tentativa']);
+        foreach ($report['falhas'] as $f) {
+            fputcsv($fp, [$f['id'], $f['solicitacao_id'], $f['telefone_destino'], $f['tentativas'], $f['erro_mensagem'], $f['ultima_tentativa_em']]);
         }
         fclose($fp);
     }

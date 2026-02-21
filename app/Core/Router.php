@@ -22,12 +22,14 @@ final class Router
         'api/admin/requests',
         'api/admin/update',
         'api/admin/dashboard',
+        'api/admin/comm-report',
         'api/employee/start',
         'api/employee/finish',
         'api/solicitacoes',
         'api/dashboard',
         'admin/reports/csv',
         'admin/reports/pdf',
+        'admin/reports/comm-csv',
     ];
 
     public function dispatch(): void
@@ -54,8 +56,10 @@ final class Router
             case 'api/admin/requests': (new AdminController())->requests(); break;
             case 'api/admin/update': (new AdminController())->update(); break;
             case 'api/admin/dashboard': (new AdminController())->dashboardApi(); break;
+            case 'api/admin/comm-report': (new AdminController())->commReportApi(); break;
             case 'admin/reports/csv': (new AdminController())->exportCsv(); break;
             case 'admin/reports/pdf': (new AdminController())->exportPdf(); break;
+            case 'admin/reports/comm-csv': (new AdminController())->exportCommCsv(); break;
 
             case 'api/employee/start': (new EmployeeController())->start(); break;
             case 'api/employee/finish': (new EmployeeController())->finish(); break;

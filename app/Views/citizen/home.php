@@ -20,6 +20,11 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
 
         <form id="citizenForm" enctype="multipart/form-data" novalidate>
           <input type="hidden" name="_csrf" value="<?= htmlspecialchars(\App\Core\Csrf::token()) ?>">
+          <div style="position:absolute;left:-9999px;top:-9999px;opacity:0;pointer-events:none">
+            <label for="site_url">Não preencha</label>
+            <input type="text" id="site_url" name="site_url" tabindex="-1" autocomplete="off">
+          </div>
+
           <div class="row g-3">
             <div class="col-12"><label class="form-label">Nome completo</label><input class="form-control" name="full_name" required></div>
             <div class="col-md-8"><label class="form-label">Endereço completo</label><input class="form-control" id="address" name="address" required></div>

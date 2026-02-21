@@ -166,3 +166,45 @@ INSERT INTO usuarios (tenant_id, nome, email, senha, tipo, ativo) VALUES
 
 INSERT INTO pontos_mapa (tenant_id, titulo, latitude, longitude, cor_pin, ativo) VALUES
 (1, 'Ecoponto Centro', -23.550520, -46.633308, '#198754', 1);
+
+
+CREATE TABLE IF NOT EXISTS mensagens_fila (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id INT NOT NULL,
+  solicitacao_id INT NOT NULL,
+  telefone_destino VARCHAR(30) NOT NULL,
+  tipo ENUM('aprovado','recusado','alterado') NOT NULL,
+  payload_json JSON NOT NULL,
+  status ENUM('pendente','enviando','enviado','erro') NOT NULL DEFAULT 'pendente',
+  tentativas INT NOT NULL DEFAULT 0,
+  ultima_tentativa_em DATETIME NULL,
+  erro_mensagem VARCHAR(500) NULL,
+  criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+  FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id) ON DELETE CASCADE,
+  INDEX idx_fila_status (status),
+  INDEX idx_fila_tenant_status (tenant_id, status)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS auditoria_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT NULL,
+  acao VARCHAR(60) NOT NULL,
+  entidade VARCHAR(80) NOT NULL,
+  entidade_id INT NOT NULL,
+  dados_antes JSON NULL,
+  dados_depois JSON NULL,
+  ip VARCHAR(45) NULL,
+  user_agent VARCHAR(255) NULL,
+  criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_auditoria_data (criado_em),
+  INDEX idx_auditoria_entidade (entidade, entidade_id),
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS controle_rate_limit (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(45) NOT NULL UNIQUE,
+  total_requisicoes INT NOT NULL DEFAULT 0,
+  ultima_requisicao_em DATETIME NOT NULL
+) ENGINE=InnoDB;

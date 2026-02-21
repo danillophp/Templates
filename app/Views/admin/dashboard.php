@@ -7,6 +7,7 @@
       <?php endif; ?>
       <a class="btn btn-outline-success w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/csv&date=<?= urlencode($today) ?>">Exportar CSV</a>
       <button id="btnExportPdf" class="btn btn-outline-secondary w-100 mb-2">Exportar PDF</button>
+      <a class="btn btn-outline-info w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/comm-csv">Exportar Comunicação CSV</a>
 
       <hr>
       <h6 class="mb-2">Cadastrar Ponto de Coleta</h6>
@@ -38,6 +39,19 @@
 
     <div class="card shadow-sm glass-card border-0 mb-2"><div class="card-body py-2"><canvas id="chartRequests" height="80"></canvas></div></div>
 
+    <div class="card shadow-sm glass-card border-0 mb-2">
+      <div class="card-body py-2">
+        <h6 class="mb-2">Relatório de Comunicação</h6>
+        <div class="row g-2 mb-2">
+          <div class="col-md-2"><small class="text-muted d-block">Enviadas</small><strong id="commSent"><?= (int)($commReport['enviadas'] ?? 0) ?></strong></div>
+          <div class="col-md-2"><small class="text-muted d-block">Erros</small><strong id="commErr"><?= (int)($commReport['erros'] ?? 0) ?></strong></div>
+          <div class="col-md-3"><small class="text-muted d-block">Taxa de entrega</small><strong id="commRate"><?= (float)($commReport['taxa_entrega'] ?? 0) ?>%</strong></div>
+          <div class="col-md-3"><small class="text-muted d-block">Tempo médio</small><strong id="commAvg"><?= (float)($commReport['tempo_medio'] ?? 0) ?>s</strong></div>
+        </div>
+        <div id="commFails" class="small"></div>
+      </div>
+    </div>
+
     <div class="card shadow-sm glass-card border-0 mb-2"><div class="card-body py-2">
       <div class="row g-2 align-items-end">
         <div class="col-md-4"><label class="form-label small mb-1">Data</label><input id="fDate" type="date" class="form-control form-control-sm" value="<?= htmlspecialchars($today) ?>"></div>
@@ -55,5 +69,8 @@
   </div>
 </div>
 
-<script>window.CSRF = <?= json_encode($csrf) ?>;</script>
+<script>
+  window.CSRF = <?= json_encode($csrf) ?>;
+  window.COMM_REPORT = <?= json_encode($commReport ?? []) ?>;
+</script>
 <script src="<?= APP_BASE_PATH ?>/assets/js/admin-dashboard.js"></script>

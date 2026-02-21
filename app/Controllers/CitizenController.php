@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
 use App\Models\PointModel;
 use App\Models\RequestModel;
@@ -50,6 +51,19 @@ final class CitizenController extends Controller
         }
 
         $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
+
+        if (trim((string)($_POST['site_url'] ?? '')) !== '') {
+            $this->json(['ok' => false, 'message' => 'Falha de validação do formulário.'], 422);
+            return;
+        }
+
+        $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+        $rl = RateLimitMiddleware::checkIpForCitizen($ip, 5, 10);
+        if (!($rl['allowed'] ?? false)) {
+            $this->json(['ok' => false, 'message' => $rl['message'] ?? 'Muitas tentativas.'], 429);
+            return;
+        }
+
         $sub = (new SubscriptionModel())->activeWithPlan($tenantId);
         if (!$sub) {
             $this->json(['ok' => false, 'message' => 'Serviço temporariamente indisponível para esta prefeitura.'], 403);
