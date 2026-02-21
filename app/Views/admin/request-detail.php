@@ -12,6 +12,7 @@
       <div class="col-md-6"><strong>Telefone:</strong> <?= htmlspecialchars((string)$request['telefone']) ?></div>
       <div class="col-md-8"><strong>Endereço:</strong> <?= htmlspecialchars((string)$request['endereco']) ?></div>
       <div class="col-md-4"><strong>Data:</strong> <?= htmlspecialchars((string)$request['data_solicitada']) ?></div>
+      <div class="col-md-12"><strong>E-mail:</strong> <?= htmlspecialchars((string)($request['email'] ?? '-')) ?></div>
     </div>
 
     <hr>

@@ -11,8 +11,8 @@ final class RequestModel
 {
     public function create(array $data): int
     {
-        $sql = 'INSERT INTO solicitacoes (tenant_id,nome,endereco,cep,bairro,telefone,foto,data_solicitada,latitude,longitude,status,criado_em,atualizado_em)
-                VALUES (:tenant_id,:nome,:endereco,:cep,:bairro,:telefone,:foto,:data_solicitada,:latitude,:longitude,"PENDENTE",NOW(),NOW())';
+        $sql = 'INSERT INTO solicitacoes (tenant_id,nome,endereco,cep,bairro,telefone,email,foto,data_solicitada,latitude,longitude,status,criado_em,atualizado_em)
+                VALUES (:tenant_id,:nome,:endereco,:cep,:bairro,:telefone,:email,:foto,:data_solicitada,:latitude,:longitude,"PENDENTE",NOW(),NOW())';
         $stmt = Database::connection()->prepare($sql);
         $stmt->execute($data);
 
@@ -39,10 +39,7 @@ final class RequestModel
 
     public function list(int $tenantId, array $filters = []): array
     {
-        $sql = 'SELECT s.*, u.nome AS funcionario_nome
-                FROM solicitacoes s
-                LEFT JOIN usuarios u ON u.id = s.funcionario_id
-                WHERE s.tenant_id = :tenant_id';
+        $sql = 'SELECT s.* FROM solicitacoes s WHERE s.tenant_id = :tenant_id';
         $params = ['tenant_id' => $tenantId];
 
         if (!empty($filters['status'])) {
@@ -54,7 +51,7 @@ final class RequestModel
             $params['date'] = $filters['date'];
         }
 
-        $sql .= ' ORDER BY s.criado_em DESC';
+        $sql .= ' ORDER BY DATE(s.data_solicitada) ASC, s.criado_em ASC';
         $stmt = Database::connection()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
@@ -68,15 +65,29 @@ final class RequestModel
         return $row ?: null;
     }
 
-    public function findByProtocol(string $protocol, string $phone, int $tenantId): ?array
+    public function findByProtocolOrPhone(string $protocol, string $phone, int $tenantId): ?array
     {
-        $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND protocolo = :protocolo AND telefone = :telefone LIMIT 1');
-        $stmt->execute(['tenant_id' => $tenantId, 'protocolo' => $protocol, 'telefone' => $phone]);
+        if ($protocol !== '' && $phone !== '') {
+            $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND protocolo = :protocolo AND telefone = :telefone LIMIT 1');
+            $stmt->execute(['tenant_id' => $tenantId, 'protocolo' => $protocol, 'telefone' => $phone]);
+            $row = $stmt->fetch();
+            return $row ?: null;
+        }
+
+        if ($protocol !== '') {
+            $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND protocolo = :protocolo LIMIT 1');
+            $stmt->execute(['tenant_id' => $tenantId, 'protocolo' => $protocol]);
+            $row = $stmt->fetch();
+            return $row ?: null;
+        }
+
+        $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND telefone = :telefone ORDER BY criado_em DESC LIMIT 1');
+        $stmt->execute(['tenant_id' => $tenantId, 'telefone' => $phone]);
         $row = $stmt->fetch();
         return $row ?: null;
     }
 
-    public function updateStatus(int $id, int $tenantId, string $status, ?string $date = null, ?int $employeeId = null): void
+    public function updateStatus(int $id, int $tenantId, string $status, ?string $date = null): void
     {
         $sql = 'UPDATE solicitacoes SET status = :status, atualizado_em = NOW()';
         $params = ['status' => $status, 'id' => $id, 'tenant_id' => $tenantId];
@@ -86,11 +97,6 @@ final class RequestModel
             $params['data_solicitada'] = $date;
         }
 
-        if ($employeeId !== null) {
-            $sql .= ', funcionario_id = :funcionario_id';
-            $params['funcionario_id'] = $employeeId;
-        }
-
         if ($status === 'FINALIZADO') {
             $sql .= ', finalizado_em = NOW()';
         }
@@ -98,15 +104,6 @@ final class RequestModel
         $sql .= ' WHERE id = :id AND tenant_id = :tenant_id';
         Database::connection()->prepare($sql)->execute($params);
     }
-
-    public function byEmployee(int $userId, int $tenantId): array
-    {
-        $stmt = Database::connection()->prepare('SELECT * FROM solicitacoes WHERE tenant_id = :tenant_id AND funcionario_id = :funcionario_id AND status IN ("APROVADO", "PENDENTE") ORDER BY data_solicitada ASC');
-        $stmt->execute(['tenant_id' => $tenantId, 'funcionario_id' => $userId]);
-        return $stmt->fetchAll();
-    }
-
-
 
     public function delete(int $id, int $tenantId): void
     {

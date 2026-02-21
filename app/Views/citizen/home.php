@@ -1,13 +1,7 @@
 <?php
-$googleApiKey = defined('GOOGLE_MAPS_API_KEY') && GOOGLE_MAPS_API_KEY !== null
-    ? trim((string) GOOGLE_MAPS_API_KEY)
-    : '';
+$googleApiKey = defined('GOOGLE_MAPS_API_KEY') && GOOGLE_MAPS_API_KEY !== null ? trim((string) GOOGLE_MAPS_API_KEY) : '';
 $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
 ?>
-
-<?php if (!empty($tenantWarning)): ?>
-  <div class="alert alert-info glass-card mb-4"><?= htmlspecialchars($tenantWarning) ?></div>
-<?php endif; ?>
 
 <div class="row g-4 align-items-start">
   <div class="col-lg-6">
@@ -16,7 +10,7 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
         <div class="d-flex justify-content-between align-items-center mb-3">
           <div>
             <h4 class="mb-1">Solicitação de Cata Treco</h4>
-            <small class="text-muted">Preencha os dados para agendar sua coleta.</small>
+            <small class="text-muted">Atendimento exclusivo em Santo Antônio do Descoberto - GO.</small>
           </div>
           <div class="d-flex gap-2">
             <a href="<?= APP_BASE_PATH ?>/?r=citizen/track" class="btn btn-outline-secondary btn-sm">Consultar protocolo</a>
@@ -26,15 +20,15 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
 
         <form id="citizenForm" enctype="multipart/form-data" novalidate>
           <input type="hidden" name="_csrf" value="<?= htmlspecialchars(\App\Core\Csrf::token()) ?>">
-
           <div class="row g-3">
             <div class="col-12"><label class="form-label">Nome completo</label><input class="form-control" name="full_name" required></div>
             <div class="col-md-8"><label class="form-label">Endereço completo</label><input class="form-control" id="address" name="address" required></div>
             <div class="col-md-4"><label class="form-label">CEP</label><input class="form-control" id="cep" name="cep" required></div>
             <div class="col-md-6"><label class="form-label">Bairro</label><input class="form-control" id="district" name="district" required></div>
             <div class="col-md-6"><label class="form-label">Telefone (WhatsApp)</label><input class="form-control" name="whatsapp" required></div>
+            <div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" type="email" name="email" required></div>
             <div class="col-md-6"><label class="form-label">Data de coleta</label><input class="form-control" type="date" min="<?= date('Y-m-d') ?>" id="pickup_datetime" name="pickup_datetime" required></div>
-            <div class="col-md-6"><label class="form-label">Foto dos Trecos</label><input class="form-control" type="file" name="photo" accept="image/*" required></div>
+            <div class="col-md-12"><label class="form-label">Foto dos Trecos</label><input class="form-control" type="file" name="photo" accept="image/*" required></div>
           </div>
 
           <input type="hidden" id="latitude" name="latitude">
@@ -53,8 +47,7 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
       <div class="card-body p-3">
         <h5 class="mb-2">Mapa de confirmação</h5>
         <div id="map" class="map-canvas"></div>
-        <noscript><small class="text-danger">Ative JavaScript para carregar o mapa.</small></noscript>
-        <small class="text-muted d-block mt-2">Modo atual: <?= $mapProvider === 'google' ? 'Google Maps' : 'Leaflet + OpenStreetMap (fallback gratuito)' ?>. Arraste o marcador para ajustar o local.</small>
+        <small class="text-muted d-block mt-2">Modo atual: <?= $mapProvider === 'google' ? 'Google Maps' : 'Leaflet + OpenStreetMap' ?>.</small>
         <div id="geoFeedback" class="mt-2"></div>
       </div>
     </div>
@@ -72,19 +65,19 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
 </div>
 
 <script>
-  window.CATA_MAP_CONFIG = {
-    provider: <?= json_encode($mapProvider) ?>,
-    hasGoogleKey: <?= json_encode($googleApiKey !== '') ?>,
-    defaultLat: -23.55052,
-    defaultLng: -46.633308,
-  };
+window.CATA_MAP_CONFIG = {
+  provider: <?= json_encode($mapProvider) ?>,
+  hasGoogleKey: <?= json_encode($googleApiKey !== '') ?>,
+  defaultLat: -15.9439,
+  defaultLng: -48.2585,
+  allowedCity: 'Santo Antônio do Descoberto',
+  allowedState: 'Goiás',
+  allowedCountry: 'Brasil'
+};
 </script>
 <?php if ($googleApiKey !== ''): ?>
   <script>
-    window.cataGoogleLoadError = function () {
-      console.warn('Google Maps indisponível, fallback para Leaflet/OSM será utilizado.');
-      window.__cataGoogleFailed = true;
-    };
+    window.cataGoogleLoadError = function () { window.__cataGoogleFailed = true; };
   </script>
   <script src="https://maps.googleapis.com/maps/api/js?key=<?= urlencode($googleApiKey) ?>&libraries=places&loading=async&callback=cataInitGoogleMap" async defer onerror="cataGoogleLoadError()"></script>
 <?php endif; ?>

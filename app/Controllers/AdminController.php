@@ -10,8 +10,8 @@ use App\Core\Csrf;
 use App\Models\LogModel;
 use App\Models\PointModel;
 use App\Models\RequestModel;
-use App\Models\SubscriptionModel;
-use App\Models\User;
+use App\Services\EmailService;
+use App\Services\TenantService;
 use App\Services\WhatsAppService;
 
 final class AdminController extends Controller
@@ -27,15 +27,14 @@ final class AdminController extends Controller
     public function dashboard(): void
     {
         $tenantId = $this->guard();
-        $model = new RequestModel();
-        $subscription = (new SubscriptionModel())->activeWithPlan($tenantId);
+        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
 
         $this->view('admin/dashboard', [
-            'summary' => $model->summary($tenantId),
-            'employees' => (new User())->employees($tenantId),
+            'summary' => (new RequestModel())->summary($tenantId),
             'points' => (new PointModel())->active($tenantId),
-            'subscription' => $subscription,
             'csrf' => Csrf::token(),
+            'today' => $today,
+            'whatsAppReady' => $this->isWhatsAppReady($tenantId),
         ]);
     }
 
@@ -84,7 +83,7 @@ final class AdminController extends Controller
         $tenantId = $this->guard();
         $filters = [
             'status' => $_GET['status'] ?? '',
-            'date' => $_GET['date'] ?? '',
+            'date' => $_GET['date'] ?? (new \DateTimeImmutable('today'))->format('Y-m-d'),
         ];
         $this->json(['ok' => true, 'data' => (new RequestModel())->list($tenantId, $filters)]);
     }
@@ -97,55 +96,69 @@ final class AdminController extends Controller
             return;
         }
 
-        $id = (int)($_POST['request_id'] ?? 0);
+        if (!$this->isWhatsAppReady($tenantId)) {
+            $this->json(['ok' => false, 'message' => 'Conecte o WhatsApp oficial antes de atualizar solicitações.'], 422);
+            return;
+        }
+
+        $idsRaw = trim((string)($_POST['request_ids'] ?? $_POST['request_id'] ?? ''));
+        $ids = array_values(array_filter(array_map('intval', preg_split('/\s*,\s*/', $idsRaw) ?: [])));
+        if (empty($ids)) {
+            $this->json(['ok' => false, 'message' => 'Nenhuma solicitação selecionada.'], 422);
+            return;
+        }
+
         $action = (string)($_POST['action'] ?? '');
         $date = !empty($_POST['pickup_datetime']) ? trim((string)$_POST['pickup_datetime']) : null;
-        $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
-
         $model = new RequestModel();
-        $request = $model->find($id, $tenantId);
-        if (!$request) {
-            $this->json(['ok' => false, 'message' => 'Solicitação não encontrada.'], 404);
-            return;
-        }
 
-        $statusTexto = 'ATUALIZADA';
-        if ($action === 'approve') {
-            $model->updateStatus($id, $tenantId, 'APROVADO');
-            $statusTexto = 'APROVADA';
-        } elseif ($action === 'reject') {
-            $model->updateStatus($id, $tenantId, 'RECUSADO');
-            $statusTexto = 'RECUSADA';
-        } elseif ($action === 'schedule') {
-            $requestedDate = $date ? \DateTimeImmutable::createFromFormat('Y-m-d', $date) : false;
-            if (!$requestedDate || $requestedDate->format('Y-m-d') !== $date || $requestedDate < new \DateTimeImmutable('today')) {
-                $this->json(['ok' => false, 'message' => 'Data inválida. Use uma data atual ou futura.'], 422);
+        foreach ($ids as $id) {
+            $request = $model->find($id, $tenantId);
+            if (!$request) {
+                continue;
+            }
+
+            $statusTexto = 'ATUALIZADA';
+            if ($action === 'approve') {
+                $model->updateStatus($id, $tenantId, 'APROVADO');
+                $statusTexto = 'APROVADA';
+            } elseif ($action === 'reject') {
+                $model->updateStatus($id, $tenantId, 'RECUSADO');
+                $statusTexto = 'RECUSADA';
+            } elseif ($action === 'schedule') {
+                $requestedDate = $date ? \DateTimeImmutable::createFromFormat('Y-m-d', $date) : false;
+                if (!$requestedDate || $requestedDate->format('Y-m-d') !== $date || $requestedDate < new \DateTimeImmutable('today')) {
+                    $this->json(['ok' => false, 'message' => 'Data inválida. Use data atual ou futura.'], 422);
+                    return;
+                }
+                $model->updateStatus($id, $tenantId, 'ALTERADO', $requestedDate->format('Y-m-d'));
+                $statusTexto = 'ALTERADA';
+            } elseif ($action === 'delete') {
+                $model->delete($id, $tenantId);
+                (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_EXCLUIDA', 'Solicitação excluída pelo administrador.');
+                continue;
+            } else {
+                $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
                 return;
             }
-            $model->updateStatus($id, $tenantId, 'ALTERADO', $requestedDate->format('Y-m-d'));
-            $statusTexto = 'ALTERADA';
-        } elseif ($action === 'assign') {
-            if (!$employeeId) {
-                $this->json(['ok' => false, 'message' => 'Selecione um funcionário.'], 422);
-                return;
+
+            (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_ATUALIZADA', $statusTexto);
+            $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $request['nome'], $request['protocolo'], $statusTexto);
+            (new WhatsAppService())->sendMessage($tenantId, (string)$request['telefone'], $mensagem);
+            if (!empty($request['email'])) {
+                (new EmailService())->sendReceipt($tenantId, (string)$request['email'], [
+                    'nome' => (string)$request['nome'],
+                    'endereco' => (string)$request['endereco'],
+                    'data_solicitada' => (string)$request['data_solicitada'],
+                    'telefone' => (string)$request['telefone'],
+                    'email' => (string)$request['email'],
+                    'protocolo' => (string)$request['protocolo'],
+                    'status' => $statusTexto,
+                ]);
             }
-            $model->updateStatus($id, $tenantId, 'APROVADO', null, $employeeId);
-            $statusTexto = 'ATRIBUÍDA';
-        } elseif ($action === 'delete') {
-            $model->delete($id, $tenantId);
-            (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_EXCLUIDA', 'Solicitação excluída pelo administrador.');
-            $this->json(['ok' => true, 'message' => 'Solicitação excluída com sucesso.']);
-            return;
-        } else {
-            $this->json(['ok' => false, 'message' => 'Ação inválida.'], 422);
-            return;
         }
 
-        (new LogModel())->register($tenantId, $id, (int)Auth::user()['id'], 'SOLICITACAO_ATUALIZADA', $statusTexto);
-        $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $request['nome'], $request['protocolo'], $statusTexto);
-        $wa = (new WhatsAppService())->sendMessage($tenantId, (string)$request['telefone'], $mensagem);
-
-        $this->json(['ok' => true, 'message' => 'Solicitação atualizada.', 'whatsapp' => $wa]);
+        $this->json(['ok' => true, 'message' => 'Solicitações atualizadas com sucesso.']);
     }
 
     public function dashboardApi(): void
@@ -158,15 +171,60 @@ final class AdminController extends Controller
     public function exportCsv(): void
     {
         $tenantId = $this->guard();
-        $rows = (new RequestModel())->list($tenantId);
+        $rows = (new RequestModel())->list($tenantId, ['date' => $_GET['date'] ?? (new \DateTimeImmutable('today'))->format('Y-m-d')]);
 
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=relatorio_solicitacoes.csv');
         $fp = fopen('php://output', 'wb');
-        fputcsv($fp, ['Protocolo', 'Nome', 'Endereço', 'Telefone', 'Status', 'Data solicitada']);
+        fputcsv($fp, ['Protocolo', 'Nome', 'Endereço', 'Telefone', 'E-mail', 'Status', 'Data solicitada']);
         foreach ($rows as $row) {
-            fputcsv($fp, [$row['protocolo'], $row['nome'], $row['endereco'], $row['telefone'], $row['status'], $row['data_solicitada']]);
+            fputcsv($fp, [$row['protocolo'], $row['nome'], $row['endereco'], $row['telefone'], $row['email'] ?? '', $row['status'], $row['data_solicitada']]);
         }
         fclose($fp);
+    }
+
+    public function exportPdf(): void
+    {
+        $tenantId = $this->guard();
+        $rows = (new RequestModel())->list($tenantId, ['date' => $_GET['date'] ?? (new \DateTimeImmutable('today'))->format('Y-m-d')]);
+        $chartData = (string)($_POST['chart_image'] ?? '');
+        $dir = STORAGE_PATH . '/relatorios/' . date('Y') . '/' . date('m');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
+        $html = '<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d5deea;padding:6px;font-size:12px}th{background:#eef5fb}</style></head><body>';
+        $html .= '<h2>Relatório Cata Treco</h2>';
+        if ($chartData !== '') {
+            $html .= '<p><img alt="Gráfico" style="max-width:100%;height:auto" src="' . htmlspecialchars($chartData, ENT_QUOTES, 'UTF-8') . '"></p>';
+        }
+        $html .= '<table><tr><th>Protocolo</th><th>Nome</th><th>Endereço</th><th>Status</th><th>Data</th></tr>';
+        foreach ($rows as $row) {
+            $html .= '<tr><td>' . htmlspecialchars((string)$row['protocolo']) . '</td><td>' . htmlspecialchars((string)$row['nome']) . '</td><td>' . htmlspecialchars((string)$row['endereco']) . '</td><td>' . htmlspecialchars((string)$row['status']) . '</td><td>' . htmlspecialchars((string)$row['data_solicitada']) . '</td></tr>';
+        }
+        $html .= '</table></body></html>';
+
+        if (class_exists('Dompdf\\Dompdf')) {
+            $filePath = $dir . '/relatorio_' . date('Ymd_His') . '.pdf';
+            $options = new \Dompdf\Options();
+            $options->set('isRemoteEnabled', true);
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            file_put_contents($filePath, $dompdf->output());
+        } else {
+            $filePath = $dir . '/relatorio_' . date('Ymd_His') . '.html';
+            file_put_contents($filePath, $html);
+        }
+
+        $relative = str_replace(STORAGE_PATH, APP_BASE_PATH . '/storage', $filePath);
+        $this->json(['ok' => true, 'message' => 'Relatório gerado com sucesso.', 'file' => $relative]);
+    }
+
+    private function isWhatsAppReady(int $tenantId): bool
+    {
+        $cfg = TenantService::config($tenantId);
+        return !empty($cfg['wa_token']) && !empty($cfg['wa_phone_number_id']);
     }
 }

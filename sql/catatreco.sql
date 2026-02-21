@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS solicitacoes (
   bairro VARCHAR(120) NULL,
   cep VARCHAR(20) NOT NULL,
   telefone VARCHAR(30) NOT NULL,
+  email VARCHAR(160) NOT NULL,
   foto VARCHAR(255) NOT NULL,
   data_solicitada DATETIME NOT NULL,
   latitude DECIMAL(10,7) NOT NULL,
@@ -102,6 +103,7 @@ CREATE TABLE IF NOT EXISTS solicitacoes (
   FOREIGN KEY (funcionario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
   INDEX idx_tenant_status (tenant_id, status),
   INDEX idx_tenant_data (tenant_id, data_solicitada),
+  INDEX idx_tenant_phone (tenant_id, telefone),
   UNIQUE KEY uq_protocolo_tenant (tenant_id, protocolo)
 ) ENGINE=InnoDB;
 

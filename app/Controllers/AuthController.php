@@ -40,6 +40,14 @@ final class AuthController extends Controller
 
             $user = (new User())->findByEmail($email, $tenantId);
             if ($user && password_verify($senha, (string)$user['senha'])) {
+                if ($user['tipo'] === 'admin') {
+                    $cfg = TenantService::config($tenantId);
+                    if (empty($cfg['wa_token']) || empty($cfg['wa_phone_number_id'])) {
+                        $this->view('auth/login', ['error' => 'Conecte o WhatsApp oficial da prefeitura antes de acessar o painel administrativo.']);
+                        return;
+                    }
+                }
+
                 RateLimitMiddleware::clear($rateKey);
                 Auth::login($user);
                 if ($tenantId) {
