@@ -7,26 +7,60 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
 use App\Models\User;
+use App\Services\TenantService;
 
 final class AuthController extends Controller
 {
     public function login(): void
     {
+        $tenantId = TenantService::tenantId();
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::validate($_POST['_csrf'] ?? null)) {
                 $this->view('auth/login', ['error' => 'Token inválido.']);
                 return;
             }
 
-            $model = new User();
-            $user = $model->findByUsername(trim($_POST['username'] ?? ''));
-            if ($user && password_verify($_POST['password'] ?? '', $user['password_hash'])) {
-                Auth::login($user);
-                (new LogModel())->register(null, (int)$user['id'], $user['role'], 'LOGIN', 'Login efetuado.');
-                $this->redirect($user['role'] === 'ADMIN' ? '/?r=admin/dashboard' : '/?r=employee/dashboard');
+            $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_SANITIZE_EMAIL);
+            $senha = (string)($_POST['senha'] ?? '');
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->view('auth/login', ['error' => 'Informe um e-mail válido.']);
+                return;
             }
+            $rateKey = 'login_' . md5($email . '|' . (string)$tenantId);
+            $rate = RateLimitMiddleware::check($rateKey);
+
+            if (!$rate['allowed']) {
+                $this->view('auth/login', ['error' => 'Acesso bloqueado temporariamente. Tente em ' . $rate['retry_after'] . ' segundos.']);
+                return;
+            }
+
+            $user = (new User())->findByEmail($email, $tenantId);
+            if ($user && password_verify($senha, (string)$user['senha'])) {
+                if ($user['tipo'] === 'admin') {
+                    $cfg = TenantService::config($tenantId);
+                    if (empty($cfg['wa_token']) || empty($cfg['wa_phone_number_id'])) {
+                        $this->view('auth/login', ['error' => 'Conecte o WhatsApp oficial da prefeitura antes de acessar o painel administrativo.']);
+                        return;
+                    }
+                }
+
+                RateLimitMiddleware::clear($rateKey);
+                Auth::login($user);
+                if ($tenantId) {
+                    (new LogModel())->register($tenantId, null, (int)$user['id'], 'LOGIN', 'Login efetuado.');
+                }
+                if ($user['tipo'] === 'super_admin') {
+                    $this->redirect('/?r=superadmin/dashboard');
+                }
+                $this->redirect($user['tipo'] === 'admin' ? '/?r=admin/dashboard' : '/?r=employee/dashboard');
+                return;
+            }
+
+            RateLimitMiddleware::fail($rateKey);
             $this->view('auth/login', ['error' => 'Usuário ou senha inválidos.']);
             return;
         }
