@@ -14,7 +14,7 @@
         <a class="btn btn-sm btn-outline-primary" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=<?= urlencode($r['latitude'] . ',' . $r['longitude']) ?>">Como chegar</a>
         <a class="btn btn-sm btn-outline-dark" target="_blank" href="<?= APP_BASE_PATH ?>/uploads/<?= htmlspecialchars($r['foto']) ?>">Foto</a>
       </div>
-      <div class="mini-map" data-lat="<?= htmlspecialchars((string)$r['latitude']) ?>" data-lng="<?= htmlspecialchars((string)$r['longitude']) ?>"></div>
+      <iframe class="w-100 rounded border" style="height:220px" loading="lazy" src="https://www.google.com/maps?q=<?= urlencode((string)$r['latitude'] . ',' . (string)$r['longitude']) ?>&z=15&output=embed"></iframe>
       <div class="mt-3 d-flex gap-2">
         <button class="btn btn-warning btnStart" data-id="<?= (int)$r['id'] ?>">Iniciar Cata Treco</button>
         <button class="btn btn-success btnFinish" data-id="<?= (int)$r['id'] ?>">Finalizar Cata Treco</button>
@@ -24,5 +24,4 @@
 <?php endforeach; ?>
 </div>
 <script>window.CSRF = <?= json_encode($csrf) ?>;</script>
-<script src="<?= APP_BASE_PATH ?>/assets/js/employee-map.js"></script>
 <script src="<?= APP_BASE_PATH ?>/assets/js/employee-dashboard.js"></script>

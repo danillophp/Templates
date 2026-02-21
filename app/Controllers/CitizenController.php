@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Helpers\GeoHelper;
 use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
 use App\Models\PointModel;
@@ -97,9 +98,9 @@ final class CitizenController extends Controller
                 throw new \RuntimeException('Confirme a localização no mapa antes de enviar.');
             }
 
-            $geoValidation = $this->validateLocation($latitude, $longitude);
-            if (!$geoValidation['ok']) {
-                throw new \RuntimeException($geoValidation['message']);
+            $cepValidation = GeoHelper::validarCepSantoAntonio($cep);
+            if (!($cepValidation['ok'] ?? false)) {
+                throw new \RuntimeException((string)$cepValidation['message']);
             }
 
             $foto = $this->savePhoto($_FILES['photo'] ?? []);
@@ -162,59 +163,6 @@ final class CitizenController extends Controller
         }
 
         $this->json(['ok' => true, 'data' => $row]);
-    }
-
-    private function validateLocation(float $latitude, float $longitude): array
-    {
-        $url = sprintf(
-            'https://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s&zoom=18&addressdetails=1&accept-language=pt-BR',
-            rawurlencode((string)$latitude),
-            rawurlencode((string)$longitude)
-        );
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => 8,
-                'header' => "User-Agent: CataTreco/1.0\r\n",
-            ],
-        ]);
-
-        $raw = @file_get_contents($url, false, $context);
-        if ($raw === false) {
-            return ['ok' => false, 'message' => 'Não foi possível validar localização no momento.'];
-        }
-
-        $json = json_decode($raw, true);
-        if (!is_array($json) || empty($json['address'])) {
-            return ['ok' => false, 'message' => 'Localização inválida no mapa.'];
-        }
-
-        $address = $json['address'];
-        $city = $this->normalize((string)($address['city'] ?? $address['town'] ?? $address['municipality'] ?? $address['county'] ?? ''));
-        $state = $this->normalize((string)($address['state'] ?? ''));
-        $country = $this->normalize((string)($address['country'] ?? ''));
-
-        if ($city !== $this->normalize(self::CITY_ALLOWED)
-            || $state !== $this->normalize(self::STATE_ALLOWED)
-            || $country !== $this->normalize(self::COUNTRY_ALLOWED)) {
-            return ['ok' => false, 'message' => 'Atendemos somente Santo Antônio do Descoberto - GO, Brasil.'];
-        }
-
-        return ['ok' => true];
-    }
-
-    private function normalize(string $value): string
-    {
-        $value = mb_strtolower(trim($value));
-        return strtr($value, [
-            'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a',
-            'é' => 'e', 'ê' => 'e',
-            'í' => 'i',
-            'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
-            'ú' => 'u',
-            'ç' => 'c',
-        ]);
     }
 
     private function savePhoto(array $file): string

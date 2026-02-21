@@ -32,6 +32,28 @@ final class EmailService
         }
     }
 
+
+    public function sendRecovery(int $tenantId, string $to, string $tempPassword, string $nome): array
+    {
+        $subject = 'Recuperação de Senha - Cata Treco';
+        $body = '<div style="font-family:Arial,sans-serif;color:#123">'
+            . '<h2 style="color:#0b6e4f">Recuperação de Senha</h2>'
+            . '<p>Olá, ' . htmlspecialchars($nome, ENT_QUOTES, 'UTF-8') . '.</p>'
+            . '<p>Sua nova senha temporária é: <strong>' . htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8') . '</strong></p>'
+            . '<p>Ao entrar, altere imediatamente a senha.</p></div>';
+
+        try {
+            $result = class_exists('PHPMailer\PHPMailer\PHPMailer')
+                ? $this->sendWithPhpmailer($to, $subject, $body)
+                : $this->sendWithNativeMail($to, $subject, $body);
+            $this->log($tenantId, $to, $result['ok'] ? 'RECUPERACAO_ENVIADA' : 'RECUPERACAO_ERRO', $result['message']);
+            return $result;
+        } catch (\Throwable $e) {
+            $this->log($tenantId, $to, 'RECUPERACAO_ERRO', $e->getMessage());
+            return ['ok' => false, 'message' => 'Falha ao enviar recuperação.'];
+        }
+    }
+
     private function sendWithPhpmailer(string $to, string $subject, string $body): array
     {
         $mail = new \PHPMailer\PHPMailer\PHPMailer(true);

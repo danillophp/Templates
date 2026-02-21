@@ -10,6 +10,7 @@ use App\Core\Csrf;
 use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
 use App\Models\User;
+use App\Services\PasswordRecoveryService;
 use App\Services\TenantService;
 
 final class AuthController extends Controller
@@ -24,21 +25,21 @@ final class AuthController extends Controller
                 return;
             }
 
-            $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_SANITIZE_EMAIL);
+            $identifier = trim((string)($_POST['identifier'] ?? ''));
             $senha = (string)($_POST['senha'] ?? '');
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $this->view('auth/login', ['error' => 'Informe um e-mail válido.']);
+            if ($identifier === '' || $senha === '') {
+                $this->view('auth/login', ['error' => 'Informe usuário/e-mail e senha.']);
                 return;
             }
-            $rateKey = 'login_' . md5($email . '|' . (string)$tenantId);
-            $rate = RateLimitMiddleware::check($rateKey);
 
+            $rateKey = 'login_' . md5($identifier . '|' . (string)$tenantId);
+            $rate = RateLimitMiddleware::check($rateKey);
             if (!$rate['allowed']) {
                 $this->view('auth/login', ['error' => 'Acesso bloqueado temporariamente. Tente em ' . $rate['retry_after'] . ' segundos.']);
                 return;
             }
 
-            $user = (new User())->findByEmail($email, $tenantId);
+            $user = (new User())->findByIdentifier($identifier, $tenantId);
             if ($user && password_verify($senha, (string)$user['senha'])) {
                 if ($user['tipo'] === 'admin') {
                     $cfg = TenantService::config($tenantId);
@@ -61,11 +62,29 @@ final class AuthController extends Controller
             }
 
             RateLimitMiddleware::fail($rateKey);
-            $this->view('auth/login', ['error' => 'Usuário ou senha inválidos.']);
+            $this->view('auth/login', ['error' => 'Usuário/e-mail ou senha inválidos.']);
             return;
         }
 
         $this->view('auth/login');
+    }
+
+    public function forgot(): void
+    {
+        $tenantId = TenantService::tenantId();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/?r=auth/login');
+        }
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            $this->view('auth/login', ['error' => 'Token inválido.']);
+            return;
+        }
+
+        $email = (string)($_POST['email'] ?? '');
+        $result = (new PasswordRecoveryService())->recover($tenantId, $email);
+        $this->view('auth/login', [$result['ok'] ? 'success' : 'error' => $result['message']]);
     }
 
     public function logout(): void

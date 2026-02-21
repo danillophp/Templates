@@ -24,12 +24,12 @@
       <a target="_blank" class="btn btn-outline-dark btn-sm" href="<?= APP_BASE_PATH ?>/uploads/<?= htmlspecialchars((string)$request['foto']) ?>">Ver foto anexada</a>
     </div>
 
-    <div id="requestMap" style="height: 320px" class="rounded border"></div>
+    <iframe
+      title="Mapa da solicitação"
+      class="w-100 rounded border"
+      style="height:320px"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      src="https://www.google.com/maps?q=<?= urlencode((string)$request['latitude'] . ',' . (string)$request['longitude']) ?>&z=16&output=embed"></iframe>
   </div>
 </div>
-
-<script>
-  const detailMap = L.map('requestMap').setView([<?= (float)$request['latitude'] ?>, <?= (float)$request['longitude'] ?>], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(detailMap);
-  L.marker([<?= (float)$request['latitude'] ?>, <?= (float)$request['longitude'] ?>]).addTo(detailMap);
-</script>

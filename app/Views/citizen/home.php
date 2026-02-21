@@ -1,7 +1,4 @@
-<?php
-$googleApiKey = defined('GOOGLE_MAPS_API_KEY') && GOOGLE_MAPS_API_KEY !== null ? trim((string) GOOGLE_MAPS_API_KEY) : '';
-$mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
-?>
+<?php $googleApiKey = trim((string)(GOOGLE_MAPS_API_KEY ?? '')); ?>
 
 <div class="row g-4 align-items-start">
   <div class="col-lg-6">
@@ -28,7 +25,7 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
           <div class="row g-3">
             <div class="col-12"><label class="form-label">Nome completo</label><input class="form-control" name="full_name" required></div>
             <div class="col-md-8"><label class="form-label">Endereço completo</label><input class="form-control" id="address" name="address" required></div>
-            <div class="col-md-4"><label class="form-label">CEP</label><input class="form-control" id="cep" name="cep" required></div>
+            <div class="col-md-4"><label class="form-label">CEP</label><input class="form-control" id="cep" name="cep" required maxlength="9"></div>
             <div class="col-md-6"><label class="form-label">Bairro</label><input class="form-control" id="district" name="district" required></div>
             <div class="col-md-6"><label class="form-label">Telefone (WhatsApp)</label><input class="form-control" name="whatsapp" required></div>
             <div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" type="email" name="email" required></div>
@@ -50,9 +47,8 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
   <div class="col-lg-6">
     <div class="card shadow-sm glass-card border-0">
       <div class="card-body p-3">
-        <h5 class="mb-2">Mapa de confirmação</h5>
+        <h5 class="mb-2">Mapa de confirmação (Google Maps)</h5>
         <div id="map" class="map-canvas"></div>
-        <small class="text-muted d-block mt-2">Modo atual: <?= $mapProvider === 'google' ? 'Google Maps' : 'Leaflet + OpenStreetMap' ?>.</small>
         <div id="geoFeedback" class="mt-2"></div>
       </div>
     </div>
@@ -71,19 +67,12 @@ $mapProvider = $googleApiKey !== '' ? 'google' : 'leaflet';
 
 <script>
 window.CATA_MAP_CONFIG = {
-  provider: <?= json_encode($mapProvider) ?>,
-  hasGoogleKey: <?= json_encode($googleApiKey !== '') ?>,
+  googleKey: <?= json_encode($googleApiKey) ?>,
   defaultLat: -15.9439,
   defaultLng: -48.2585,
   allowedCity: 'Santo Antônio do Descoberto',
-  allowedState: 'Goiás',
-  allowedCountry: 'Brasil'
+  allowedUf: 'GO'
 };
 </script>
-<?php if ($googleApiKey !== ''): ?>
-  <script>
-    window.cataGoogleLoadError = function () { window.__cataGoogleFailed = true; };
-  </script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=<?= urlencode($googleApiKey) ?>&libraries=places&loading=async&callback=cataInitGoogleMap" async defer onerror="cataGoogleLoadError()"></script>
-<?php endif; ?>
+<script src="https://maps.googleapis.com/maps/api/js?key=<?= urlencode($googleApiKey) ?>&loading=async&callback=cataInitGoogleMap" async defer></script>
 <script src="<?= APP_BASE_PATH ?>/assets/js/citizen-form.js" defer></script>

@@ -98,7 +98,7 @@ final class AdminController extends Controller
         }
 
         if (!$this->isWhatsAppReady($tenantId)) {
-            $this->json(['ok' => false, 'message' => 'Conecte o WhatsApp oficial antes de atualizar solicitações.'], 422);
+            $this->json(['ok' => false, 'message' => 'WhatsApp não conectado. Conecte via API oficial/WhatsApp Web para liberar notificações.'], 422);
             return;
         }
 

@@ -41,6 +41,7 @@ final class Router
             case 'auth/login': (new AuthController())->login(); break;
             case 'citizen/track': (new CitizenController())->trackPage(); break;
             case 'auth/logout': (new AuthController())->logout(); break;
+            case 'auth/forgot': (new AuthController())->forgot(); break;
             case 'superadmin/dashboard': (new SuperAdminController())->dashboard(); break;
             case 'admin/dashboard': (new AdminController())->dashboard(); break;
             case 'admin/request': (new AdminController())->requestDetail(); break;
@@ -98,6 +99,7 @@ final class Router
             '/admin' => 'admin/dashboard',
             '/admin/solicitacao' => 'admin/request',
             '/login' => 'auth/login',
+            '/esqueci-senha' => 'auth/forgot',
             '/consultar' => 'citizen/track',
             '/funcionario' => 'employee/dashboard',
             default => 'citizen/home',
