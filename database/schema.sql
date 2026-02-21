@@ -168,6 +168,19 @@ INSERT INTO pontos_mapa (tenant_id, titulo, latitude, longitude, cor_pin, ativo)
 (1, 'Ecoponto Centro', -23.550520, -46.633308, '#198754', 1);
 
 
+
+CREATE TABLE IF NOT EXISTS notificacoes_admin (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id INT NOT NULL,
+  tipo VARCHAR(60) NOT NULL,
+  solicitacao_id INT NOT NULL,
+  payload_json JSON NULL,
+  criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_notif_tenant_id (tenant_id, id),
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+  FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS mensagens_fila (
   id INT AUTO_INCREMENT PRIMARY KEY,
   tenant_id INT NOT NULL,

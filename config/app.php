@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 const APP_NAME = 'Cata Treco';
 const APP_ENV = 'production'; // production | development
-const APP_DEBUG = false;
+const APP_DEBUG = APP_ENV !== 'production';
 
 const APP_URL = 'https://prefsade.com.br/catatreco';
 const APP_BASE_PATH = '/catatreco';
@@ -22,8 +22,6 @@ const UPLOAD_PATH = __DIR__ . '/../uploads';
 const STORAGE_PATH = __DIR__ . '/../storage';
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-// Google Maps API (produção)
-const GOOGLE_MAPS_API_KEY = ''; // definir chave válida com restrição de domínio
 const WA_API_VERSION = 'v20.0';
 
 const MAIL_FROM_ADDRESS = 'nao-responda@prefsade.com.br';

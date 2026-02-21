@@ -2,9 +2,6 @@
   <div class="col-xl-3">
     <aside class="admin-sidebar glass-card p-3 h-100 sticky-top" style="top: 1rem;">
       <h6 class="mb-2 text-uppercase">Dashboard Administrativo</h6>
-      <?php if (empty($whatsAppReady)): ?>
-        <div class="alert alert-warning py-2">Conecte o WhatsApp oficial para liberar notificações.</div>
-      <?php endif; ?>
       <a class="btn btn-outline-success w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/csv&date=<?= urlencode($today) ?>">Exportar CSV</a>
       <button id="btnExportPdf" class="btn btn-outline-secondary w-100 mb-2">Exportar PDF</button>
       <a class="btn btn-outline-info w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/comm-csv">Exportar Comunicação CSV</a>
@@ -72,5 +69,6 @@
 <script>
   window.CSRF = <?= json_encode($csrf) ?>;
   window.COMM_REPORT = <?= json_encode($commReport ?? []) ?>;
+  window.ADMIN_NOTIFICATION_POLL_URL = <?= json_encode(APP_BASE_PATH . '/app/api/poll_notificacoes.php') ?>;
 </script>
 <script src="<?= APP_BASE_PATH ?>/assets/js/admin-dashboard.js"></script>

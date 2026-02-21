@@ -100,3 +100,43 @@ body {
   .print-receipt, .print-receipt * { visibility: visible; }
   .print-receipt { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
 }
+
+.admin-toast-wrap {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  max-width: min(90vw, 360px);
+}
+
+.admin-toast {
+  background: #0f5132;
+  color: #fff;
+  border-radius: 12px;
+  padding: .75rem .9rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .2);
+  animation: toastSlideIn .25s ease-out;
+  position: relative;
+  white-space: pre-line;
+}
+
+.admin-toast-title { font-weight: 700; margin-bottom: .2rem; }
+.admin-toast-body { font-size: .9rem; line-height: 1.35; }
+.admin-toast-close {
+  position: absolute;
+  top: .3rem;
+  right: .4rem;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}

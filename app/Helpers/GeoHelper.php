@@ -35,29 +35,6 @@ final class GeoHelper
         return ['ok' => true, 'data' => $json];
     }
 
-    public static function geocodeGoogle(string $address, string $apiKey): array
-    {
-        if ($apiKey === '') {
-            return ['ok' => false, 'message' => 'Chave Google Maps não configurada.'];
-        }
-
-        $query = rawurlencode($address . ', Santo Antônio do Descoberto, GO, Brasil');
-        $url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $query . '&region=br&key=' . rawurlencode($apiKey);
-        $ctx = stream_context_create(['http' => ['timeout' => 10]]);
-        $raw = @file_get_contents($url, false, $ctx);
-        if ($raw === false) {
-            return ['ok' => false, 'message' => 'Falha no geocoding do Google Maps.'];
-        }
-
-        $json = json_decode($raw, true);
-        if (!is_array($json) || ($json['status'] ?? '') !== 'OK' || empty($json['results'][0]['geometry']['location'])) {
-            return ['ok' => false, 'message' => 'Endereço não localizado no Google Maps.'];
-        }
-
-        $loc = $json['results'][0]['geometry']['location'];
-        return ['ok' => true, 'lat' => (float)$loc['lat'], 'lng' => (float)$loc['lng']];
-    }
-
     private static function norm(string $v): string
     {
         $v = mb_strtolower(trim($v));

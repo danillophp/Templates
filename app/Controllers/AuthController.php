@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Core\ErrorHandler;
 use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
 use App\Models\User;
@@ -21,7 +22,8 @@ final class AuthController extends Controller
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-                $this->view('auth/login', ['error' => 'Token inválido.']);
+                ErrorHandler::log('AUTH_LOGIN csrf inválido.');
+                $this->view('auth/login', ['error' => 'Sessão expirada. Atualize a página e tente novamente.']);
                 return;
             }
 
@@ -35,33 +37,35 @@ final class AuthController extends Controller
             $rateKey = 'login_' . md5($identifier . '|' . (string)$tenantId);
             $rate = RateLimitMiddleware::check($rateKey);
             if (!$rate['allowed']) {
+                ErrorHandler::log('AUTH_LOGIN bloqueado por rate limit.');
                 $this->view('auth/login', ['error' => 'Acesso bloqueado temporariamente. Tente em ' . $rate['retry_after'] . ' segundos.']);
                 return;
             }
 
             $user = (new User())->findByIdentifier($identifier, $tenantId);
-            if ($user && password_verify($senha, (string)$user['senha'])) {
-                if ($user['tipo'] === 'admin') {
-                    $cfg = TenantService::config($tenantId);
-                    if (empty($cfg['wa_token']) || empty($cfg['wa_phone_number_id'])) {
-                        $this->view('auth/login', ['error' => 'Conecte o WhatsApp oficial da prefeitura antes de acessar o painel administrativo.']);
-                        return;
-                    }
-                }
+            $passwordIsValid = $user && password_verify($senha, (string)$user['senha']);
 
+            if ($user && !$passwordIsValid && !str_starts_with((string)$user['senha'], '$2y$')) {
+                ErrorHandler::log('AUTH_LOGIN senha armazenada sem bcrypt para usuário id=' . (string)$user['id']);
+            }
+
+            if ($passwordIsValid) {
                 RateLimitMiddleware::clear($rateKey);
                 Auth::login($user);
                 if ($tenantId) {
                     (new LogModel())->register($tenantId, null, (int)$user['id'], 'LOGIN', 'Login efetuado.');
                 }
+
                 if ($user['tipo'] === 'super_admin') {
                     $this->redirect('/?r=superadmin/dashboard');
                 }
+
                 $this->redirect($user['tipo'] === 'admin' ? '/?r=admin/dashboard' : '/?r=employee/dashboard');
                 return;
             }
 
             RateLimitMiddleware::fail($rateKey);
+            ErrorHandler::log('AUTH_LOGIN credenciais inválidas para identifier=' . $identifier);
             $this->view('auth/login', ['error' => 'Usuário/e-mail ou senha inválidos.']);
             return;
         }

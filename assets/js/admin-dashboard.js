@@ -2,6 +2,9 @@ const APP_BASE = (window.APP_BASE_PATH || '').replace(/\/$/, '');
 const rows = document.getElementById('reqRows');
 let chartInstance = null;
 
+const POLL_KEY = 'admin_notifications_last_id';
+const pollUrl = window.ADMIN_NOTIFICATION_POLL_URL || `${APP_BASE}/app/api/poll_notificacoes.php`;
+
 const actionForm = (id) => `
   <div class="row g-2 mt-1">
     <div class="col-md-3"><a class="btn btn-sm btn-outline-primary w-100" href="${APP_BASE}/?r=admin/request&id=${id}">Selecionar</a></div>
@@ -16,6 +19,55 @@ function selectedIds(singleId = null) {
     return selected.length ? selected : [singleId];
   }
   return Array.from(document.querySelectorAll('.row-check:checked')).map((el) => el.value);
+}
+
+function showAdminToast(message) {
+  const wrap = document.getElementById('adminNotifyWrap');
+  if (!wrap) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'admin-toast';
+  toast.innerHTML = `<button class="admin-toast-close" aria-label="Fechar">×</button><div class="admin-toast-title">Novo agendamento</div><div class="admin-toast-body"></div>`;
+  toast.querySelector('.admin-toast-body').textContent = message;
+
+  wrap.appendChild(toast);
+  toast.querySelector('.admin-toast-close')?.addEventListener('click', () => toast.remove());
+  setTimeout(() => toast.remove(), 9000);
+}
+
+function getLastId() {
+  return Number(sessionStorage.getItem(POLL_KEY) || localStorage.getItem(POLL_KEY) || 0);
+}
+
+function setLastId(id) {
+  const value = String(Math.max(0, Number(id || 0)));
+  sessionStorage.setItem(POLL_KEY, value);
+  localStorage.setItem(POLL_KEY, value);
+}
+
+async function pollNotifications() {
+  try {
+    const response = await fetch(`${pollUrl}?last_id=${encodeURIComponent(getLastId())}`, { headers: { Accept: 'application/json' } });
+    const json = await response.json();
+    if (!json.ok || !Array.isArray(json.data) || json.data.length === 0) return;
+
+    let maxId = getLastId();
+    json.data.forEach((entry) => {
+      const id = Number(entry.id || 0);
+      if (id > maxId) maxId = id;
+
+      const payload = entry.payload || {};
+      const nome = payload.nome || 'Munícipe';
+      const protocolo = payload.protocolo || `#${entry.solicitacao_id}`;
+      const endereco = payload.endereco || 'Endereço não informado';
+      showAdminToast(`${nome} • ${protocolo}\n${endereco}`);
+    });
+
+    setLastId(maxId);
+    loadRequests();
+  } catch (_) {
+    // sem bloqueio visual em caso de rede intermitente
+  }
 }
 
 function renderComm(report) {
@@ -144,3 +196,5 @@ renderComm(window.COMM_REPORT || null);
 loadRequests();
 loadChart();
 loadCommReport();
+pollNotifications();
+setInterval(pollNotifications, 12000);

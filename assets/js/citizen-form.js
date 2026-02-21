@@ -15,8 +15,9 @@ const districtInput = document.getElementById('district');
 
 let map;
 let marker;
-let geocoder;
 let lastValidCep = false;
+let manualAdjustAllowed = false;
+let debounceTimer;
 
 function showGeo(message, type = 'info') {
   if (!geoFeedback) return;
@@ -34,38 +35,68 @@ function normalize(v) {
 
 async function validarCepViaCep(cep) {
   const clean = (cep || '').replace(/\D+/g, '');
-  if (clean.length !== 8) {
-    return { ok: false, message: 'CEP inválido.' };
-  }
+  if (clean.length !== 8) return { ok: false, message: 'CEP inválido.' };
 
   const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
   const json = await res.json();
   if (json.erro) return { ok: false, message: 'CEP não encontrado.' };
 
-  if (normalize(json.localidade) !== normalize(MAP_CONFIG.allowedCity) || String(json.uf).toUpperCase() !== String(MAP_CONFIG.allowedUf).toUpperCase()) {
+  const cityOk = normalize(json.localidade) === normalize(MAP_CONFIG.allowedCity);
+  const ufOk = String(json.uf).toUpperCase() === String(MAP_CONFIG.allowedUf).toUpperCase();
+  if (!cityOk || !ufOk) {
     return { ok: false, message: 'Atendimento exclusivo para Santo Antônio do Descoberto - GO.' };
   }
 
   return { ok: true, data: json };
 }
 
-function geocodeAddress() {
-  if (!geocoder || !map || !marker) return;
-  const query = `${addressInput.value}, ${districtInput.value}, Santo Antônio do Descoberto, GO, Brasil`;
+async function nominatimSearch(query) {
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  Object.entries(query).forEach(([key, value]) => value && url.searchParams.set(key, value));
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('countrycodes', 'br');
+  url.searchParams.set('limit', '1');
 
-  geocoder.geocode({ address: query, region: 'br' }, (results, status) => {
-    if (status !== 'OK' || !results?.[0]) {
-      showGeo('Endereço não localizado no Google Maps.', 'warning');
+  const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  const data = await response.json();
+  return Array.isArray(data) && data[0] ? data[0] : null;
+}
+
+async function geocodeAddress() {
+  if (!map || !marker || !lastValidCep) return;
+
+  const street = addressInput?.value?.trim() || '';
+  const district = districtInput?.value?.trim() || '';
+
+  try {
+    let result = await nominatimSearch({ street: `${street}, ${district}`.trim(), city: MAP_CONFIG.allowedCity, state: 'Goiás', country: 'Brasil' });
+    if (!result) {
+      result = await nominatimSearch({ q: `${street}, ${district}, ${MAP_CONFIG.allowedCity}, GO, Brasil` });
+    }
+
+    if (!result) {
+      manualAdjustAllowed = true;
+      showGeo('Não conseguimos localizar automaticamente. Arraste o marcador no mapa para confirmar o ponto exato.', 'warning');
       return;
     }
 
-    const loc = results[0].geometry.location;
-    marker.setPosition(loc);
-    map.setCenter(loc);
-    map.setZoom(16);
-    setLatLng(loc.lat(), loc.lng());
-    showGeo('Localização validada e posicionada no mapa.', 'success');
-  });
+    const lat = Number(result.lat);
+    const lon = Number(result.lon);
+    marker.setLatLng([lat, lon]);
+    map.setView([lat, lon], 17);
+    setLatLng(lat, lon);
+    manualAdjustAllowed = true;
+    showGeo('Endereço localizado. Você pode ajustar o marcador para maior precisão.', 'success');
+  } catch (_) {
+    manualAdjustAllowed = true;
+    showGeo('Serviço de mapa indisponível. Ajuste manualmente o marcador para continuar.', 'warning');
+  }
+}
+
+function debounceGeocode() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(geocodeAddress, 700);
 }
 
 async function onCepChange() {
@@ -76,9 +107,11 @@ async function onCepChange() {
       showGeo(resp.message, 'danger');
       return;
     }
+
     lastValidCep = true;
     if (!districtInput.value && resp.data?.bairro) districtInput.value = resp.data.bairro;
-    geocodeAddress();
+    if (!addressInput.value && resp.data?.logradouro) addressInput.value = resp.data.logradouro;
+    debounceGeocode();
   } catch (_) {
     lastValidCep = false;
     showGeo('Falha ao validar CEP no momento.', 'warning');
@@ -117,6 +150,11 @@ async function submitCitizenForm(event) {
     return;
   }
 
+  if (!manualAdjustAllowed || !latEl.value || !lngEl.value) {
+    feedback.innerHTML = '<div class="alert alert-danger">Confirme a localização no mapa antes de enviar.</div>';
+    return;
+  }
+
   const fd = new FormData(formEl);
   feedback.innerHTML = '<div class="alert alert-info">Enviando...</div>';
   try {
@@ -127,6 +165,7 @@ async function submitCitizenForm(event) {
     formEl.reset();
     formEl.classList.remove('was-validated');
     lastValidCep = false;
+    manualAdjustAllowed = false;
     renderReceipt(json.receipt, json.email_delivery);
   } catch (_) {
     feedback.innerHTML = '<div class="alert alert-danger">Erro de comunicação.</div>';
@@ -154,31 +193,41 @@ function bindTrackLookup() {
   });
 }
 
-window.cataInitGoogleMap = function cataInitGoogleMap() {
+function initLeaflet() {
   const el = document.getElementById('map');
-  if (!el || typeof google === 'undefined' || !google.maps) return;
+  if (!el || typeof L === 'undefined') return;
 
-  const center = { lat: Number(MAP_CONFIG.defaultLat || -15.9439), lng: Number(MAP_CONFIG.defaultLng || -48.2585) };
-  map = new google.maps.Map(el, { center, zoom: 13, mapTypeControl: false, streetViewControl: false });
-  marker = new google.maps.Marker({ position: center, map, draggable: true });
-  geocoder = new google.maps.Geocoder();
+  const center = [Number(MAP_CONFIG.defaultLat || -15.9439), Number(MAP_CONFIG.defaultLng || -48.2585)];
+  map = L.map(el).setView(center, 13);
 
-  marker.addListener('dragend', () => {
-    const p = marker.getPosition();
-    if (p) setLatLng(p.lat(), p.lng());
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(map);
+
+  marker = L.marker(center, { draggable: true }).addTo(map);
+  setLatLng(center[0], center[1]);
+  showGeo('Mapa OpenStreetMap carregado. Informe o CEP para localizar automaticamente.', 'info');
+
+  marker.on('dragend', () => {
+    const pos = marker.getLatLng();
+    setLatLng(pos.lat, pos.lng);
+    manualAdjustAllowed = true;
+    showGeo('Localização ajustada manualmente com sucesso.', 'success');
   });
-
-  setLatLng(center.lat, center.lng);
-  showGeo('Google Maps carregado com sucesso.', 'success');
-};
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().slice(0, 10);
   if (pickupInput) pickupInput.min = today;
 
+  initLeaflet();
   cepInput?.addEventListener('blur', onCepChange);
-  addressInput?.addEventListener('blur', () => { if (lastValidCep) geocodeAddress(); });
-  districtInput?.addEventListener('blur', () => { if (lastValidCep) geocodeAddress(); });
+  cepInput?.addEventListener('input', () => {
+    cepInput.value = cepInput.value.replace(/[^\d-]/g, '').slice(0, 9);
+  });
+  addressInput?.addEventListener('input', debounceGeocode);
+  districtInput?.addEventListener('input', debounceGeocode);
   formEl?.addEventListener('submit', submitCitizenForm);
   bindTrackLookup();
 });

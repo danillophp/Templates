@@ -34,6 +34,16 @@ if (!headers_sent()) {
 }
 
 session_name(SESSION_NAME);
+
+$cookiePath = APP_BASE_PATH !== '' ? APP_BASE_PATH . '/' : '/';
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => $cookiePath,
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

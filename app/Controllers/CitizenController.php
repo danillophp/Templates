@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Core\ErrorHandler;
 use App\Helpers\GeoHelper;
 use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
@@ -26,7 +27,6 @@ final class CitizenController extends Controller
         $tenant = TenantService::current();
 
         $this->view('citizen/home', [
-            'googleMapsKey' => GOOGLE_MAPS_API_KEY,
             'tenant' => $tenant,
             'tenants' => TenantService::allActive(),
             'tenantWarning' => null,
@@ -74,7 +74,7 @@ final class CitizenController extends Controller
         try {
             $nome = trim(strip_tags((string)($_POST['full_name'] ?? '')));
             $endereco = trim(strip_tags((string)($_POST['address'] ?? '')));
-            $cep = preg_replace('/[^0-9\-]/', '', trim((string)($_POST['cep'] ?? ''))) ?? '';
+            $cep = preg_replace('/\D+/', '', trim((string)($_POST['cep'] ?? ''))) ?? '';
             $bairro = trim(strip_tags((string)($_POST['district'] ?? 'Não informado')));
             $telefone = preg_replace('/\D+/', '', (string)($_POST['whatsapp'] ?? '')) ?? '';
             $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_SANITIZE_EMAIL);
@@ -96,6 +96,9 @@ final class CitizenController extends Controller
 
             if ($latitude === 0.0 || $longitude === 0.0) {
                 throw new \RuntimeException('Confirme a localização no mapa antes de enviar.');
+            }
+            if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+                throw new \RuntimeException('Coordenadas inválidas. Ajuste o marcador no mapa.');
             }
 
             $cepValidation = GeoHelper::validarCepSantoAntonio($cep);
@@ -141,7 +144,9 @@ final class CitizenController extends Controller
                 'receipt' => $receipt,
             ]);
         } catch (\Throwable $e) {
-            $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            ErrorHandler::log('CITIZEN_STORE erro: ' . $e->getMessage());
+            $message = APP_ENV === 'production' ? 'Não foi possível concluir a solicitação. Verifique os dados e tente novamente.' : $e->getMessage();
+            $this->json(['ok' => false, 'message' => $message], 422);
         }
     }
 

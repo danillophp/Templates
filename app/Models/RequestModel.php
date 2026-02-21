@@ -20,6 +20,13 @@ final class RequestModel
         $protocol = ProtocolHelper::fromId($id);
         Database::connection()->prepare('UPDATE solicitacoes SET protocolo = :protocolo WHERE id = :id')->execute(['protocolo' => $protocol, 'id' => $id]);
 
+        (new AdminNotificationModel())->createNewRequest((int)$data['tenant_id'], $id, [
+            'protocolo' => $protocol,
+            'nome' => (string)$data['nome'],
+            'endereco' => (string)$data['endereco'],
+            'data_solicitada' => (string)$data['data_solicitada'],
+        ]);
+
         return $id;
     }
 

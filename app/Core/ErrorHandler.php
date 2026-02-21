@@ -18,14 +18,14 @@ final class ErrorHandler
             return false;
         }
 
-        self::writeLog("PHP Error [{$severity}] {$message} in {$file}:{$line}");
+        self::log("PHP Error [{$severity}] {$message} in {$file}:{$line}");
         self::render500();
         return true;
     }
 
     public static function handleException(\Throwable $e): void
     {
-        self::writeLog('Uncaught Exception: ' . (string)$e);
+        self::log('Uncaught Exception: ' . (string)$e);
 
         if (APP_DEBUG) {
             http_response_code(500);
@@ -48,7 +48,7 @@ final class ErrorHandler
         echo 'Serviço temporariamente indisponível.';
     }
 
-    private static function writeLog(string $content): void
+    public static function log(string $content): void
     {
         $dir = __DIR__ . '/../../storage/logs';
         if (!is_dir($dir)) {
