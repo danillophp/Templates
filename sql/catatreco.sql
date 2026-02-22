@@ -1,62 +1,81 @@
--- Banco CATA TRECO - Pronto para HostGator (MySQL)
 CREATE DATABASE IF NOT EXISTS santo821_treco CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE santo821_treco;
 
--- Usuários do sistema (ADMIN/FUNCIONARIO)
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(60) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role ENUM('ADMIN','FUNCIONARIO') NOT NULL,
-    full_name VARCHAR(120) NOT NULL,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  usuario VARCHAR(60) NOT NULL UNIQUE,
+  email VARCHAR(120) NOT NULL UNIQUE,
+  senha_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin') NOT NULL DEFAULT 'admin',
+  ativo TINYINT(1) NOT NULL DEFAULT 1,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Solicitações dos cidadãos
-CREATE TABLE IF NOT EXISTS requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    full_name VARCHAR(120) NOT NULL,
-    address VARCHAR(255) NOT NULL,
-    district VARCHAR(100) NULL,
-    cep VARCHAR(20) NOT NULL,
-    whatsapp VARCHAR(30) NOT NULL,
-    photo_path VARCHAR(255) NOT NULL,
-    pickup_datetime DATETIME NOT NULL,
-    status ENUM('PENDENTE','APROVADO','RECUSADO','EM_ANDAMENTO','FINALIZADO') NOT NULL DEFAULT 'PENDENTE',
-    latitude DECIMAL(10,7) NOT NULL,
-    longitude DECIMAL(10,7) NOT NULL,
-    consent_given TINYINT(1) NOT NULL DEFAULT 1,
-    request_ip VARCHAR(45) NOT NULL,
-    assigned_user_id INT NULL,
-    finalized_at DATETIME NULL,
-    anonymized_at DATETIME NULL,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    CONSTRAINT fk_requests_user FOREIGN KEY (assigned_user_id) REFERENCES users(id),
-    INDEX idx_requests_status (status),
-    INDEX idx_requests_pickup (pickup_datetime),
-    INDEX idx_requests_district (district)
-) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS pontos_coleta (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  descricao TEXT,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  ativo TINYINT(1) NOT NULL DEFAULT 1,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Auditoria e LGPD
-CREATE TABLE IF NOT EXISTS logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    request_id INT NULL,
-    actor_user_id INT NULL,
-    actor_role VARCHAR(40) NOT NULL,
-    action VARCHAR(100) NOT NULL,
-    details TEXT NULL,
-    actor_ip VARCHAR(45) NOT NULL,
-    created_at DATETIME NOT NULL,
-    CONSTRAINT fk_logs_requests FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE SET NULL,
-    CONSTRAINT fk_logs_users FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_logs_request (request_id),
-    INDEX idx_logs_actor (actor_user_id),
-    INDEX idx_logs_created (created_at)
-) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS solicitacoes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  protocolo VARCHAR(20) UNIQUE,
+  nome VARCHAR(120) NOT NULL,
+  email VARCHAR(120) NOT NULL,
+  telefone_whatsapp VARCHAR(20) NOT NULL,
+  endereco VARCHAR(255) NOT NULL,
+  cep VARCHAR(10) NOT NULL,
+  data_agendada DATE NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  foto_path VARCHAR(255) NULL,
+  status ENUM('PENDENTE','APROVADO','RECUSADO','ALTERADO','FINALIZADO') NOT NULL DEFAULT 'PENDENTE',
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
--- Usuários iniciais (alterar senha em produção)
-INSERT INTO users (username, password_hash, role, full_name) VALUES
-('admin', '$2y$12$Y7qehFLNLO20wLibm2gL0eBcPoSpuXeng43FC8OIR.mJvvL2Cimwy', 'ADMIN', 'Administrador Geral'),
-('funcionario1', '$2y$12$pl9kIpvdu3INlC.3LOdGyuZ61pLjHYL/urAZA9DWdfKuvv/O54KGC', 'FUNCIONARIO', 'Equipe Operacional 01');
+CREATE TABLE IF NOT EXISTS logs_auditoria (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT NULL,
+  acao VARCHAR(120) NOT NULL,
+  entidade VARCHAR(80) NOT NULL,
+  entidade_id INT NOT NULL,
+  dados_antes JSON NULL,
+  dados_depois JSON NULL,
+  ip VARCHAR(50),
+  user_agent VARCHAR(255),
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notificacoes_admin (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tipo ENUM('novo_agendamento') NOT NULL,
+  solicitacao_id INT NOT NULL,
+  payload_json JSON NOT NULL,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mensagens_fila (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  solicitacao_id INT NOT NULL,
+  canal ENUM('email') NOT NULL,
+  destino VARCHAR(120) NOT NULL,
+  template VARCHAR(80) NOT NULL,
+  payload_json JSON NOT NULL,
+  status ENUM('pendente','enviando','enviado','erro') NOT NULL DEFAULT 'pendente',
+  tentativas TINYINT NOT NULL DEFAULT 0,
+  erro_mensagem TEXT NULL,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO usuarios (nome, usuario, email, senha_hash, role, ativo)
+VALUES ('Administrador', 'admin', 'admin@prefsade.com.br', '$2y$10$M37xHiL8nC2nTk65JvSxyepvRlOV9L6fRj3gyEjxW4P0di9hNf9du', 'admin', 1);
+
+INSERT INTO pontos_coleta (nome, descricao, latitude, longitude, ativo)
+VALUES ('Ecoponto Central', 'Ponto de descarte de móveis e volumosos', -15.9404070, -48.2571520, 1);

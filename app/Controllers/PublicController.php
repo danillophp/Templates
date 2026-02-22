@@ -23,25 +23,27 @@ class PublicController
             'endereco' => trim($_POST['endereco'] ?? ''),
             'cep' => preg_replace('/\D+/', '', $_POST['cep'] ?? ''),
             'data_agendada' => $_POST['data_agendada'] ?? '',
-            'latitude' => (float)($_POST['latitude'] ?? 0),
-            'longitude' => (float)($_POST['longitude'] ?? 0),
+            'latitude' => (float) ($_POST['latitude'] ?? 0),
+            'longitude' => (float) ($_POST['longitude'] ?? 0),
             'cidade' => trim($_POST['cidade'] ?? ''),
             'uf' => trim($_POST['uf'] ?? ''),
         ];
-        if (!$data['nome'] || !$data['email'] || !$data['telefone'] || !$data['endereco'] || !$data['data_agendada']) {
-            exit('Dados obrigatórios ausentes.');
-        }
+        if (!$data['nome'] || !$data['email'] || !$data['telefone'] || !$data['endereco'] || !$data['data_agendada']) exit('Dados obrigatórios ausentes.');
         if (strtotime($data['data_agendada']) < strtotime(date('Y-m-d'))) exit('Data inválida.');
-        if (!((new GeoService())->cidadeUfValida($data['cidade'], $data['uf']))) exit('CEP fora do município atendido.');
+        if (!(new GeoService())->cidadeUfValida($data['cidade'], $data['uf'])) exit('CEP fora do município atendido.');
         if ($data['latitude'] < -90 || $data['latitude'] > 90 || $data['longitude'] < -180 || $data['longitude'] > 180) exit('Coordenadas inválidas.');
 
         $fotoPath = null;
         if (!empty($_FILES['foto']['tmp_name']) && is_uploaded_file($_FILES['foto']['tmp_name'])) {
-            $ext = strtolower(pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true) && $_FILES['foto']['size'] <= 5 * 1024 * 1024) {
-                $name = 'sol_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($_FILES['foto']['tmp_name']) ?: '';
+            $allow = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            if (isset($allow[$mime]) && $_FILES['foto']['size'] <= 5 * 1024 * 1024) {
+                $name = 'sol_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $allow[$mime];
                 $dest = __DIR__ . '/../../uploads/' . $name;
-                if (move_uploaded_file($_FILES['foto']['tmp_name'], $dest)) $fotoPath = 'uploads/' . $name;
+                if (move_uploaded_file($_FILES['foto']['tmp_name'], $dest)) {
+                    $fotoPath = 'uploads/' . $name;
+                }
             }
         }
 
@@ -55,8 +57,9 @@ class PublicController
             'latitude' => $data['latitude'],
             'longitude' => $data['longitude'],
             'foto_path' => $fotoPath,
-            'status' => 'PENDENTE'
+            'status' => 'PENDENTE',
         ]);
+
         $req = (new RequestModel())->find($id);
         (new NotificationModel())->createNewSchedule($id, ['protocolo' => $req['protocolo'], 'nome' => $req['nome']]);
         $_SESSION['comprovante'] = $req;

@@ -9,17 +9,47 @@ use App\Services\EmailService;
 
 class AuthController
 {
+    private function consumeLoginAttempt(string $login): bool
+    {
+        $now = time();
+        $_SESSION['login_rl'] ??= [];
+        $_SESSION['login_rl'][$login] ??= ['count' => 0, 'reset_at' => $now + 900];
+        if ($_SESSION['login_rl'][$login]['reset_at'] < $now) {
+            $_SESSION['login_rl'][$login] = ['count' => 0, 'reset_at' => $now + 900];
+        }
+        if ($_SESSION['login_rl'][$login]['count'] >= 5) {
+            return false;
+        }
+        $_SESSION['login_rl'][$login]['count']++;
+        return true;
+    }
+
+    private function clearLoginAttempts(string $login): void
+    {
+        unset($_SESSION['login_rl'][$login]);
+    }
+
     public function loginForm(): void { require __DIR__ . '/../../resources/views/auth/login.php'; }
 
     public function login(): void
     {
         if (!Csrf::validate($_POST['_csrf'] ?? null)) exit('CSRF inválido');
-        $user = (new UserModel())->findByLogin(trim($_POST['login'] ?? ''));
+
+        $login = trim($_POST['login'] ?? '');
+        if (!$this->consumeLoginAttempt($login)) {
+            $_SESSION['error'] = 'Muitas tentativas. Aguarde 15 minutos.';
+            header('Location: ' . $_ENV['APP_BASE_PATH'] . '/login');
+            return;
+        }
+
+        $user = (new UserModel())->findByLogin($login);
         if (!$user || !password_verify($_POST['senha'] ?? '', $user['senha_hash'])) {
             $_SESSION['error'] = 'Credenciais inválidas';
             header('Location: ' . $_ENV['APP_BASE_PATH'] . '/login');
             return;
         }
+
+        $this->clearLoginAttempts($login);
         Auth::login(['id' => $user['id'], 'nome' => $user['nome'], 'role' => $user['role']]);
         header('Location: ' . $_ENV['APP_BASE_PATH'] . '/admin/dashboard');
     }
