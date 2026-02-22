@@ -1,34 +1,37 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Core;
 
-use App\Controllers\AdminController;
-use App\Controllers\AuthController;
-use App\Controllers\CitizenController;
-use App\Controllers\EmployeeController;
-
-final class Router
+class Router
 {
-    public function dispatch(): void
-    {
-        $route = $_GET['r'] ?? 'citizen/home';
+    private array $routes = [];
 
-        switch ($route) {
-            case 'citizen/home': (new CitizenController())->home(); break;
-            case 'auth/login': (new AuthController())->login(); break;
-            case 'auth/logout': (new AuthController())->logout(); break;
-            case 'admin/dashboard': (new AdminController())->dashboard(); break;
-            case 'employee/dashboard': (new EmployeeController())->dashboard(); break;
-            case 'api/citizen/create': (new CitizenController())->store(); break;
-            case 'api/admin/requests': (new AdminController())->requests(); break;
-            case 'api/admin/update': (new AdminController())->update(); break;
-            case 'api/employee/start': (new EmployeeController())->start(); break;
-            case 'api/employee/finish': (new EmployeeController())->finish(); break;
-            default:
-                http_response_code(404);
-                echo 'Rota não encontrada';
+    public function get(string $path, callable|array $handler): void { $this->add('GET', $path, $handler); }
+    public function post(string $path, callable|array $handler): void { $this->add('POST', $path, $handler); }
+
+    private function add(string $method, string $path, callable|array $handler): void
+    {
+        $this->routes[$method][rtrim($path, '/') ?: '/'] = $handler;
+    }
+
+    public function dispatch(string $method, string $uri): void
+    {
+        $clean = parse_url($uri, PHP_URL_PATH) ?: '/';
+        $base = rtrim($_ENV['APP_BASE_PATH'] ?? '/catatreco', '/');
+        if ($base && str_starts_with($clean, $base)) {
+            $clean = substr($clean, strlen($base)) ?: '/';
         }
+        $path = rtrim($clean, '/') ?: '/';
+        $handler = $this->routes[$method][$path] ?? null;
+        if (!$handler) {
+            http_response_code(404);
+            require __DIR__ . '/../../resources/views/errors/404.php';
+            return;
+        }
+        if (is_array($handler)) {
+            [$class, $fn] = $handler;
+            (new $class())->{$fn}();
+            return;
+        }
+        $handler();
     }
 }

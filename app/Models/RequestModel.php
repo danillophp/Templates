@@ -1,89 +1,62 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Models;
 
 use App\Core\Database;
 
-final class RequestModel
+class RequestModel
 {
     public function create(array $data): int
     {
-        $sql = 'INSERT INTO requests (full_name,address,cep,district,whatsapp,photo_path,pickup_datetime,status,latitude,longitude,consent_given,request_ip,created_at,updated_at)
-                VALUES (:full_name,:address,:cep,:district,:whatsapp,:photo,:pickup,"PENDENTE",:lat,:lng,1,:ip,NOW(),NOW())';
-        $stmt = Database::connection()->prepare($sql);
-        $stmt->execute($data);
-        return (int) Database::connection()->lastInsertId();
-    }
-
-    public function summary(): array
-    {
-        $pdo = Database::connection();
-        $statuses = ['PENDENTE', 'APROVADO', 'EM_ANDAMENTO', 'FINALIZADO'];
-        $result = [];
-        foreach ($statuses as $status) {
-            $stmt = $pdo->prepare('SELECT COUNT(*) FROM requests WHERE status = ?');
-            $stmt->execute([$status]);
-            $result[$status] = (int) $stmt->fetchColumn();
-        }
-        return $result;
-    }
-
-    public function list(array $filters = []): array
-    {
-        $sql = 'SELECT r.*, u.full_name as assigned_name FROM requests r LEFT JOIN users u ON u.id = r.assigned_user_id WHERE 1=1';
-        $params = [];
-        if (!empty($filters['status'])) {
-            $sql .= ' AND r.status = :status';
-            $params['status'] = $filters['status'];
-        }
-        if (!empty($filters['date'])) {
-            $sql .= ' AND DATE(r.pickup_datetime) = :date';
-            $params['date'] = $filters['date'];
-        }
-        if (!empty($filters['district'])) {
-            $sql .= ' AND r.district LIKE :district';
-            $params['district'] = '%' . $filters['district'] . '%';
-        }
-        $sql .= ' ORDER BY r.created_at DESC';
-        $stmt = Database::connection()->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
+        $sql = 'INSERT INTO solicitacoes (nome,email,telefone_whatsapp,endereco,cep,data_agendada,latitude,longitude,foto_path,status) VALUES (:nome,:email,:telefone,:endereco,:cep,:data_agendada,:latitude,:longitude,:foto_path,:status)';
+        $st = Database::connection()->prepare($sql);
+        $st->execute($data);
+        $id = (int) Database::connection()->lastInsertId();
+        $proto = 'CAT-' . date('Y') . '-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT);
+        $up = Database::connection()->prepare('UPDATE solicitacoes SET protocolo = :protocolo WHERE id = :id');
+        $up->execute(['protocolo' => $proto, 'id' => $id]);
+        return $id;
     }
 
     public function find(int $id): ?array
     {
-        $stmt = Database::connection()->prepare('SELECT * FROM requests WHERE id = ? LIMIT 1');
-        $stmt->execute([$id]);
-        $row = $stmt->fetch();
-        return $row ?: null;
+        $st = Database::connection()->prepare('SELECT * FROM solicitacoes WHERE id = :id');
+        $st->execute(['id' => $id]);
+        return $st->fetch() ?: null;
     }
 
-    public function updateStatus(int $id, string $status, ?string $pickup = null, ?int $employeeId = null): void
+    public function findByProtocolOrPhone(string $term): array
     {
-        $sql = 'UPDATE requests SET status = :status, updated_at = NOW()';
-        $params = ['status' => $status, 'id' => $id];
-        if ($pickup !== null) {
-            $sql .= ', pickup_datetime = :pickup';
-            $params['pickup'] = $pickup;
-        }
-        if ($employeeId !== null) {
-            $sql .= ', assigned_user_id = :employee';
-            $params['employee'] = $employeeId;
-        }
-        if ($status === 'FINALIZADO') {
-            $sql .= ', finalized_at = NOW()';
-        }
-        $sql .= ' WHERE id = :id';
-        $stmt = Database::connection()->prepare($sql);
-        $stmt->execute($params);
+        $isProtocol = str_starts_with(strtoupper($term), 'CAT-');
+        $sql = $isProtocol ? 'SELECT * FROM solicitacoes WHERE protocolo = :term' : 'SELECT * FROM solicitacoes WHERE telefone_whatsapp = :term ORDER BY criado_em DESC';
+        $st = Database::connection()->prepare($sql);
+        $st->execute(['term' => $term]);
+        return $st->fetchAll();
     }
 
-    public function byEmployee(int $userId): array
+    public function listByDate(string $date): array
     {
-        $stmt = Database::connection()->prepare("SELECT * FROM requests WHERE assigned_user_id = ? AND status IN ('EM_ANDAMENTO','APROVADO') ORDER BY pickup_datetime ASC");
-        $stmt->execute([$userId]);
-        return $stmt->fetchAll();
+        $st = Database::connection()->prepare('SELECT * FROM solicitacoes WHERE data_agendada = :d ORDER BY data_agendada ASC, id ASC');
+        $st->execute(['d' => $date]);
+        return $st->fetchAll();
+    }
+
+    public function updateStatus(array $ids, string $status, ?string $newDate = null): void
+    {
+        if (!$ids) return;
+        $pdo = Database::connection();
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $params = [$status];
+        $sql = 'UPDATE solicitacoes SET status = ?, atualizado_em = NOW()';
+        if ($newDate) { $sql .= ', data_agendada = ?'; $params[] = $newDate; }
+        $sql .= " WHERE id IN ($in)";
+        $params = array_merge($params, $ids);
+        $pdo->prepare($sql)->execute($params);
+    }
+
+    public function deleteByIds(array $ids): void
+    {
+        if (!$ids) return;
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        Database::connection()->prepare("DELETE FROM solicitacoes WHERE id IN ($in)")->execute($ids);
     }
 }
