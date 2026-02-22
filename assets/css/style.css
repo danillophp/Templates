@@ -1,12 +1,164 @@
-/* Layout institucional responsivo da prefeitura */
-body { background: #f4f6f8; }
-.card { border: 0; border-radius: 14px; }
-.navbar-brand { font-weight: 700; letter-spacing: .5px; }
-.table td, .table th { white-space: nowrap; }
-#map { border-radius: 12px; }
-.mini-map { height: 220px; border-radius: 10px; margin-top: 8px; }
+:root {
+  --tenant-primary: #0b8f62;
+  --blue-accent: #1d7de2;
+  --bg-soft: #eef5fb;
+}
+
+body {
+  background: linear-gradient(135deg, #eef8f3 0%, #eef5fb 50%, #ffffff 100%);
+  min-height: 100vh;
+}
+
+.card {
+  border-radius: 16px;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(13, 60, 120, 0.08);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+.btn-success {
+  background: linear-gradient(90deg, var(--tenant-primary), #0f9f74);
+  border: 0;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #1d7de2, #1a66c2);
+  border: 0;
+}
+
+.btn,
+.card,
+.form-control {
+  transition: all .2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(20, 50, 110, 0.18);
+}
+
+.form-control:focus {
+  border-color: var(--blue-accent);
+  box-shadow: 0 0 0 .2rem rgba(29, 125, 226, .15);
+}
+
+.table td,
+.table th {
+  white-space: nowrap;
+}
+
+#map,
+.mini-map {
+  border-radius: 12px;
+}
+
+.mini-map {
+  height: 220px;
+  margin-top: 8px;
+}
 
 @media (max-width: 767px) {
-  .table td, .table th { font-size: 12px; }
+  .table td,
+  .table th { font-size: 12px; }
   .mini-map { height: 180px; }
+}
+
+
+.admin-sidebar { border-radius: 16px; }
+.metric-box { background: linear-gradient(135deg, rgba(11,143,98,.10), rgba(29,125,226,.10)); border: 1px solid rgba(29,125,226,.12); }
+
+
+#map,
+.map-canvas {
+  width: 100%;
+  min-height: 400px;
+  height: 500px;
+  border-radius: 12px;
+}
+
+@media (max-width: 767px) {
+  #map,
+  .map-canvas {
+    height: 360px;
+    min-height: 320px;
+  }
+}
+
+
+.admin-compact .card-body { padding: .75rem; }
+@media print {
+  body * { visibility: hidden; }
+  .print-receipt, .print-receipt * { visibility: visible; }
+  .print-receipt { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
+}
+
+.admin-toast-wrap {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  max-width: min(90vw, 360px);
+}
+
+.admin-toast {
+  background: #0f5132;
+  color: #fff;
+  border-radius: 12px;
+  padding: .75rem .9rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .2);
+  animation: toastSlideIn .25s ease-out;
+  position: relative;
+  white-space: pre-line;
+}
+
+.admin-toast-title { font-weight: 700; margin-bottom: .2rem; }
+.admin-toast-body { font-size: .9rem; line-height: 1.35; }
+.admin-toast-close {
+  position: absolute;
+  top: .3rem;
+  right: .4rem;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.calendar-widget { font-size: .78rem; }
+.calendar-head { font-weight: 700; margin-bottom: .35rem; text-transform: capitalize; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .2rem; }
+.calendar-cell { min-height: 28px; border: 0; border-radius: 8px; background: #f4f8fc; display:flex; align-items:center; justify-content:center; position: relative; }
+.calendar-weekday { font-weight: 600; background: transparent; }
+.calendar-day { cursor: pointer; }
+.calendar-day.is-active { background: rgba(13,110,253,.12); color: #0d4ca1; font-weight: 700; }
+.calendar-badge { position: absolute; top: 2px; right: 4px; font-size: .6rem; background: #0d6efd; color: #fff; border-radius: 10px; padding: 0 .3rem; }
+.calendar-day.is-active[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  background: #212529;
+  color: #fff;
+  padding: .15rem .35rem;
+  border-radius: 5px;
+  font-size: .66rem;
+  white-space: nowrap;
 }

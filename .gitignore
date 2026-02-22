@@ -1,0 +1,24 @@
+# --- Playwright / Test artifacts (gerados automaticamente) ---
+playwright-report/
+test-results/
+screenshots/
+
+# --- Logs gerados em runtime ---
+storage/logs/*
+!storage/logs/.gitkeep
+*.log
+
+# --- Relatórios gerados (PDF/CSV/XLSX) ---
+storage/relatorios/*
+!storage/relatorios/.gitkeep
+
+# --- Uploads do sistema (runtime) ---
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+
+# --- Cache / temporários ---
+tmp/
+.cache/
+.DS_Store
+Thumbs.db
