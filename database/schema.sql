@@ -1,6 +1,3 @@
-CREATE DATABASE IF NOT EXISTS santo821_treco CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE santo821_treco;
-
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(120) NOT NULL,
@@ -73,9 +70,3 @@ CREATE TABLE IF NOT EXISTS mensagens_fila (
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-
-INSERT INTO usuarios (nome, usuario, email, senha_hash, role, ativo)
-VALUES ('Administrador', 'admin', 'admin@prefsade.com.br', '$2y$10$M37xHiL8nC2nTk65JvSxyepvRlOV9L6fRj3gyEjxW4P0di9hNf9du', 'admin', 1);
-
-INSERT INTO pontos_coleta (nome, descricao, latitude, longitude, ativo)
-VALUES ('Ecoponto Central', 'Ponto de descarte de móveis e volumosos', -15.9404070, -48.2571520, 1);

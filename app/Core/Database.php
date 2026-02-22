@@ -1,27 +1,19 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Core;
 
 use PDO;
 
-final class Database
+class Database
 {
-    private static ?PDO $instance = null;
+    private static ?PDO $pdo = null;
 
     public static function connection(): PDO
     {
-        if (self::$instance instanceof PDO) {
-            return self::$instance;
+        if (self::$pdo === null) {
+            $cfg = require __DIR__ . '/../../config/database.php';
+            $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $cfg['host'], $cfg['port'], $cfg['dbname'], $cfg['charset']);
+            self::$pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $cfg['options']);
         }
-
-        $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', \DbConfig::HOST, \DbConfig::DATABASE, \DbConfig::CHARSET);
-        self::$instance = new PDO($dsn, \DbConfig::USERNAME, \DbConfig::PASSWORD, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-
-        return self::$instance;
+        return self::$pdo;
     }
 }

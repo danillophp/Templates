@@ -1,80 +1,49 @@
-# CATA TRECO
+# Cata Treco — Versão Profissional (HostGator /catatreco)
 
-Sistema web institucional para gestão municipal de coleta de resíduos volumosos, construído com **PHP 8+ (OO/MVC)**, **MySQL**, **Bootstrap 5**, **Leaflet** e **Fetch API**.
+## URL e pasta
+- URL: `https://prefsade.com.br/catatreco`
+- Pasta: `public_html/catatreco`
+- Front controller da raiz: `index.php` (inclui `public/index.php`, sem redirect)
 
-## Arquitetura
+## Configuração rápida
+1. **Upload via FTP** de todo conteúdo para `public_html/catatreco`.
+2. **Banco MySQL**: importar `sql/catatreco.sql` (ou `database/schema.sql` + `database/seed.sql`).
+3. **Credenciais** em `config/database.php` e compatibilidade em `config/db.php`.
+4. **Subpasta** em `config/app.php`:
+   - `APP_URL=https://prefsade.com.br/catatreco`
+   - `APP_BASE_PATH=/catatreco`
+   - `APP_DEFAULT_TENANT=1`
+5. **Permissões** (775): `uploads/`, `storage/logs/`, `storage/reports/`.
+6. **Cron** (cPanel):
+   - `*/5 * * * * /usr/local/bin/php /home/USUARIO/public_html/catatreco/cron/process_queue.php`
 
-- Backend OO com MVC simples (`app/Controllers`, `app/Models`, `app/Core`)
-- API REST interna em JSON via rotas `?r=api/...`
-- Sessão PHP para autenticação e perfis (ADMIN e FUNCIONARIO)
-- Logs e trilha de auditoria LGPD
-- Front moderno, responsivo e dinâmico (AJAX)
+## Segurança implementada
+- PDO + prepared statements.
+- CSRF no admin.
+- Sanitização e validação server-side.
+- Upload seguro por MIME real (`jpeg/png/webp`).
+- Rate limit de login (5 tentativas em 15 min por sessão/login).
+- `password_hash`/`password_verify` + `session_regenerate_id(true)`.
+- Headers: `X-Frame-Options`, `X-Content-Type-Options`, `Content-Security-Policy`.
+- ErrorHandler centralizado com log em `storage/logs/app.log` e tela 500 amigável em produção.
 
-## Banco de dados (HostGator)
+## Fluxo principal
+- Público `/`: formulário + mapa Leaflet/OSM, ViaCEP + Nominatim.
+- Consulta `/protocolo` ou `/consultar` por protocolo/telefone.
+- Login `/login` apenas usuário/e-mail + senha (sem WhatsApp).
+- Admin `/admin` e `/admin/dashboard` com polling de novos agendamentos.
+- Fila de e-mails em `mensagens_fila` + processamento via cron.
 
-- Banco: `santo821_treco`
-- Usuário: `catatreco`
-- Senha: `php@3903`
+## Loop de redirect (ERR_TOO_MANY_REDIRECTS)
+- `index.php` raiz inclui `public/index.php` diretamente.
+- `.htaccess` reescreve para `public/index.php` sem forçar HTTPS.
+- `public/.htaccess` sem redirecionamentos.
 
-Arquivo de conexão: `config/db.php`.
-Script SQL completo: `sql/catatreco.sql`.
-
-## Funcionalidades
-
-1. **Módulo do cidadão**
-   - Formulário moderno com validações e envio AJAX.
-   - Mapa Leaflet + OpenStreetMap.
-   - Geocoding automático Nominatim por endereço/CEP.
-   - Upload de foto + consentimento LGPD + IP + status inicial `PENDENTE`.
-
-2. **Login e perfis**
-   - Senha com bcrypt.
-   - Acesso por perfil ADMINISTRADOR e FUNCIONARIO.
-
-3. **Painel administrativo**
-   - Cards de indicadores (Pendentes, Aprovadas, Em andamento, Finalizadas).
-   - Filtros por data, status e localidade.
-   - Ações: aprovar, recusar, alterar data/hora, atribuir funcionário.
-
-4. **Painel do funcionário**
-   - Coletas atribuídas com dados completos do cidadão.
-   - Botões Ligar, WhatsApp, Como chegar, foto.
-   - Mapa por coleta + ações iniciar/finalizar.
-
-5. **WhatsApp automático**
-   - Estrutura pronta para WhatsApp Cloud API com templates oficiais.
-   - Fallback automático via `wa.me`.
-
-6. **LGPD, segurança e auditoria**
-   - Consentimento explícito.
-   - Registro de IP e data/hora.
-   - Log de ações administrativas e operacionais.
-   - Estrutura preparada para anonimização futura.
-
-## Instalação na HostGator
-
-1. Envie os arquivos para `public_html/catatreco`.
-2. Importe `sql/catatreco.sql` no phpMyAdmin.
-3. Confirme credenciais em `config/db.php`.
-4. Garanta permissão de escrita em `uploads/` (ex.: `775`).
-5. Acesse: `https://www.prefsade.com.br/catatreco/public/index.php`.
-
-## Credenciais iniciais
-
-- Admin: `admin` / `Admin@123`
-- Funcionário: `funcionario1` / `Func@123`
-
-> Altere as senhas imediatamente em produção.
-
-## Rotas principais
-
-- `?r=citizen/home`
-- `?r=auth/login`
-- `?r=admin/dashboard`
-- `?r=employee/dashboard`
-
-## Produção
-
-- Ative HTTPS e cookies de sessão seguros.
-- Configure `WA_TOKEN`, `WA_PHONE_NUMBER_ID` e templates em `config/app.php`.
-- Recomendado: backup diário, monitoramento e WAF.
+## Checklist de produção
+- HTTPS ativo no domínio.
+- `APP_ENV=production` e `APP_DEBUG=false`.
+- Banco conectado.
+- `tenant` padrão ativo (`APP_DEFAULT_TENANT=1`).
+- Permissões em `uploads/` e `storage/logs/`.
+- `Options -Indexes` ativo.
+- Testes de formulário, upload, login/logout, rate limit e erro 500.

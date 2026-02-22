@@ -1,0 +1,1 @@
+<!doctype html><html><body><main class='container'><div class='card'><h2>Pontos de coleta</h2><?php foreach($points as $p): ?><p><?= htmlspecialchars($p['nome']) ?> - <?= htmlspecialchars($p['descricao']) ?></p><?php endforeach; ?></div></main></body></html>

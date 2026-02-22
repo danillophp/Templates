@@ -1,10 +1,7 @@
 <?php
-
-declare(strict_types=1);
-
 namespace App\Core;
 
-final class Csrf
+class Csrf
 {
     public static function token(): string
     {
@@ -16,6 +13,6 @@ final class Csrf
 
     public static function validate(?string $token): bool
     {
-        return is_string($token) && hash_equals($_SESSION['_csrf'] ?? '', $token);
+        return is_string($token) && isset($_SESSION['_csrf']) && hash_equals($_SESSION['_csrf'], $token);
     }
 }
