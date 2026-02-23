@@ -24,6 +24,18 @@
       <a target="_blank" class="btn btn-outline-dark btn-sm" href="<?= APP_BASE_PATH ?>/uploads/<?= htmlspecialchars((string)$request['foto']) ?>">Ver foto anexada</a>
     </div>
 
+    <div class="mb-3">
+      <h6>Foto enviada</h6>
+      <?php if (!empty($request['foto'])): ?>
+        <a href="<?= APP_BASE_PATH ?>/uploads/<?= htmlspecialchars((string)$request['foto']) ?>" target="_blank" rel="noopener">
+          <img src="<?= APP_BASE_PATH ?>/uploads/<?= htmlspecialchars((string)$request['foto']) ?>" alt="Foto da solicitação" class="img-fluid rounded border" style="max-height: 360px; object-fit: cover;">
+        </a>
+        <div class="mt-2"><a class="btn btn-outline-dark btn-sm" target="_blank" rel="noopener" href="<?= APP_BASE_PATH ?>/uploads/<?= htmlspecialchars((string)$request['foto']) ?>">Abrir foto em nova aba</a></div>
+      <?php else: ?>
+        <div class="text-muted">Sem foto anexada.</div>
+      <?php endif; ?>
+    </div>
+
     <iframe
       title="Mapa da solicitação"
       class="w-100 rounded border"

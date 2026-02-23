@@ -6,8 +6,12 @@ const receiptEl = document.getElementById('receipt');
 const geoFeedback = document.getElementById('geoFeedback');
 const latEl = document.getElementById('latitude');
 const lngEl = document.getElementById('longitude');
+const statusEl = document.getElementById('localizacao_status');
+const viacepCityEl = document.getElementById('viacep_city');
+const viacepUfEl = document.getElementById('viacep_uf');
 const formEl = document.getElementById('citizenForm');
 const pickupInput = document.getElementById('pickup_datetime');
+const emergencyBtn = document.getElementById('btnEmergencyMode');
 
 const cepInput = document.getElementById('cep');
 const addressInput = document.getElementById('address');
@@ -16,12 +20,15 @@ const districtInput = document.getElementById('district');
 let map;
 let marker;
 let lastValidCep = false;
-let manualAdjustAllowed = false;
 let debounceTimer;
 
 function showGeo(message, type = 'info') {
   if (!geoFeedback) return;
   geoFeedback.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${message}</div>`;
+}
+
+function setStatus(value) {
+  if (statusEl) statusEl.value = value;
 }
 
 function setLatLng(lat, lng) {
@@ -33,21 +40,49 @@ function normalize(v) {
   return (v || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+async function fetchWithTimeout(url, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function setEmergencyMode(reason) {
+  console.error('[CATA_TRECO][GEO][EMERGENCIA]', reason);
+  setStatus('EMERGENCIA_MANUAL');
+  lastValidCep = true;
+
+  const center = [Number(MAP_CONFIG.defaultLat || -15.9439), Number(MAP_CONFIG.defaultLng || -48.2585)];
+  if (map && marker) {
+    map.setView(center, 14);
+    marker.setLatLng(center);
+    setLatLng(center[0], center[1]);
+  }
+
+  showGeo('Não foi possível localizar automaticamente agora. Ative o modo de emergência e confirme a localização no mapa.', 'warning');
+}
+
 async function validarCepViaCep(cep) {
   const clean = (cep || '').replace(/\D+/g, '');
   if (clean.length !== 8) return { ok: false, message: 'CEP inválido.' };
 
-  const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-  const json = await res.json();
-  if (json.erro) return { ok: false, message: 'CEP não encontrado.' };
+  try {
+    const res = await fetchWithTimeout(`https://viacep.com.br/ws/${clean}/json/`, 7000);
+    const json = await res.json();
+    if (json.erro) return { ok: false, emergency: true, message: 'CEP não encontrado no ViaCEP.' };
 
-  const cityOk = normalize(json.localidade) === normalize(MAP_CONFIG.allowedCity);
-  const ufOk = String(json.uf).toUpperCase() === String(MAP_CONFIG.allowedUf).toUpperCase();
-  if (!cityOk || !ufOk) {
-    return { ok: false, message: 'Atendimento exclusivo para Santo Antônio do Descoberto - GO.' };
+    const cityOk = normalize(json.localidade) === normalize(MAP_CONFIG.allowedCity);
+    const ufOk = String(json.uf).toUpperCase() === String(MAP_CONFIG.allowedUf).toUpperCase();
+    if (!cityOk || !ufOk) return { ok: false, message: 'Atendimento exclusivo para Santo Antônio do Descoberto - GO.' };
+
+    return { ok: true, data: json };
+  } catch (error) {
+    return { ok: false, emergency: true, message: 'ViaCEP indisponível no momento.' };
   }
-
-  return { ok: true, data: json };
 }
 
 async function nominatimSearch(query) {
@@ -58,9 +93,13 @@ async function nominatimSearch(query) {
   url.searchParams.set('countrycodes', 'br');
   url.searchParams.set('limit', '1');
 
-  const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-  const data = await response.json();
-  return Array.isArray(data) && data[0] ? data[0] : null;
+  try {
+    const response = await fetchWithTimeout(url.toString(), 7000);
+    const data = await response.json();
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 async function geocodeAddress() {
@@ -69,29 +108,27 @@ async function geocodeAddress() {
   const street = addressInput?.value?.trim() || '';
   const district = districtInput?.value?.trim() || '';
 
-  try {
-    let result = await nominatimSearch({ street: `${street}, ${district}`.trim(), city: MAP_CONFIG.allowedCity, state: 'Goiás', country: 'Brasil' });
-    if (!result) {
-      result = await nominatimSearch({ q: `${street}, ${district}, ${MAP_CONFIG.allowedCity}, GO, Brasil` });
-    }
+  let result = await nominatimSearch({
+    street: `${street}, ${district}`.trim(),
+    city: MAP_CONFIG.allowedCity,
+    state: 'Goiás',
+    country: 'Brasil',
+  });
 
-    if (!result) {
-      manualAdjustAllowed = true;
-      showGeo('Não conseguimos localizar automaticamente. Arraste o marcador no mapa para confirmar o ponto exato.', 'warning');
-      return;
-    }
+  if (!result) result = await nominatimSearch({ q: `${street}, ${district}, ${MAP_CONFIG.allowedCity}, GO, Brasil` });
 
-    const lat = Number(result.lat);
-    const lon = Number(result.lon);
-    marker.setLatLng([lat, lon]);
-    map.setView([lat, lon], 17);
-    setLatLng(lat, lon);
-    manualAdjustAllowed = true;
-    showGeo('Endereço localizado. Você pode ajustar o marcador para maior precisão.', 'success');
-  } catch (_) {
-    manualAdjustAllowed = true;
-    showGeo('Serviço de mapa indisponível. Ajuste manualmente o marcador para continuar.', 'warning');
+  if (!result) {
+    setEmergencyMode('Nominatim sem resultado/timeout');
+    return;
   }
+
+  const lat = Number(result.lat);
+  const lon = Number(result.lon);
+  marker.setLatLng([lat, lon]);
+  map.setView([lat, lon], 17);
+  setLatLng(lat, lon);
+  setStatus('AUTO_OK');
+  showGeo('Endereço localizado automaticamente. Ajuste o marcador se necessário.', 'success');
 }
 
 function debounceGeocode() {
@@ -100,22 +137,34 @@ function debounceGeocode() {
 }
 
 async function onCepChange() {
-  try {
-    const resp = await validarCepViaCep(cepInput.value);
-    if (!resp.ok) {
-      lastValidCep = false;
-      showGeo(resp.message, 'danger');
+  const resp = await validarCepViaCep(cepInput.value);
+  if (!resp.ok) {
+    if (resp.emergency) {
+      setEmergencyMode(resp.message);
       return;
     }
 
-    lastValidCep = true;
-    if (!districtInput.value && resp.data?.bairro) districtInput.value = resp.data.bairro;
-    if (!addressInput.value && resp.data?.logradouro) addressInput.value = resp.data.logradouro;
-    debounceGeocode();
-  } catch (_) {
     lastValidCep = false;
-    showGeo('Falha ao validar CEP no momento.', 'warning');
+    setStatus('PENDENTE');
+    showGeo(resp.message, 'danger');
+    return;
   }
+
+  lastValidCep = true;
+  setStatus('AUTO_OK');
+  if (viacepCityEl) viacepCityEl.value = resp.data?.localidade || '';
+  if (viacepUfEl) viacepUfEl.value = resp.data?.uf || '';
+  if (!districtInput.value && resp.data?.bairro) districtInput.value = resp.data.bairro;
+  if (!addressInput.value && resp.data?.logradouro) addressInput.value = resp.data.logradouro;
+  debounceGeocode();
+}
+
+function enforceThursday() {
+  if (!pickupInput || !pickupInput.value) return true;
+  const d = new Date(`${pickupInput.value}T00:00:00`);
+  const isThursday = d.getDay() === 4;
+  pickupInput.setCustomValidity(isThursday ? '' : 'Agendamentos apenas às quintas-feiras.');
+  return isThursday;
 }
 
 function renderReceipt(receipt, emailDelivery) {
@@ -145,12 +194,17 @@ async function submitCitizenForm(event) {
     return;
   }
 
+  if (!enforceThursday()) {
+    feedback.innerHTML = '<div class="alert alert-danger">Agendamentos apenas às quintas-feiras.</div>';
+    return;
+  }
+
   if (!lastValidCep) {
     feedback.innerHTML = '<div class="alert alert-danger">CEP inválido para atendimento.</div>';
     return;
   }
 
-  if (!manualAdjustAllowed || !latEl.value || !lngEl.value) {
+  if (!latEl.value || !lngEl.value) {
     feedback.innerHTML = '<div class="alert alert-danger">Confirme a localização no mapa antes de enviar.</div>';
     return;
   }
@@ -165,9 +219,10 @@ async function submitCitizenForm(event) {
     formEl.reset();
     formEl.classList.remove('was-validated');
     lastValidCep = false;
-    manualAdjustAllowed = false;
+    setStatus('PENDENTE');
     renderReceipt(json.receipt, json.email_delivery);
-  } catch (_) {
+  } catch (err) {
+    console.error('[CATA_TRECO][SUBMIT]', err);
     feedback.innerHTML = '<div class="alert alert-danger">Erro de comunicação.</div>';
   }
 }
@@ -207,13 +262,21 @@ function initLeaflet() {
 
   marker = L.marker(center, { draggable: true }).addTo(map);
   setLatLng(center[0], center[1]);
-  showGeo('Mapa OpenStreetMap carregado. Informe o CEP para localizar automaticamente.', 'info');
+  setStatus('PENDENTE');
+  showGeo('Mapa carregado. Informe o CEP para tentar localização automática.', 'info');
 
   marker.on('dragend', () => {
     const pos = marker.getLatLng();
     setLatLng(pos.lat, pos.lng);
-    manualAdjustAllowed = true;
-    showGeo('Localização ajustada manualmente com sucesso.', 'success');
+    if (statusEl?.value !== 'AUTO_OK') setStatus('EMERGENCIA_MANUAL');
+    showGeo('Localização confirmada manualmente.', 'success');
+  });
+
+  map.on('click', (ev) => {
+    marker.setLatLng(ev.latlng);
+    setLatLng(ev.latlng.lat, ev.latlng.lng);
+    setStatus('EMERGENCIA_MANUAL');
+    showGeo('Localização definida por clique no mapa.', 'success');
   });
 }
 
@@ -224,10 +287,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initLeaflet();
   cepInput?.addEventListener('blur', onCepChange);
   cepInput?.addEventListener('input', () => {
-    cepInput.value = cepInput.value.replace(/[^\d-]/g, '').slice(0, 9);
+    cepInput.value = cepInput.value.replace(/\D+/g, '').slice(0, 8);
   });
+
+  emergencyBtn?.addEventListener('click', () => setEmergencyMode('Ativação manual'));
   addressInput?.addEventListener('input', debounceGeocode);
   districtInput?.addEventListener('input', debounceGeocode);
+  pickupInput?.addEventListener('change', enforceThursday);
   formEl?.addEventListener('submit', submitCitizenForm);
   bindTrackLookup();
 });

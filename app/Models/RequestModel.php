@@ -11,10 +11,33 @@ final class RequestModel
 {
     public function create(array $data): int
     {
-        $sql = 'INSERT INTO solicitacoes (tenant_id,nome,endereco,cep,bairro,telefone,email,foto,data_solicitada,latitude,longitude,status,criado_em,atualizado_em)
-                VALUES (:tenant_id,:nome,:endereco,:cep,:bairro,:telefone,:email,:foto,:data_solicitada,:latitude,:longitude,"PENDENTE",NOW(),NOW())';
+        $hasLocationStatus = $this->hasLocationStatusColumn();
+        $sql = 'INSERT INTO solicitacoes (tenant_id,nome,endereco,cep,bairro,telefone,email,foto,data_solicitada,latitude,longitude,status,criado_em,atualizado_em'
+            . ($hasLocationStatus ? ',localizacao_status' : '')
+            . ') VALUES (:tenant_id,:nome,:endereco,:cep,:bairro,:telefone,:email,:foto,:data_solicitada,:latitude,:longitude,"PENDENTE",NOW(),NOW()'
+            . ($hasLocationStatus ? ',:localizacao_status' : '')
+            . ')';
+
         $stmt = Database::connection()->prepare($sql);
-        $stmt->execute($data);
+        $params = [
+            'tenant_id' => $data['tenant_id'],
+            'nome' => $data['nome'],
+            'endereco' => $data['endereco'],
+            'cep' => $data['cep'],
+            'bairro' => $data['bairro'],
+            'telefone' => $data['telefone'],
+            'email' => $data['email'],
+            'foto' => $data['foto'],
+            'data_solicitada' => $data['data_solicitada'],
+            'latitude' => $data['latitude'],
+            'longitude' => $data['longitude'],
+        ];
+
+        if ($hasLocationStatus) {
+            $params['localizacao_status'] = $data['localizacao_status'] ?? 'AUTO_OK';
+        }
+
+        $stmt->execute($params);
 
         $id = (int) Database::connection()->lastInsertId();
         $protocol = ProtocolHelper::fromId($id);
@@ -143,6 +166,19 @@ final class RequestModel
         }
 
         return $result;
+    }
+
+
+    private function hasLocationStatusColumn(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $stmt = Database::connection()->query("SHOW COLUMNS FROM solicitacoes LIKE 'localizacao_status'");
+        $cached = (bool)$stmt->fetch();
+        return $cached;
     }
 
     public function chartByMonth(int $tenantId): array

@@ -14,6 +14,40 @@ const actionForm = (id) => `
     <div class="col-md-3"><button class="btn btn-sm btn-success w-100 doAction" data-id="${id}">Aplicar</button></div>
   </div>`;
 
+
+function renderPhotoThumb(photo) {
+  if (!photo) return '<span class="text-muted small">Sem foto</span>';
+  const src = `${APP_BASE}/uploads/${encodeURIComponent(photo)}`;
+  return `<a href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="Foto da solicitação" class="admin-thumb"></a>`;
+}
+
+function openWhatsAppMessagesModal(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return;
+  const body = document.getElementById('waMessagesBody');
+  if (!body) return;
+
+  body.innerHTML = messages.map((item) => {
+    const safeText = String(item.mensagem || '');
+    const safeName = String(item.nome || 'Munícipe');
+    const safePhone = String(item.telefone || '');
+    const safeLink = String(item.wa_link || '#');
+
+    return `<div class="border rounded p-2 mb-2">
+      <div class="fw-semibold mb-1">${safeName} • ${safePhone}</div>
+      <textarea class="form-control form-control-sm mb-2 wa-msg-text" rows="3">${safeText}</textarea>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm btnCopyWaMsg" type="button">Copiar</button>
+        <a class="btn btn-success btn-sm" href="${safeLink}" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+      </div>
+    </div>`;
+  }).join('');
+
+  const modalEl = document.getElementById('waMessageModal');
+  if (!modalEl) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
 function selectedIds(singleId = null) {
   if (singleId) {
     const selected = Array.from(document.querySelectorAll('.row-check:checked')).map((el) => el.value);
@@ -175,6 +209,7 @@ async function loadRequests() {
         </div>
         <div class="small mt-2"><strong>Endereço:</strong> ${r.endereco}</div>
         <div class="small"><strong>Data:</strong> ${String(r.data_solicitada).slice(0, 10)}</div>
+        <div class="small mt-1"><strong>Foto:</strong> ${renderPhotoThumb(r.foto)}</div>
         ${actionForm(r.id)}
       </div>
     </div>`).join('');
@@ -241,6 +276,7 @@ window.addEventListener('click', async (event) => {
   const response = await fetch(`${APP_BASE}/?r=api/admin/update`, { method: 'POST', body: fd });
   const json = await response.json();
   showToast(json.message, json.ok ? 'success' : 'danger');
+  if (json.ok) openWhatsAppMessagesModal(json.whatsapp_messages || []);
   await loadRequests();
   await loadCommReport();
   await loadCalendarSummary();

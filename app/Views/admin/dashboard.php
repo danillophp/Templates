@@ -2,7 +2,10 @@
   <div class="col-xl-3">
     <aside class="admin-sidebar glass-card p-3 h-100 sticky-top" style="top: 1rem;">
       <h6 class="mb-2 text-uppercase">Dashboard Administrativo</h6>
-      <button class="btn btn-outline-success w-100 mb-2" data-bs-toggle="modal" data-bs-target="#waConnectModal">Conectar WhatsApp do Cata Treco</button>
+      <div class="d-grid gap-2 mb-2">
+        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#waConnectModal">Conectar WhatsApp do Cata Treco</button>
+        <a class="btn btn-outline-dark" href="https://web.whatsapp.com/" target="_blank" rel="noopener">Abrir WhatsApp Web</a>
+      </div>
       <small class="d-block mb-2 text-muted">Status: <?= $whatsAppReady ? 'Cloud API configurada' : 'Não configurado (painel segue normal)' ?></small>
       <a class="btn btn-outline-success w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/csv&date=<?= urlencode($today) ?>">Exportar CSV</a>
       <button id="btnExportPdf" class="btn btn-outline-secondary w-100 mb-2">Exportar PDF</button>
@@ -90,6 +93,18 @@
   </div>
 </div>
 
+
+<div class="modal fade" id="waMessageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Mensagens prontas para WhatsApp</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="waMessagesBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
   window.CSRF = <?= json_encode($csrf) ?>;

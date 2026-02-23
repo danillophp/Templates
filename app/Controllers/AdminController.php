@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Models\LogModel;
 use App\Models\PointModel;
 use App\Models\RequestModel;
 use App\Services\AuditoriaService;
@@ -132,6 +133,8 @@ final class AdminController extends Controller
         $model = new RequestModel();
         $fila = new MessageQueueService();
         $audit = new AuditoriaService();
+        $logs = new LogModel();
+        $whatsAppMessages = [];
 
         foreach ($ids as $id) {
             $before = $model->find($id, $tenantId);
@@ -170,6 +173,9 @@ final class AdminController extends Controller
             $audit->registrar((int)Auth::user()['id'], strtoupper($action), 'solicitacoes', $id, $before, $after);
 
             $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $before['nome'], $before['protocolo'], $statusTexto);
+            $telefone = preg_replace('/\D+/', '', (string)$before['telefone']) ?? '';
+            $waLink = 'https://wa.me/55' . $telefone . '?text=' . rawurlencode($mensagem);
+
             $fila->enqueue($tenantId, $id, (string)$before['telefone'], $tipo, [
                 'mensagem' => $mensagem,
                 'email' => (string)($before['email'] ?? ''),
@@ -180,9 +186,22 @@ final class AdminController extends Controller
                 'status' => (string)($after['status'] ?? $before['status']),
                 'telefone' => (string)$before['telefone'],
             ]);
+
+            $whatsAppMessages[] = [
+                'id' => $id,
+                'nome' => (string)$before['nome'],
+                'telefone' => $telefone,
+                'mensagem' => $mensagem,
+                'wa_link' => $waLink,
+            ];
+            $logs->register($tenantId, $id, (int)Auth::user()['id'], 'WHATSAPP_MENSAGEM_GERADA', 'Mensagem pronta para WhatsApp Web.');
         }
 
-        $this->json(['ok' => true, 'message' => 'Solicitações atualizadas e enfileiradas para WhatsApp/e-mail. Se a API falhar, aparecerá link de envio manual no relatório.']);
+        $this->json([
+            'ok' => true,
+            'message' => 'Solicitações atualizadas. Mensagens prontas para WhatsApp Web disponíveis.',
+            'whatsapp_messages' => $whatsAppMessages,
+        ]);
     }
 
     public function dashboardApi(): void

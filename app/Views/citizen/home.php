@@ -27,12 +27,15 @@
             <div class="col-md-6"><label class="form-label">Bairro</label><input class="form-control" id="district" name="district" required></div>
             <div class="col-md-6"><label class="form-label">Telefone (WhatsApp)</label><input class="form-control" name="whatsapp" required></div>
             <div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" type="email" name="email" required></div>
-            <div class="col-md-6"><label class="form-label">Data de coleta</label><input class="form-control" type="date" min="<?= date('Y-m-d') ?>" id="pickup_datetime" name="pickup_datetime" required></div>
+            <div class="col-md-6"><label class="form-label">Data de coleta (somente quinta-feira)</label><input class="form-control" type="date" min="<?= date('Y-m-d') ?>" id="pickup_datetime" name="pickup_datetime" required><small class="text-muted">Agendamentos apenas às quintas-feiras.</small></div>
             <div class="col-md-12"><label class="form-label">Foto dos Trecos</label><input class="form-control" type="file" name="photo" accept="image/*" required></div>
           </div>
 
           <input type="hidden" id="latitude" name="latitude">
           <input type="hidden" id="longitude" name="longitude">
+          <input type="hidden" id="localizacao_status" name="localizacao_status" value="PENDENTE">
+          <input type="hidden" id="viacep_city" name="viacep_city">
+          <input type="hidden" id="viacep_uf" name="viacep_uf">
 
           <div id="feedback" class="mt-3"></div>
           <div id="receipt" class="mt-3 d-none"></div>
@@ -48,6 +51,10 @@
         <h5 class="mb-2">Mapa de confirmação (OpenStreetMap)</h5>
         <div id="map" class="map-canvas"></div>
         <div id="geoFeedback" class="mt-2"></div>
+        <div class="mt-2 d-flex gap-2 flex-wrap">
+          <button type="button" id="btnEmergencyMode" class="btn btn-outline-warning btn-sm">Ativar modo de emergência</button>
+          <small class="text-muted align-self-center">Use quando ViaCEP/Nominatim estiverem indisponíveis.</small>
+        </div>
       </div>
     </div>
 

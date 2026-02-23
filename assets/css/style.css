@@ -162,3 +162,11 @@ body {
   font-size: .66rem;
   white-space: nowrap;
 }
+
+.admin-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #d7e1ef;
+}

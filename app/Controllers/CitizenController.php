@@ -7,7 +7,6 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\ErrorHandler;
-use App\Helpers\GeoHelper;
 use App\Middlewares\RateLimitMiddleware;
 use App\Models\LogModel;
 use App\Models\PointModel;
@@ -18,10 +17,6 @@ use App\Services\TenantService;
 
 final class CitizenController extends Controller
 {
-    private const CITY_ALLOWED = 'santo antônio do descoberto';
-    private const STATE_ALLOWED = 'goiás';
-    private const COUNTRY_ALLOWED = 'brasil';
-
     public function home(): void
     {
         $tenant = TenantService::current();
@@ -81,17 +76,29 @@ final class CitizenController extends Controller
             $dataSolicitada = trim((string)($_POST['pickup_datetime'] ?? ''));
             $latitude = (float)($_POST['latitude'] ?? 0);
             $longitude = (float)($_POST['longitude'] ?? 0);
+            $localizacaoStatus = strtoupper(trim((string)($_POST['localizacao_status'] ?? 'AUTO_OK')));
+            $viacepCity = trim((string)($_POST['viacep_city'] ?? ''));
+            $viacepUf = strtoupper(trim((string)($_POST['viacep_uf'] ?? '')));
 
             if ($nome === '' || $endereco === '' || $cep === '' || $telefone === '' || $dataSolicitada === '' || $email === '') {
                 throw new \RuntimeException('Preencha todos os campos obrigatórios.');
             }
+
+            if (strlen($cep) !== 8) {
+                throw new \RuntimeException('CEP inválido. Digite 8 números.');
+            }
+
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 throw new \RuntimeException('Informe um e-mail válido.');
             }
 
-            $requestedDate = \DateTimeImmutable::createFromFormat('Y-m-d', $dataSolicitada);
-            if (!$requestedDate || $requestedDate->format('Y-m-d') !== $dataSolicitada || $requestedDate < new \DateTimeImmutable('today')) {
+            $requestedDate = \DateTimeImmutable::createFromFormat('Y-m-d', $dataSolicitada, new \DateTimeZone(APP_TIMEZONE));
+            if (!$requestedDate || $requestedDate->format('Y-m-d') !== $dataSolicitada || $requestedDate < new \DateTimeImmutable('today', new \DateTimeZone(APP_TIMEZONE))) {
                 throw new \RuntimeException('Data inválida. Selecione uma data atual ou futura.');
+            }
+
+            if ((int)$requestedDate->format('N') !== 4) {
+                throw new \RuntimeException('Agendamentos apenas às quintas-feiras.');
             }
 
             if ($latitude === 0.0 || $longitude === 0.0) {
@@ -101,9 +108,14 @@ final class CitizenController extends Controller
                 throw new \RuntimeException('Coordenadas inválidas. Ajuste o marcador no mapa.');
             }
 
-            $cepValidation = GeoHelper::validarCepSantoAntonio($cep);
-            if (!($cepValidation['ok'] ?? false)) {
-                throw new \RuntimeException((string)$cepValidation['message']);
+            if ($viacepCity !== '' || $viacepUf !== '') {
+                if ($this->normalize($viacepCity) !== $this->normalize('Santo Antônio do Descoberto') || $viacepUf !== 'GO') {
+                    throw new \RuntimeException('Atendimento exclusivo para Santo Antônio do Descoberto - GO.');
+                }
+            }
+
+            if (!in_array($localizacaoStatus, ['AUTO_OK', 'EMERGENCIA_MANUAL', 'PENDENTE'], true)) {
+                $localizacaoStatus = 'PENDENTE';
             }
 
             $foto = $this->savePhoto($_FILES['photo'] ?? []);
@@ -119,10 +131,11 @@ final class CitizenController extends Controller
                 'data_solicitada' => $requestedDate->format('Y-m-d'),
                 'latitude' => $latitude,
                 'longitude' => $longitude,
+                'localizacao_status' => $localizacaoStatus,
             ]);
 
             $request = (new RequestModel())->find($id, $tenantId);
-            (new LogModel())->register($tenantId, $id, null, 'SOLICITACAO_CRIADA', 'Solicitação criada pelo cidadão.');
+            (new LogModel())->register($tenantId, $id, null, 'SOLICITACAO_CRIADA', 'Solicitação criada pelo cidadão. Status localização: ' . $localizacaoStatus);
 
             $receipt = [
                 'nome' => $nome,
@@ -189,10 +202,17 @@ final class CitizenController extends Controller
             mkdir(UPLOAD_PATH, 0775, true);
         }
 
-        $name = uniqid('treco_', true) . '.' . $allowed[$mime];
+        $hash = hash('sha256', random_bytes(16) . microtime(true) . ($file['name'] ?? 'upload'));
+        $name = $hash . '.' . $allowed[$mime];
         if (!move_uploaded_file($file['tmp_name'], UPLOAD_PATH . '/' . $name)) {
             throw new \RuntimeException('Falha ao salvar foto.');
         }
         return $name;
+    }
+
+    private function normalize(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        return strtr($value, ['á'=>'a','à'=>'a','â'=>'a','ã'=>'a','é'=>'e','ê'=>'e','í'=>'i','ó'=>'o','ô'=>'o','õ'=>'o','ú'=>'u','ç'=>'c']);
     }
 }
