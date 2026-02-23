@@ -7,11 +7,11 @@ const pollUrl = window.ADMIN_NOTIFICATION_POLL_URL || `${APP_BASE}/app/api/poll_
 const calendarUrl = window.ADMIN_CALENDAR_SUMMARY_URL || `${APP_BASE}/app/api/agenda_resumo_mes.php`;
 
 const actionForm = (id) => `
-  <div class="row g-2 mt-1">
-    <div class="col-md-3"><a class="btn btn-sm btn-outline-primary w-100" href="${APP_BASE}/?r=admin/request&id=${id}">Selecionar</a></div>
-    <div class="col-md-3"><select class="form-select form-select-sm action" data-id="${id}"><option value="">Ação</option><option value="approve">Aprovar</option><option value="reject">Recusar</option><option value="schedule">Alterar data</option><option value="delete">Excluir</option></select></div>
-    <div class="col-md-3"><input type="date" class="form-control form-control-sm pickup" data-id="${id}"></div>
-    <div class="col-md-3"><button class="btn btn-sm btn-success w-100 doAction" data-id="${id}">Aplicar</button></div>
+  <div class="d-grid gap-2">
+    <a class="btn btn-sm btn-outline-primary w-100" href="${APP_BASE}/?r=admin/request&id=${id}">Selecionar</a>
+    <select class="form-select form-select-sm action" data-id="${id}"><option value="">Ação</option><option value="approve">Aprovar</option><option value="reject">Recusar</option><option value="schedule">Alterar data</option><option value="delete">Excluir</option></select>
+    <input type="date" class="form-control form-control-sm pickup" data-id="${id}">
+    <button class="btn btn-sm btn-success w-100 doAction" data-id="${id}">Aplicar</button>
   </div>`;
 
 
@@ -195,22 +195,27 @@ async function loadRequests() {
   const list = json.data || [];
 
   rows.innerHTML = list.map((r) => `
-    <div class="card shadow-sm glass-card border-0">
+    <div class="card shadow-sm glass-card border-0 admin-request-card">
       <div class="card-body py-2 px-3">
-        <div class="d-flex justify-content-between align-items-start gap-2">
-          <div class="d-flex align-items-center gap-2">
-            <input class="row-check form-check-input" type="checkbox" value="${r.id}">
-            <div>
-              <div class="fw-semibold">${r.nome}</div>
-              <small class="text-muted">${r.telefone} • ${r.protocolo || '-'}</small>
-            </div>
+        <div class="admin-request-grid">
+          <div class="admin-request-photo">
+            ${renderPhotoThumb(r.foto)}
           </div>
-          <span class="badge text-bg-light border">${r.status}</span>
+          <div class="admin-request-main">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <input class="row-check form-check-input" type="checkbox" value="${r.id}">
+              <div class="fw-semibold">${r.nome}</div>
+            </div>
+            <div class="small text-muted mb-1">${r.telefone} • ${r.protocolo || '-'}</div>
+            <div class="small"><strong>Bairro:</strong> ${r.bairro || '-'}</div>
+            <div class="small"><strong>Endereço:</strong> ${r.endereco}</div>
+            <div class="small"><strong>Data:</strong> ${String(r.data_solicitada).slice(0, 10)}</div>
+          </div>
+          <div class="admin-request-actions">
+            <span class="badge text-bg-light border mb-2">${r.status}</span>
+            ${actionForm(r.id)}
+          </div>
         </div>
-        <div class="small mt-2"><strong>Endereço:</strong> ${r.endereco}</div>
-        <div class="small"><strong>Data:</strong> ${String(r.data_solicitada).slice(0, 10)}</div>
-        <div class="small mt-1"><strong>Foto:</strong> ${renderPhotoThumb(r.foto)}</div>
-        ${actionForm(r.id)}
       </div>
     </div>`).join('');
 }

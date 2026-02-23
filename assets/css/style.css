@@ -170,3 +170,36 @@ body {
   border-radius: 8px;
   border: 1px solid #d7e1ef;
 }
+
+.admin-request-grid {
+  display: grid;
+  grid-template-columns: 86px 1fr 230px;
+  gap: .9rem;
+  align-items: start;
+}
+
+.admin-request-photo img,
+.admin-request-photo .admin-thumb {
+  width: 80px;
+  height: 80px;
+}
+
+.admin-request-actions .badge { display: inline-block; }
+
+.citizen-layout .card { height: 100%; }
+
+@media (max-width: 991.98px) {
+  #btnSubmitDesktop { display: none; }
+  .admin-request-grid {
+    grid-template-columns: 70px 1fr;
+  }
+  .admin-request-actions {
+    grid-column: 1 / -1;
+  }
+  #citizenMapColumn { order: 2; }
+  #citizenFormColumn { order: 1; }
+}
+
+@media (min-width: 992px) {
+  #btnSubmitMobile { display: none !important; }
+}

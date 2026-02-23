@@ -8,6 +8,18 @@ use App\Core\Database;
 
 final class WhatsAppService
 {
+
+    public function send(string $phoneE164, string $message, int $tenantId): array
+    {
+        $result = $this->sendMessage($tenantId, $phoneE164, $message);
+        return [
+            'success' => (bool)($result['ok'] ?? false),
+            'status' => (bool)($result['ok'] ?? false) ? 'sent' : 'failed',
+            'message' => (string)($result['error'] ?? ($result['ok'] ? 'Mensagem enviada.' : 'Falha no envio.')),
+            'wa_link' => (string)($result['url'] ?? ''),
+        ];
+    }
+
     public function sendMessage(int $tenantId, string $phone, string $message, ?string $template = null): array
     {
         $cleanPhone = preg_replace('/\D+/', '', $phone) ?? '';

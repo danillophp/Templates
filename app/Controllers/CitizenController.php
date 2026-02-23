@@ -25,6 +25,7 @@ final class CitizenController extends Controller
             'tenant' => $tenant,
             'tenants' => TenantService::allActive(),
             'tenantWarning' => null,
+            'bairrosPermitidos' => self::BAIRROS_PERMITIDOS,
         ]);
     }
 
@@ -54,7 +55,7 @@ final class CitizenController extends Controller
         }
 
         $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
-        $rl = RateLimitMiddleware::checkIpForCitizen($ip, 5, 10);
+        $rl = RateLimitMiddleware::checkIpForCitizen($ip, 20, 10, 5, 60);
         if (!($rl['allowed'] ?? false)) {
             $this->json(['ok' => false, 'message' => $rl['message'] ?? 'Muitas tentativas.'], 429);
             return;
@@ -70,7 +71,7 @@ final class CitizenController extends Controller
             $nome = trim(strip_tags((string)($_POST['full_name'] ?? '')));
             $endereco = trim(strip_tags((string)($_POST['address'] ?? '')));
             $cep = preg_replace('/\D+/', '', trim((string)($_POST['cep'] ?? ''))) ?? '';
-            $bairro = trim(strip_tags((string)($_POST['district'] ?? 'Não informado')));
+            $bairro = trim(strip_tags((string)($_POST['district'] ?? '')));
             $telefone = preg_replace('/\D+/', '', (string)($_POST['whatsapp'] ?? '')) ?? '';
             $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_SANITIZE_EMAIL);
             $dataSolicitada = trim((string)($_POST['pickup_datetime'] ?? ''));
@@ -80,7 +81,7 @@ final class CitizenController extends Controller
             $viacepCity = trim((string)($_POST['viacep_city'] ?? ''));
             $viacepUf = strtoupper(trim((string)($_POST['viacep_uf'] ?? '')));
 
-            if ($nome === '' || $endereco === '' || $cep === '' || $telefone === '' || $dataSolicitada === '' || $email === '') {
+            if ($nome === '' || $endereco === '' || $cep === '' || $telefone === '' || $dataSolicitada === '' || $email === '' || $bairro === '') {
                 throw new \RuntimeException('Preencha todos os campos obrigatórios.');
             }
 
@@ -91,6 +92,12 @@ final class CitizenController extends Controller
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 throw new \RuntimeException('Informe um e-mail válido.');
             }
+
+
+            if (!in_array($bairro, self::BAIRROS_PERMITIDOS, true)) {
+                throw new \RuntimeException('Selecione um bairro válido da lista.');
+            }
+
 
             $requestedDate = \DateTimeImmutable::createFromFormat('Y-m-d', $dataSolicitada, new \DateTimeZone(APP_TIMEZONE));
             if (!$requestedDate || $requestedDate->format('Y-m-d') !== $dataSolicitada || $requestedDate < new \DateTimeImmutable('today', new \DateTimeZone(APP_TIMEZONE))) {

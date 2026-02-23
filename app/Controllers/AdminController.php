@@ -255,7 +255,7 @@ final class AdminController extends Controller
         $tenantId = $this->guard();
         $rows = (new RequestModel())->list($tenantId, ['date' => $_GET['date'] ?? (new \DateTimeImmutable('today'))->format('Y-m-d')]);
         $chartData = (string)($_POST['chart_image'] ?? '');
-        $dir = STORAGE_PATH . '/relatorios/' . date('Y') . '/' . date('m');
+        $dir = STORAGE_PATH . '/reports/' . date('Y') . '/' . date('m');
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
@@ -265,9 +265,26 @@ final class AdminController extends Controller
         if ($chartData !== '') {
             $html .= '<p><img alt="Gráfico" style="max-width:100%;height:auto" src="' . htmlspecialchars($chartData, ENT_QUOTES, 'UTF-8') . '"></p>';
         }
-        $html .= '<table><tr><th>Protocolo</th><th>Nome</th><th>Endereço</th><th>Status</th><th>Data</th></tr>';
+        $html .= '<table><tr><th>Protocolo</th><th>Nome</th><th>Email</th><th>Telefone</th><th>CEP</th><th>Bairro</th><th>Endereço</th><th>Data agendada</th><th>Status</th><th>Criado em</th><th>Atualizado em</th><th>Latitude</th><th>Longitude</th><th>Foto</th></tr>';
         foreach ($rows as $row) {
-            $html .= '<tr><td>' . htmlspecialchars((string)$row['protocolo']) . '</td><td>' . htmlspecialchars((string)$row['nome']) . '</td><td>' . htmlspecialchars((string)$row['endereco']) . '</td><td>' . htmlspecialchars((string)$row['status']) . '</td><td>' . htmlspecialchars((string)$row['data_solicitada']) . '</td></tr>';
+            $foto = (string)($row['foto'] ?? '');
+            $fotoRef = $foto !== '' ? (APP_BASE_PATH . '/uploads/' . $foto) : '-';
+            $html .= '<tr>'
+                . '<td>' . htmlspecialchars((string)$row['protocolo']) . '</td>'
+                . '<td>' . htmlspecialchars((string)$row['nome']) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['email'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['telefone'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['cep'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['bairro'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)$row['endereco']) . '</td>'
+                . '<td>' . htmlspecialchars((string)$row['data_solicitada']) . '</td>'
+                . '<td>' . htmlspecialchars((string)$row['status']) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['criado_em'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['atualizado_em'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['latitude'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars((string)($row['longitude'] ?? '')) . '</td>'
+                . '<td>' . htmlspecialchars($fotoRef) . '</td>'
+                . '</tr>';
         }
         $html .= '</table></body></html>';
 

@@ -39,8 +39,27 @@ final class RateLimitMiddleware
         unset($_SESSION['_rate_limit'][$key]);
     }
 
-    public static function checkIpForCitizen(string $ip, int $max = 5, int $windowMinutes = 10): array
+    public static function checkIpForCitizen(string $ip, int $max = 20, int $windowMinutes = 10, int $burstMax = 5, int $burstSeconds = 60): array
     {
+        if (APP_ENV === 'development') {
+            $max = max($max, 80);
+            $burstMax = max($burstMax, 20);
+        }
+
+        $burstKey = 'citizen_burst_' . md5($ip);
+        $burst = $_SESSION['_rate_limit'][$burstKey] ?? ['count' => 0, 'started_at' => time()];
+        $nowTs = time();
+        if (($nowTs - (int)$burst['started_at']) > $burstSeconds) {
+            $burst = ['count' => 0, 'started_at' => $nowTs];
+        }
+
+        if ((int)$burst['count'] >= $burstMax) {
+            return ['allowed' => false, 'message' => 'Muitas solicitações deste IP. Aguarde alguns segundos e tente novamente.'];
+        }
+
+        $burst['count'] = (int)$burst['count'] + 1;
+        $_SESSION['_rate_limit'][$burstKey] = $burst;
+
         $stmt = Database::connection()->prepare('SELECT id, total_requisicoes, ultima_requisicao_em FROM controle_rate_limit WHERE ip = :ip LIMIT 1');
         $stmt->execute(['ip' => $ip]);
         $row = $stmt->fetch();

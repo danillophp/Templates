@@ -12,6 +12,7 @@ const viacepUfEl = document.getElementById('viacep_uf');
 const formEl = document.getElementById('citizenForm');
 const pickupInput = document.getElementById('pickup_datetime');
 const emergencyBtn = document.getElementById('btnEmergencyMode');
+const googleEmbedEl = document.getElementById('googleMapEmbed');
 
 const cepInput = document.getElementById('cep');
 const addressInput = document.getElementById('address');
@@ -34,6 +35,15 @@ function setStatus(value) {
 function setLatLng(lat, lng) {
   if (latEl) latEl.value = Number(lat).toFixed(7);
   if (lngEl) lngEl.value = Number(lng).toFixed(7);
+  updateGoogleEmbed(lat, lng);
+}
+
+function updateGoogleEmbed(lat, lng) {
+  if (!googleEmbedEl) return;
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return;
+  googleEmbedEl.src = `https://www.google.com/maps?q=${encodeURIComponent(`${latNum},${lngNum}`)}&z=16&output=embed`;
 }
 
 function normalize(v) {
@@ -63,7 +73,7 @@ function setEmergencyMode(reason) {
     setLatLng(center[0], center[1]);
   }
 
-  showGeo('Não foi possível localizar automaticamente agora. Ative o modo de emergência e confirme a localização no mapa.', 'warning');
+  showGeo('Não foi possível localizar automaticamente. Ajuste o marcador no mapa.', 'warning');
 }
 
 async function validarCepViaCep(cep) {
@@ -81,6 +91,7 @@ async function validarCepViaCep(cep) {
 
     return { ok: true, data: json };
   } catch (error) {
+    console.error('[CATA_TRECO][ViaCEP] indisponível');
     return { ok: false, emergency: true, message: 'ViaCEP indisponível no momento.' };
   }
 }
@@ -118,6 +129,7 @@ async function geocodeAddress() {
   if (!result) result = await nominatimSearch({ q: `${street}, ${district}, ${MAP_CONFIG.allowedCity}, GO, Brasil` });
 
   if (!result) {
+    console.error('[CATA_TRECO][Nominatim] sem resultado/timeout');
     setEmergencyMode('Nominatim sem resultado/timeout');
     return;
   }
