@@ -4,119 +4,97 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Core\Database;
+use App\Models\WhatsAppConfigModel;
 
 final class WhatsAppService
 {
+    private WhatsAppConfigModel $configModel;
 
-    public function send(string $phoneE164, string $message, int $tenantId): array
+    public function __construct()
     {
-        $result = $this->sendMessage($tenantId, $phoneE164, $message);
-        return [
-            'success' => (bool)($result['ok'] ?? false),
-            'status' => (bool)($result['ok'] ?? false) ? 'sent' : 'failed',
-            'message' => (string)($result['error'] ?? ($result['ok'] ? 'Mensagem enviada.' : 'Falha no envio.')),
-            'wa_link' => (string)($result['url'] ?? ''),
-        ];
+        $this->configModel = new WhatsAppConfigModel();
     }
 
-    public function sendMessage(int $tenantId, string $phone, string $message, ?string $template = null): array
+    public function isConfigured(): bool
     {
-        $cleanPhone = preg_replace('/\D+/', '', $phone) ?? '';
-        $config = $this->tenantWhatsAppConfig($tenantId);
+        $cfg = $this->configModel->getActive();
+        return is_array($cfg)
+            && !empty($cfg['ativo'])
+            && trim((string)($cfg['phone_number_id'] ?? '')) !== ''
+            && trim((string)($cfg['access_token'] ?? '')) !== '';
+    }
 
-        if (!$config || empty($config['wa_token']) || empty($config['wa_phone_number_id'])) {
-            $fallback = ['mode' => 'fallback', 'ok' => false, 'url' => 'https://wa.me/55' . $cleanPhone . '?text=' . rawurlencode($message), 'error' => 'WhatsApp não configurado'];
-            $this->logMessage($tenantId, $cleanPhone, 'FALLBACK', json_encode($fallback));
-            return $fallback;
+    public function getMaskedConfig(): ?array
+    {
+        $cfg = $this->configModel->getLatest();
+        if (!$cfg) {
+            return null;
         }
+        $token = (string)($cfg['access_token'] ?? '');
+        $cfg['access_token_masked'] = $token === '' ? '' : substr($token, 0, 6) . str_repeat('*', max(0, strlen($token) - 10)) . substr($token, -4);
+        unset($cfg['access_token']);
+        return $cfg;
+    }
+
+    public function saveConfig(array $data): void
+    {
+        $this->configModel->save($data);
+    }
+
+    public function sendText(string $toE164, string $message, array $meta = []): array
+    {
+        $cfg = $this->configModel->getActive();
+        $to = preg_replace('/\D+/', '', $toE164) ?? '';
+        if ($to === '') {
+            return ['success' => false, 'http_status' => null, 'response' => null, 'error' => 'Destino inválido'];
+        }
+
+        if (!$cfg || empty($cfg['ativo']) || empty($cfg['phone_number_id']) || empty($cfg['access_token'])) {
+            return ['success' => false, 'http_status' => null, 'response' => null, 'error' => 'WhatsApp Cloud API não configurada'];
+        }
+
+        $apiVersion = (string)($cfg['api_version'] ?? WA_API_VERSION);
+        $endpoint = sprintf('https://graph.facebook.com/%s/%s/messages', $apiVersion, (string)$cfg['phone_number_id']);
 
         $payload = [
             'messaging_product' => 'whatsapp',
-            'to' => '55' . $cleanPhone,
-            'type' => $template ? 'template' : 'text',
+            'to' => $to,
+            'type' => 'text',
+            'text' => ['body' => $message],
         ];
 
-        if ($template) {
-            $payload['template'] = ['name' => $template, 'language' => ['code' => 'pt_BR']];
-        } else {
-            $payload['text'] = ['body' => $message];
-        }
-
-        $result = $this->retrySimples((string)$config['wa_token'], (string)$config['wa_phone_number_id'], $payload, 2);
-        if (empty($result['error'])) {
-            $this->logMessage($tenantId, $cleanPhone, 'ENVIADO', json_encode($result));
-            return ['mode' => 'cloud_api', 'ok' => true, 'response' => $result['response']];
-        }
-
-        $fallback = ['mode' => 'fallback', 'ok' => false, 'url' => 'https://wa.me/55' . $cleanPhone . '?text=' . rawurlencode($message), 'error' => $result['error'] ?? 'Falha no envio'];
-        $this->logMessage($tenantId, $cleanPhone, 'ERRO', json_encode($fallback));
-        return $fallback;
-    }
-
-    public function retrySimples(string $token, string $phoneNumberId, array $payload, int $maxRetries = 2): array
-    {
-        $attempt = 0;
-        $result = ['response' => null, 'error' => 'Falha no envio'];
-
-        do {
-            $attempt++;
-            $result = $this->callCloudApi($token, $phoneNumberId, $payload);
-            if (empty($result['error'])) {
-                return $result;
-            }
-        } while ($attempt <= $maxRetries);
-
-        return $result;
-    }
-
-    public function logMessage(int $tenantId, string $telefone, string $status, string $resposta): void
-    {
-        $stmt = Database::connection()->prepare('INSERT INTO notificacoes (tenant_id, canal, destino, status, resposta, criado_em) VALUES (:tenant_id, "whatsapp", :destino, :status, :resposta, NOW())');
-        $stmt->execute([
-            'tenant_id' => $tenantId,
-            'destino' => $telefone,
-            'status' => $status,
-            'resposta' => $resposta,
-        ]);
-    }
-
-    private function tenantWhatsAppConfig(int $tenantId): ?array
-    {
-        $stmt = Database::connection()->prepare('SELECT wa_token, wa_phone_number_id FROM configuracoes WHERE tenant_id = :tenant_id LIMIT 1');
-        $stmt->execute(['tenant_id' => $tenantId]);
-        $row = $stmt->fetch();
-        return $row ?: null;
-    }
-
-    private function callCloudApi(string $token, string $phoneNumberId, array $payload): array
-    {
-        $endpoint = sprintf('https://graph.facebook.com/%s/%s/messages', WA_API_VERSION, $phoneNumberId);
         $ch = curl_init($endpoint);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . (string)$cfg['access_token'],
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . $token,
             ],
-            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             CURLOPT_CONNECTTIMEOUT => 8,
             CURLOPT_TIMEOUT => 15,
         ]);
+
         $response = curl_exec($ch);
         $error = curl_error($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if ($error !== '') {
-            return ['response' => $response, 'error' => $error];
+            return ['success' => false, 'http_status' => $httpStatus ?: null, 'response' => $response, 'error' => $error];
         }
 
-        if ($status < 200 || $status >= 300) {
-            return ['response' => $response, 'error' => 'HTTP ' . $status];
+        if ($httpStatus < 200 || $httpStatus >= 300) {
+            return ['success' => false, 'http_status' => $httpStatus, 'response' => $response, 'error' => 'HTTP ' . $httpStatus];
         }
 
-        return ['response' => $response, 'error' => null];
+        return ['success' => true, 'http_status' => $httpStatus, 'response' => $response, 'error' => null];
+    }
+
+    public function buildFallbackLink(string $toE164, string $message): string
+    {
+        $to = preg_replace('/\D+/', '', $toE164) ?? '';
+        return 'https://wa.me/' . $to . '?text=' . rawurlencode($message);
     }
 }

@@ -10,9 +10,10 @@ use App\Core\Csrf;
 use App\Models\LogModel;
 use App\Models\PointModel;
 use App\Models\RequestModel;
+use App\Models\WhatsAppDeliveryLogModel;
 use App\Services\AuditoriaService;
 use App\Services\MessageQueueService;
-use App\Services\TenantService;
+use App\Services\WhatsAppService;
 
 final class AdminController extends Controller
 {
@@ -29,38 +30,137 @@ final class AdminController extends Controller
         $tenantId = $this->guard();
         $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
         $report = (new MessageQueueService())->report($tenantId);
-        $cfg = TenantService::config($tenantId);
+        $waService = new WhatsAppService();
 
         $this->view('admin/dashboard', [
             'summary' => (new RequestModel())->summary($tenantId),
             'points' => (new PointModel())->active($tenantId),
             'csrf' => Csrf::token(),
             'today' => $today,
-            'whatsAppReady' => !empty($cfg['wa_token']) && !empty($cfg['wa_phone_number_id']),
-            'waPhoneId' => (string)($cfg['wa_phone_number_id'] ?? ''),
+            'whatsAppReady' => $waService->isConfigured(),
+            'waConfig' => $waService->getMaskedConfig(),
             'commReport' => $report,
+        ]);
+    }
+
+    public function whatsappSettings(): void
+    {
+        $this->guard();
+        $service = new WhatsAppService();
+        $this->view('admin/whatsapp-settings', [
+            'csrf' => Csrf::token(),
+            'config' => $service->getMaskedConfig(),
+            'enabled' => $service->isConfigured(),
         ]);
     }
 
     public function saveWhatsAppConfig(): void
     {
-        $tenantId = $this->guard();
+        $this->guard();
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
             return;
         }
 
-        $token = trim((string)($_POST['wa_token'] ?? ''));
-        $phoneId = trim((string)($_POST['wa_phone_number_id'] ?? ''));
+        $active = (int)($_POST['ativo'] ?? 0) === 1;
+        $phoneNumberId = trim((string)($_POST['phone_number_id'] ?? ''));
+        $token = trim((string)($_POST['access_token'] ?? ''));
+        $apiVersion = trim((string)($_POST['api_version'] ?? WA_API_VERSION));
+        $businessId = trim((string)($_POST['business_account_id'] ?? ''));
+        $senderName = trim((string)($_POST['sender_name'] ?? ''));
 
-        $stmt = \App\Core\Database::connection()->prepare('UPDATE configuracoes SET wa_token = :wa_token, wa_phone_number_id = :wa_phone_number_id WHERE tenant_id = :tenant_id');
-        $stmt->execute([
-            'wa_token' => $token !== '' ? $token : null,
-            'wa_phone_number_id' => $phoneId !== '' ? $phoneId : null,
-            'tenant_id' => $tenantId,
+        if ($active && ($phoneNumberId === '' || $token === '')) {
+            $this->json(['ok' => false, 'message' => 'Para ativar, informe phone_number_id e access_token.'], 422);
+            return;
+        }
+
+        (new WhatsAppService())->saveConfig([
+            'ativo' => $active,
+            'phone_number_id' => $phoneNumberId,
+            'access_token' => $token,
+            'api_version' => $apiVersion !== '' ? $apiVersion : WA_API_VERSION,
+            'business_account_id' => $businessId,
+            'sender_name' => $senderName,
         ]);
 
-        $this->json(['ok' => true, 'message' => 'Configuração de WhatsApp atualizada. O painel continua funcional mesmo sem conexão.']);
+        $this->json(['ok' => true, 'message' => 'Configuração de WhatsApp Cloud API salva com sucesso.']);
+    }
+
+    public function whatsappTest(): void
+    {
+        $this->guard();
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            $this->json(['ok' => false, 'message' => 'Token inválido.'], 422);
+            return;
+        }
+
+        $to = preg_replace('/\D+/', '', (string)($_POST['to'] ?? '')) ?? '';
+        if ($to === '') {
+            $this->json(['ok' => false, 'message' => 'Informe telefone destino.'], 422);
+            return;
+        }
+
+        $message = 'Teste WhatsApp Cloud API - Cata Treco em ' . date('d/m/Y H:i');
+        $service = new WhatsAppService();
+        $result = $service->sendText($to, $message, ['evento' => 'teste']);
+
+        $logs = new WhatsAppDeliveryLogModel();
+        $logs->create([
+            'solicitacao_id' => null,
+            'evento' => 'teste',
+            'destino' => $to,
+            'mensagem' => $message,
+            'canal' => $result['success'] ? 'cloud_api' : 'fallback_wa_me',
+            'status' => $result['success'] ? 'sent' : 'failed',
+            'http_status' => $result['http_status'],
+            'response_body' => (string)($result['response'] ?? ''),
+            'erro' => $result['error'] ? (string)$result['error'] : null,
+            'tentativas' => 1,
+        ]);
+
+        if (!$result['success']) {
+            $link = $service->buildFallbackLink($to, $message);
+            $this->json(['ok' => false, 'message' => 'Falha no envio automático.', 'fallback_link' => $link, 'detail' => $result['error']]);
+            return;
+        }
+
+        $this->json(['ok' => true, 'message' => 'Mensagem de teste enviada com sucesso via Cloud API.']);
+    }
+
+    public function whatsappLogs(): void
+    {
+        $this->guard();
+        $filters = [
+            'from' => (string)($_GET['from'] ?? ''),
+            'to' => (string)($_GET['to'] ?? ''),
+            'destino' => (string)($_GET['destino'] ?? ''),
+            'status' => (string)($_GET['status'] ?? ''),
+            'evento' => (string)($_GET['evento'] ?? ''),
+        ];
+        $rows = (new WhatsAppDeliveryLogModel())->list($filters);
+        $this->view('admin/whatsapp-logs', ['rows' => $rows, 'filters' => $filters]);
+    }
+
+    public function whatsappLogsCsv(): void
+    {
+        $this->guard();
+        $filters = [
+            'from' => (string)($_GET['from'] ?? ''),
+            'to' => (string)($_GET['to'] ?? ''),
+            'destino' => (string)($_GET['destino'] ?? ''),
+            'status' => (string)($_GET['status'] ?? ''),
+            'evento' => (string)($_GET['evento'] ?? ''),
+        ];
+        $rows = (new WhatsAppDeliveryLogModel())->list($filters);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=whatsapp_logs.csv');
+        $fp = fopen('php://output', 'wb');
+        fputcsv($fp, ['Data', 'Evento', 'Destino', 'Canal', 'Status', 'HTTP', 'Erro']);
+        foreach ($rows as $row) {
+            fputcsv($fp, [$row['created_at'], $row['evento'], $row['destino'], $row['canal'], $row['status'], $row['http_status'], $row['erro']]);
+        }
+        fclose($fp);
     }
 
     public function createPoint(): void
@@ -97,10 +197,7 @@ final class AdminController extends Controller
             return;
         }
 
-        $this->view('admin/request-detail', [
-            'request' => $request,
-            'csrf' => Csrf::token(),
-        ]);
+        $this->view('admin/request-detail', ['request' => $request, 'csrf' => Csrf::token()]);
     }
 
     public function requests(): void
@@ -134,6 +231,7 @@ final class AdminController extends Controller
         $fila = new MessageQueueService();
         $audit = new AuditoriaService();
         $logs = new LogModel();
+        $waLogs = new WhatsAppDeliveryLogModel();
         $whatsAppMessages = [];
 
         foreach ($ids as $id) {
@@ -143,14 +241,15 @@ final class AdminController extends Controller
             }
 
             $statusTexto = 'ATUALIZADA';
+            $evento = 'alterado_data';
             if ($action === 'approve') {
                 $model->updateStatus($id, $tenantId, 'APROVADO');
                 $statusTexto = 'APROVADA';
-                $tipo = 'aprovado';
+                $evento = 'aprovado';
             } elseif ($action === 'reject') {
                 $model->updateStatus($id, $tenantId, 'RECUSADO');
                 $statusTexto = 'RECUSADA';
-                $tipo = 'recusado';
+                $evento = 'recusado';
             } elseif ($action === 'schedule') {
                 $requestedDate = $date ? \DateTimeImmutable::createFromFormat('Y-m-d', $date) : false;
                 if (!$requestedDate || $requestedDate->format('Y-m-d') !== $date || $requestedDate < new \DateTimeImmutable('today')) {
@@ -159,7 +258,7 @@ final class AdminController extends Controller
                 }
                 $model->updateStatus($id, $tenantId, 'ALTERADO', $requestedDate->format('Y-m-d'));
                 $statusTexto = 'ALTERADA';
-                $tipo = 'alterado';
+                $evento = 'alterado_data';
             } elseif ($action === 'delete') {
                 $model->delete($id, $tenantId);
                 $audit->registrar((int)Auth::user()['id'], 'EXCLUIR', 'solicitacoes', $id, $before, null);
@@ -174,23 +273,29 @@ final class AdminController extends Controller
 
             $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal.', $before['nome'], $before['protocolo'], $statusTexto);
             $telefone = preg_replace('/\D+/', '', (string)$before['telefone']) ?? '';
-            $waLink = 'https://wa.me/55' . $telefone . '?text=' . rawurlencode($mensagem);
+            $waLink = (new WhatsAppService())->buildFallbackLink('55' . $telefone, $mensagem);
 
-            $fila->enqueue($tenantId, $id, (string)$before['telefone'], $tipo, [
+            $fila->enqueue($tenantId, $id, '55' . $telefone, $evento, [
+                'to' => '55' . $telefone,
                 'mensagem' => $mensagem,
-                'email' => (string)($before['email'] ?? ''),
-                'nome' => (string)$before['nome'],
-                'endereco' => (string)$before['endereco'],
-                'data_solicitada' => (string)($after['data_solicitada'] ?? $before['data_solicitada']),
-                'protocolo' => (string)$before['protocolo'],
-                'status' => (string)($after['status'] ?? $before['status']),
-                'telefone' => (string)$before['telefone'],
+                'evento' => $evento,
+                'solicitacao_id' => $id,
+            ]);
+
+            $waLogs->create([
+                'solicitacao_id' => $id,
+                'evento' => $evento,
+                'destino' => '55' . $telefone,
+                'mensagem' => $mensagem,
+                'canal' => 'cloud_api',
+                'status' => 'queued',
+                'tentativas' => 0,
             ]);
 
             $whatsAppMessages[] = [
                 'id' => $id,
                 'nome' => (string)$before['nome'],
-                'telefone' => $telefone,
+                'telefone' => '55' . $telefone,
                 'mensagem' => $mensagem,
                 'wa_link' => $waLink,
             ];
@@ -199,7 +304,7 @@ final class AdminController extends Controller
 
         $this->json([
             'ok' => true,
-            'message' => 'Solicitações atualizadas. Mensagens prontas para WhatsApp Web disponíveis.',
+            'message' => 'Solicitações atualizadas. Mensagens enfileiradas para envio WhatsApp.',
             'whatsapp_messages' => $whatsAppMessages,
         ]);
     }
@@ -207,8 +312,7 @@ final class AdminController extends Controller
     public function dashboardApi(): void
     {
         $tenantId = $this->guard();
-        $chart = (new RequestModel())->chartByMonth($tenantId);
-        $this->json(['ok' => true, 'data' => $chart]);
+        $this->json(['ok' => true, 'data' => (new RequestModel())->chartByMonth($tenantId)]);
     }
 
     public function commReportApi(): void
@@ -240,8 +344,8 @@ final class AdminController extends Controller
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=relatorio_comunicacao.csv');
         $fp = fopen('php://output', 'wb');
-        fputcsv($fp, ['Enviadas', 'Erros', 'Taxa de entrega', 'Tempo médio(s)']);
-        fputcsv($fp, [$report['enviadas'], $report['erros'], $report['taxa_entrega'], $report['tempo_medio']]);
+        fputcsv($fp, ['Enviadas', 'Erros']);
+        fputcsv($fp, [$report['enviadas'], $report['erros']]);
         fputcsv($fp, []);
         fputcsv($fp, ['ID fila', 'Solicitação', 'Telefone', 'Tentativas', 'Erro', 'Última tentativa']);
         foreach ($report['falhas'] as $f) {
@@ -294,7 +398,7 @@ final class AdminController extends Controller
             $options->set('isRemoteEnabled', true);
             $dompdf = new \Dompdf\Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
-            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->setPaper('A4', 'landscape');
             $dompdf->render();
             file_put_contents($filePath, $dompdf->output());
         } else {

@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../app/bootstrap.php';
 
-use App\Services\EmailService;
+use App\Models\WhatsAppDeliveryLogModel;
 use App\Services\MessageQueueService;
 use App\Services\WhatsAppService;
 
 $fila = new MessageQueueService();
 $wa = new WhatsAppService();
-$email = new EmailService();
+$logs = new WhatsAppDeliveryLogModel();
 
-$rows = $fila->reservePending(30);
+$rows = $fila->reservePending(10);
 foreach ($rows as $row) {
     $id = (int)$row['id'];
-    $tenantId = (int)$row['tenant_id'];
+    $solicitacaoId = isset($row['solicitacao_id']) ? (int)$row['solicitacao_id'] : null;
     $payload = json_decode((string)$row['payload_json'], true);
 
     if (!is_array($payload) || empty($payload['mensagem'])) {
@@ -23,33 +23,57 @@ foreach ($rows as $row) {
         continue;
     }
 
-    try {
-        $resp = $wa->sendMessage($tenantId, (string)$row['telefone_destino'], (string)$payload['mensagem']);
-        if (!($resp['ok'] ?? false)) {
-            $erro = (string)($resp['error'] ?? 'Falha de envio');
-            if (!empty($resp['url'])) {
-                $erro .= ' | Envio manual necessário: ' . $resp['url'];
-            }
-            $fila->markError($id, $erro);
-            continue;
-        }
+    $to = (string)($payload['to'] ?? $row['destino'] ?? '');
+    $message = (string)$payload['mensagem'];
+    $evento = (string)($payload['evento'] ?? 'teste');
 
-        if (!empty($payload['email'])) {
-            $email->sendReceipt($tenantId, (string)$payload['email'], [
-                'nome' => (string)($payload['nome'] ?? ''),
-                'endereco' => (string)($payload['endereco'] ?? ''),
-                'data_solicitada' => (string)($payload['data_solicitada'] ?? ''),
-                'telefone' => (string)($payload['telefone'] ?? ''),
-                'email' => (string)$payload['email'],
-                'protocolo' => (string)($payload['protocolo'] ?? ''),
-                'status' => (string)($payload['status'] ?? ''),
-            ]);
-        }
+    $logId = $logs->create([
+        'solicitacao_id' => $solicitacaoId,
+        'evento' => $evento,
+        'destino' => $to,
+        'mensagem' => $message,
+        'canal' => 'cloud_api',
+        'status' => 'queued',
+        'tentativas' => (int)($row['tentativas'] ?? 0),
+    ]);
 
-        $fila->markSent($id);
-    } catch (Throwable $e) {
-        $fila->markError($id, $e->getMessage());
+    if (!$wa->isConfigured()) {
+        $link = $wa->buildFallbackLink($to, $message);
+        $fila->markManual($id, 'Cloud API não configurada. Envio manual necessário: ' . $link);
+        $logs->updateById($logId, [
+            'canal' => 'fallback_wa_me',
+            'status' => 'manual',
+            'erro' => 'Cloud API não configurada',
+            'response_body' => $link,
+            'tentativas' => (int)($row['tentativas'] ?? 0) + 1,
+            'http_status' => null,
+        ]);
+        continue;
     }
+
+    $result = $wa->sendText($to, $message, ['evento' => $evento, 'solicitacao_id' => $solicitacaoId]);
+    if ($result['success']) {
+        $fila->markSent($id);
+        $logs->updateById($logId, [
+            'canal' => 'cloud_api',
+            'status' => 'sent',
+            'http_status' => $result['http_status'],
+            'response_body' => (string)($result['response'] ?? ''),
+            'erro' => null,
+            'tentativas' => (int)($row['tentativas'] ?? 0) + 1,
+        ]);
+        continue;
+    }
+
+    $fila->markError($id, (string)($result['error'] ?? 'Falha no envio'));
+    $logs->updateById($logId, [
+        'canal' => 'cloud_api',
+        'status' => 'failed',
+        'http_status' => $result['http_status'] ?? null,
+        'response_body' => (string)($result['response'] ?? ''),
+        'erro' => (string)($result['error'] ?? 'Falha no envio'),
+        'tentativas' => (int)($row['tentativas'] ?? 0) + 1,
+    ]);
 }
 
 echo 'Fila processada: ' . count($rows) . PHP_EOL;
