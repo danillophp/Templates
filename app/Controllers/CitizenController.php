@@ -17,6 +17,17 @@ use App\Services\TenantService;
 
 final class CitizenController extends Controller
 {
+    private const BAIRROS_PERMITIDOS = [
+        'Centro',
+        'Beira Rio',
+        'Mansões Bittencourt',
+        'Mansões Entrelagos',
+        'Parque Estrela Dalva',
+        'Residencial Porto Seguro',
+        'Vila São Luiz',
+        'Outro bairro da cidade',
+    ];
+
     public function home(): void
     {
         $tenant = TenantService::current();

@@ -10,6 +10,7 @@ final class ErrorHandler
     {
         set_exception_handler([self::class, 'handleException']);
         set_error_handler([self::class, 'handleError']);
+        register_shutdown_function([self::class, 'handleShutdown']);
     }
 
     public static function handleError(int $severity, string $message, string $file, int $line): bool
@@ -21,6 +22,32 @@ final class ErrorHandler
         self::log("PHP Error [{$severity}] {$message} in {$file}:{$line}");
         self::render500();
         return true;
+    }
+
+
+    public static function handleShutdown(): void
+    {
+        $error = error_get_last();
+        if (!is_array($error)) {
+            return;
+        }
+
+        $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+        if (!in_array((int)($error['type'] ?? 0), $fatalTypes, true)) {
+            return;
+        }
+
+        self::log(sprintf(
+            'Fatal Error [%d] %s in %s:%d',
+            (int)$error['type'],
+            (string)($error['message'] ?? ''),
+            (string)($error['file'] ?? ''),
+            (int)($error['line'] ?? 0)
+        ));
+
+        if (!headers_sent()) {
+            self::render500();
+        }
     }
 
     public static function handleException(\Throwable $e): void
@@ -50,12 +77,19 @@ final class ErrorHandler
 
     public static function log(string $content): void
     {
+        $request = sprintf(
+            'method=%s uri=%s ip=%s ua=%s',
+            (string)($_SERVER['REQUEST_METHOD'] ?? '-'),
+            (string)($_SERVER['REQUEST_URI'] ?? '-'),
+            (string)($_SERVER['REMOTE_ADDR'] ?? '-'),
+            substr((string)($_SERVER['HTTP_USER_AGENT'] ?? '-'), 0, 180)
+        );
         $dir = __DIR__ . '/../../storage/logs';
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
         }
 
-        $line = '[' . date('Y-m-d H:i:s') . '] ' . $content . PHP_EOL;
+        $line = '[' . date('Y-m-d H:i:s') . '] ' . $content . ' | ' . $request . PHP_EOL;
         @file_put_contents($dir . '/app.log', $line, FILE_APPEND);
         error_log('[CataTreco] ' . $content);
     }

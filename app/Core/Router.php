@@ -102,6 +102,8 @@ final class Router
             '/admin/solicitacao' => 'admin/request',
             '/login' => 'auth/login',
             '/esqueci-senha' => 'auth/forgot',
+            '/form' => 'citizen/home',
+            '/protocolo' => 'citizen/track',
             '/consultar' => 'citizen/track',
             '/funcionario' => 'employee/dashboard',
             default => 'citizen/home',
