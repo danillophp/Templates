@@ -1,4 +1,8 @@
-<?php use App\Core\Auth; ?>
+<?php
+
+use App\Core\Auth;
+use App\Services\BrandingService;
+?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -14,13 +18,13 @@
 <?php
 $logoCataPath = __DIR__ . '/../../../resources/assets/img/logo-cata-treco.png';
 $logoPrefPath = __DIR__ . '/../../../resources/assets/img/logo-prefeitura.png';
-$logoCataUrl = APP_BASE_PATH . '/resources/assets/img/logo-cata-treco.png';
+$logoCataUrl = BrandingService::logoUrl($_config ?? []) ?: APP_BASE_PATH . '/resources/assets/img/logo-cata-treco.png';
 $logoPrefUrl = APP_BASE_PATH . '/resources/assets/img/logo-prefeitura.png';
 ?>
 <header class="institutional-header">
   <div class="container-fluid px-4 py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div class="inst-logo">
-      <?php if (is_file($logoCataPath)): ?>
+      <?php if (is_file($logoCataPath) || !empty(BrandingService::logoUrl($_config ?? []))): ?>
         <img src="<?= htmlspecialchars($logoCataUrl) ?>" alt="Logo Cata Treco">
       <?php else: ?>
         <div class="logo-placeholder">Cata Treco</div>
