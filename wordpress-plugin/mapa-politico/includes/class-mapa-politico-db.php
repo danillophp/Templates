@@ -57,6 +57,8 @@ class MapaPoliticoDB
             meta_label VARCHAR(190) NOT NULL,
             meta_type VARCHAR(30) NOT NULL,
             meta_value LONGTEXT NULL,
+            show_on_map TINYINT(1) NOT NULL DEFAULT 1,
+            show_on_profile TINYINT(1) NOT NULL DEFAULT 1,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),

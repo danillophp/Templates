@@ -10,7 +10,7 @@
       const row = document.createElement('div');
       row.className = 'mp-custom-field-row';
       row.style.display = 'grid';
-      row.style.gridTemplateColumns = '2fr 1fr 3fr auto';
+      row.style.gridTemplateColumns = '2fr 1fr 2fr 1fr 1fr auto';
       row.style.gap = '8px';
       row.style.marginBottom = '8px';
       row.style.alignItems = 'center';
@@ -25,6 +25,8 @@
           <option value="number">Número</option>
         </select>
         <input type="text" name="custom_value[]" placeholder="Valor">
+        <select name="custom_show_map[]"><option value="1">Mapa: Sim</option><option value="0">Mapa: Não</option></select>
+        <select name="custom_show_profile[]"><option value="1">Perfil: Sim</option><option value="0">Perfil: Não</option></select>
         <button type="button" class="button-link-delete mp-remove-custom-field">Remover</button>
       `;
       return row;

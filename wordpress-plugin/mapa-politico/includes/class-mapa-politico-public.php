@@ -12,8 +12,6 @@ class MapaPoliticoPublic
         add_shortcode('mapa_politico', [self::class, 'renderShortcode']);
         add_action('wp_ajax_mapa_politico_data', [self::class, 'ajaxData']);
         add_action('wp_ajax_nopriv_mapa_politico_data', [self::class, 'ajaxData']);
-        add_action('wp_ajax_mapa_politico_search', [self::class, 'ajaxSearch']);
-        add_action('wp_ajax_nopriv_mapa_politico_search', [self::class, 'ajaxSearch']);
     }
 
     public static function registerAssets(): void
@@ -38,7 +36,6 @@ class MapaPoliticoPublic
             'defaultLat' => -15.827,
             'defaultLng' => -49.8362,
             'defaultZoom' => 7,
-            'osrmServiceUrl' => 'https://router.project-osrm.org/route/v1',
         ]);
 
         ob_start();
@@ -46,11 +43,7 @@ class MapaPoliticoPublic
         <section class="mapa-politico-wrapper">
             <h2>Mapa Político</h2>
             <div class="mapa-politico-filters">
-                <input type="search" id="filtro-nome" placeholder="Buscar por nome" aria-label="Buscar por nome">
-                <input type="search" id="filtro-partido" placeholder="Buscar por partido" aria-label="Buscar por partido">
-                <input type="search" id="filtro-cidade" placeholder="Buscar por município" aria-label="Buscar por município">
-                <button type="button" id="filtro-limpar">Limpar filtros</button>
-                <button type="button" id="rota-limpar">Limpar rota</button>
+                <input type="search" id="filtro-geral" placeholder="Pesquisar por nome, partido ou cidade" aria-label="Pesquisar por nome, partido ou cidade">
             </div>
             <div class="mapa-politico-status" id="mapa-politico-status" aria-live="polite"></div>
             <div class="mapa-politico-layout">
@@ -72,70 +65,27 @@ class MapaPoliticoPublic
     public static function ajaxData(): void
     {
         check_ajax_referer('mapa_politico_public_nonce', 'nonce');
-
-        $entries = self::queryEntries();
-        wp_send_json_success(['entries' => $entries]);
+        wp_send_json_success(['entries' => self::queryEntries()]);
     }
 
-    public static function ajaxSearch(): void
-    {
-        check_ajax_referer('mapa_politico_public_nonce', 'nonce');
-
-        $filters = [
-            'name' => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
-            'party' => sanitize_text_field(wp_unslash($_POST['party'] ?? '')),
-            'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
-        ];
-
-        $entries = self::queryEntries($filters);
-        wp_send_json_success(['entries' => $entries]);
-    }
-
-    private static function queryEntries(array $filters = []): array
+    private static function queryEntries(): array
     {
         global $wpdb;
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
         $metaTable = $wpdb->prefix . 'mapa_politico_politician_meta';
 
-        $where = [];
-        $params = [];
-
-        if (!empty($filters['name'])) {
-            $where[] = 'p.full_name LIKE %s';
-            $params[] = '%' . $wpdb->esc_like((string) $filters['name']) . '%';
-        }
-
-        if (!empty($filters['party'])) {
-            $where[] = 'p.party LIKE %s';
-            $params[] = '%' . $wpdb->esc_like((string) $filters['party']) . '%';
-        }
-
-        if (!empty($filters['city'])) {
-            $where[] = 'l.city LIKE %s';
-            $params[] = '%' . $wpdb->esc_like((string) $filters['city']) . '%';
-        }
-
-        $whereSql = '';
-        if (!empty($where)) {
-            $whereSql = ' WHERE ' . implode(' AND ', $where);
-        }
-
-        $sql = "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.biography, p.career_history,
+        $rows = $wpdb->get_results(
+            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.biography, p.career_history,
                     p.phone, p.email, p.photo_id,
                     l.id AS location_id, l.city, l.state, l.postal_code, l.latitude, l.longitude, l.address
              FROM {$politiciansTable} p
              INNER JOIN {$locationsTable} l ON l.id = p.location_id
-             {$whereSql}
-             ORDER BY p.full_name ASC";
+             ORDER BY p.full_name ASC",
+            ARRAY_A
+        );
 
-        if (!empty($params)) {
-            $sql = $wpdb->prepare($sql, $params);
-        }
-
-        $rows = $wpdb->get_results($sql, ARRAY_A);
-
-        if ($rows === null) {
+        if (!is_array($rows)) {
             return [];
         }
 
@@ -143,7 +93,10 @@ class MapaPoliticoPublic
         foreach ($rows as $row) {
             $customRows = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT meta_label, meta_type, meta_value FROM {$metaTable} WHERE politician_id = %d ORDER BY id ASC",
+                    "SELECT meta_label, meta_type, meta_value, show_on_map, show_on_profile
+                     FROM {$metaTable}
+                     WHERE politician_id = %d
+                     ORDER BY id ASC",
                     (int) $row['politician_id']
                 ),
                 ARRAY_A
@@ -156,9 +109,12 @@ class MapaPoliticoPublic
                         'label' => (string) ($customRow['meta_label'] ?? ''),
                         'type' => (string) ($customRow['meta_type'] ?? 'text'),
                         'value' => (string) ($customRow['meta_value'] ?? ''),
+                        'show_on_map' => (int) ($customRow['show_on_map'] ?? 1),
+                        'show_on_profile' => (int) ($customRow['show_on_profile'] ?? 1),
                     ];
                 }
             }
+
             $entries[] = [
                 'politician_id' => (int) $row['politician_id'],
                 'full_name' => (string) $row['full_name'],

@@ -13,6 +13,8 @@ class MapaPoliticoAdmin
 
         add_action('admin_post_mapa_politico_save_entry', [self::class, 'saveEntry']);
         add_action('admin_post_mapa_politico_delete_entry', [self::class, 'deleteEntry']);
+        add_action('admin_post_mapa_politico_export_csv', [self::class, 'exportCsv']);
+        add_action('admin_post_mapa_politico_import_csv', [self::class, 'importCsv']);
 
         add_action('wp_ajax_mapa_politico_geocode_address', [self::class, 'ajaxGeocodeAddress']);
         add_action('admin_notices', [self::class, 'renderNotices']);
@@ -22,6 +24,7 @@ class MapaPoliticoAdmin
     {
         add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm'], 'dashicons-location-alt', 26);
         add_submenu_page('mapa-politico-cadastro', 'Cadastro Manual', 'Cadastro Manual', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
+        add_submenu_page('mapa-politico-cadastro', 'Importar / Exportar', 'Importar / Exportar', 'manage_options', 'mapa-politico-import-export', [self::class, 'renderImportExportPage']);
         add_submenu_page('mapa-politico-cadastro', 'Logs da IA', 'Logs da IA', 'manage_options', 'mapa-politico-logs', [self::class, 'renderLogs']);
     }
 
@@ -152,7 +155,7 @@ class MapaPoliticoAdmin
                 <p>Adicione campos extras dinâmicos para este político.</p>
                 <div id="mp-custom-fields-wrap">
                     <?php foreach ($metaFields as $field): ?>
-                        <div class="mp-custom-field-row" style="display:grid;grid-template-columns:2fr 1fr 3fr auto;gap:8px;margin-bottom:8px;align-items:center;">
+                        <div class="mp-custom-field-row" style="display:grid;grid-template-columns:2fr 1fr 2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;">
                             <input type="text" name="custom_label[]" placeholder="Nome do campo" value="<?php echo esc_attr((string) $field['label']); ?>">
                             <select name="custom_type[]">
                                 <?php foreach (['text' => 'Texto', 'textarea' => 'Área de texto', 'email' => 'E-mail', 'url' => 'URL', 'number' => 'Número'] as $typeKey => $typeLabel): ?>
@@ -160,6 +163,8 @@ class MapaPoliticoAdmin
                                 <?php endforeach; ?>
                             </select>
                             <input type="text" name="custom_value[]" placeholder="Valor" value="<?php echo esc_attr((string) $field['field_value']); ?>">
+                            <select name="custom_show_map[]"><option value="1" <?php selected((int) ($field['show_on_map'] ?? 1), 1); ?>>Mapa: Sim</option><option value="0" <?php selected((int) ($field['show_on_map'] ?? 1), 0); ?>>Mapa: Não</option></select>
+                            <select name="custom_show_profile[]"><option value="1" <?php selected((int) ($field['show_on_profile'] ?? 1), 1); ?>>Perfil: Sim</option><option value="0" <?php selected((int) ($field['show_on_profile'] ?? 1), 0); ?>>Perfil: Não</option></select>
                             <button type="button" class="button-link-delete mp-remove-custom-field">Remover</button>
                         </div>
                     <?php endforeach; ?>
@@ -416,6 +421,8 @@ class MapaPoliticoAdmin
         $labels = wp_unslash($_POST['custom_label'] ?? []);
         $types = wp_unslash($_POST['custom_type'] ?? []);
         $values = wp_unslash($_POST['custom_value'] ?? []);
+        $showOnMap = wp_unslash($_POST['custom_show_map'] ?? []);
+        $showOnProfile = wp_unslash($_POST['custom_show_profile'] ?? []);
 
         if (!is_array($labels) || !is_array($types) || !is_array($values)) {
             return;
@@ -430,6 +437,8 @@ class MapaPoliticoAdmin
             $label = sanitize_text_field((string) $labelRaw);
             $type = sanitize_key((string) ($types[$index] ?? 'text'));
             $valueRaw = (string) ($values[$index] ?? '');
+            $showMap = isset($showOnMap[$index]) && (int) $showOnMap[$index] === 1 ? 1 : 0;
+            $showProfile = isset($showOnProfile[$index]) && (int) $showOnProfile[$index] === 1 ? 1 : 0;
 
             if ($label === '' || !in_array($type, $allowedTypes, true)) {
                 continue;
@@ -472,6 +481,8 @@ class MapaPoliticoAdmin
                 'meta_label' => $label,
                 'meta_type' => $type,
                 'meta_value' => $value,
+                'show_on_map' => $showMap,
+                'show_on_profile' => $showProfile,
             ]);
         }
     }
@@ -483,7 +494,7 @@ class MapaPoliticoAdmin
 
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT meta_label AS label, meta_type AS field_type, meta_value AS field_value
+                "SELECT meta_label AS label, meta_type AS field_type, meta_value AS field_value, show_on_map, show_on_profile
                  FROM {$metaTable}
                  WHERE politician_id = %d
                  ORDER BY id ASC",
@@ -528,6 +539,190 @@ class MapaPoliticoAdmin
         $row['address_lot'] = $lot;
 
         return $row;
+    }
+
+
+    public static function renderImportExportPage(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+        ?>
+        <div class="wrap">
+            <h1>Importar / Exportar Políticos</h1>
+
+            <h2>Exportar CSV</h2>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('mapa_politico_export_csv'); ?>
+                <input type="hidden" name="action" value="mapa_politico_export_csv">
+                <?php submit_button('Exportar CSV'); ?>
+            </form>
+
+            <h2>Importar CSV</h2>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
+                <?php wp_nonce_field('mapa_politico_import_csv'); ?>
+                <input type="hidden" name="action" value="mapa_politico_import_csv">
+                <input type="file" name="import_csv" accept=".csv" required>
+                <?php submit_button('Importar CSV'); ?>
+            </form>
+            <p>Formato esperado: full_name,position,party,city,state,postal_code,address_street,address_lot,latitude,longitude,phone,email,biography,career_history</p>
+        </div>
+        <?php
+    }
+
+    public static function exportCsv(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+        check_admin_referer('mapa_politico_export_csv');
+
+        global $wpdb;
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+
+        $rows = $wpdb->get_results(
+            "SELECT p.id, p.full_name, p.position, p.party, p.phone, p.email, p.biography, p.career_history,
+                    l.city, l.state, l.postal_code, l.address, l.latitude, l.longitude
+             FROM {$politiciansTable} p
+             INNER JOIN {$locationsTable} l ON l.id = p.location_id
+             ORDER BY p.id ASC",
+            ARRAY_A
+        );
+
+        nocache_headers();
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=mapa-politico-export.csv');
+
+        $out = fopen('php://output', 'w');
+        if ($out === false) {
+            exit;
+        }
+
+        fwrite($out, "ï»¿");
+        fputcsv($out, ['full_name', 'position', 'party', 'city', 'state', 'postal_code', 'address_street', 'address_lot', 'latitude', 'longitude', 'phone', 'email', 'biography', 'career_history']);
+
+        foreach ($rows as $row) {
+            $address = (string) ($row['address'] ?? '');
+            $street = $address;
+            $lot = '';
+            if (strpos($address, ' - Lote ') !== false) {
+                [$street, $lot] = explode(' - Lote ', $address, 2);
+            }
+
+            fputcsv($out, [
+                $row['full_name'] ?? '',
+                $row['position'] ?? '',
+                $row['party'] ?? '',
+                $row['city'] ?? '',
+                $row['state'] ?? '',
+                $row['postal_code'] ?? '',
+                $street,
+                $lot,
+                $row['latitude'] ?? '',
+                $row['longitude'] ?? '',
+                $row['phone'] ?? '',
+                $row['email'] ?? '',
+                $row['biography'] ?? '',
+                $row['career_history'] ?? '',
+            ]);
+        }
+
+        fclose($out);
+        exit;
+    }
+
+    public static function importCsv(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+        check_admin_referer('mapa_politico_import_csv');
+
+        if (empty($_FILES['import_csv']['tmp_name'])) {
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-import-export&error=Arquivo CSV inválido.'));
+            exit;
+        }
+
+        $file = fopen($_FILES['import_csv']['tmp_name'], 'r');
+        if ($file === false) {
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-import-export&error=Não foi possível ler o arquivo.'));
+            exit;
+        }
+
+        $header = fgetcsv($file);
+        if (!is_array($header)) {
+            fclose($file);
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-import-export&error=CSV sem cabeçalho válido.'));
+            exit;
+        }
+
+        $header = array_map('trim', $header);
+        $imported = 0;
+        $ignored = 0;
+
+        global $wpdb;
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+
+        while (($row = fgetcsv($file)) !== false) {
+            $data = array_combine($header, $row);
+            if (!is_array($data)) {
+                $ignored++;
+                continue;
+            }
+
+            $fullName = sanitize_text_field((string) ($data['full_name'] ?? ''));
+            $city = sanitize_text_field((string) ($data['city'] ?? ''));
+            $latitude = (float) ($data['latitude'] ?? 0);
+            $longitude = (float) ($data['longitude'] ?? 0);
+
+            if ($fullName === '' || $city === '' || !is_finite($latitude) || !is_finite($longitude)) {
+                $ignored++;
+                continue;
+            }
+
+            $street = sanitize_text_field((string) ($data['address_street'] ?? ''));
+            $lot = sanitize_text_field((string) ($data['address_lot'] ?? ''));
+            $address = trim($street . ($lot !== '' ? ' - Lote ' . $lot : ''));
+
+            $wpdb->insert($locationsTable, [
+                'city' => $city,
+                'state' => sanitize_text_field((string) ($data['state'] ?? 'GO')),
+                'postal_code' => sanitize_text_field((string) ($data['postal_code'] ?? '')),
+                'address' => $address,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ]);
+
+            if ($wpdb->insert_id < 1) {
+                $ignored++;
+                continue;
+            }
+
+            $locationId = (int) $wpdb->insert_id;
+            $wpdb->insert($politiciansTable, [
+                'location_id' => $locationId,
+                'full_name' => $fullName,
+                'position' => sanitize_text_field((string) ($data['position'] ?? '')),
+                'party' => sanitize_text_field((string) ($data['party'] ?? '')),
+                'phone' => sanitize_text_field((string) ($data['phone'] ?? '')),
+                'email' => sanitize_email((string) ($data['email'] ?? '')),
+                'biography' => sanitize_textarea_field((string) ($data['biography'] ?? '')),
+                'career_history' => sanitize_textarea_field((string) ($data['career_history'] ?? '')),
+            ]);
+
+            if ($wpdb->insert_id > 0) {
+                $imported++;
+            } else {
+                $ignored++;
+            }
+        }
+
+        fclose($file);
+
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-import-export&saved=1&imported=' . $imported . '&ignored=' . $ignored));
+        exit;
     }
 
     public static function renderLogs(): void
