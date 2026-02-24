@@ -209,9 +209,12 @@ class MapaPoliticoAdmin
         }
         set_transient($rateKey, $now, 10);
 
-        $address = sanitize_text_field(wp_unslash($_POST['address'] ?? ''));
-        if ($address === '') {
-            wp_send_json_error(['message' => 'Endereço vazio para geocodificação.'], 400);
+        $city = sanitize_text_field(wp_unslash($_POST['city'] ?? ''));
+        $state = sanitize_text_field(wp_unslash($_POST['state'] ?? ''));
+        $address = trim($city . ', ' . $state . ', Brazil');
+
+        if ($city === '' || $state === '') {
+            wp_send_json_error(['message' => 'Informe cidade e estado para atualizar a localização.'], 400);
         }
 
         $cacheKey = 'mapa_politico_geo_cache_' . md5($address);

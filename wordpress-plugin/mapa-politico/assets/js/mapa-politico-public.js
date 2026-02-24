@@ -1,6 +1,7 @@
 (function () {
-  const GOIAS_CENTER = [-15.8270, -49.8362];
-  const GOIAS_ZOOM = 7;
+  const cfg = window.MapaPoliticoConfig || {};
+  const GOIAS_CENTER = [Number(cfg.defaultLat || -15.8270), Number(cfg.defaultLng || -49.8362)];
+  const GOIAS_ZOOM = Number(cfg.defaultZoom || 7);
 
   function escapeHtml(value) {
     return String(value || '')
@@ -11,9 +12,6 @@
       .replace(/'/g, '&#39;');
   }
 
-  function normalize(value) {
-    return String(value || '').toLowerCase().trim();
-  }
 
   function isMobileDevice() {
     return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
@@ -181,26 +179,12 @@
       worldCopyJump: true,
     });
 
-    L.tileLayer(MapaPoliticoConfig.tilesUrl, {
-      attribution: MapaPoliticoConfig.tilesAttribution,
+    L.tileLayer(cfg.tilesUrl, {
+      attribution: cfg.tilesAttribution,
       maxZoom: 19,
     }).addTo(map);
 
-    const params = new URLSearchParams({
-      action: 'mapa_politico_data',
-      nonce: MapaPoliticoConfig.nonce,
-    });
-
-    const res = await fetch(`${MapaPoliticoConfig.ajaxUrl}?${params.toString()}`);
-    const payload = await res.json();
-
-    if (!payload?.success) {
-      mapEl.innerHTML = '<p>Erro ao carregar dados do mapa.</p>';
-      setStatus('Falha ao carregar os dados do mapa.', 'error');
-      return;
-    }
-
-    const allEntries = payload?.data?.entries || [];
+    let currentEntries = [];
     const markerLayer = L.layerGroup().addTo(map);
     const markerIcon = createMarkerIcon();
     const userIcon = createUserIcon();
@@ -325,7 +309,7 @@
             return L.marker(waypoint.latLng, { icon: markerIcon }).bindPopup(entry.full_name);
           },
           router: L.Routing.osrmv1({
-            serviceUrl: MapaPoliticoConfig.osrmServiceUrl,
+            serviceUrl: cfg.osrmServiceUrl,
             profile: 'driving',
           }),
         }).addTo(map);
@@ -356,35 +340,21 @@
       name: document.getElementById('filtro-nome'),
       party: document.getElementById('filtro-partido'),
       city: document.getElementById('filtro-cidade'),
-      cep: document.getElementById('filtro-cep'),
       clear: document.getElementById('filtro-limpar'),
       clearRoute: document.getElementById('rota-limpar'),
     };
 
-    function applyFilters() {
-      const name = normalize(filters.name?.value);
-      const party = normalize(filters.party?.value);
-      const city = normalize(filters.city?.value);
-      const cep = normalize(filters.cep?.value);
-
-      const filtered = allEntries.filter((entry) => {
-        const matchName = !name || normalize(entry.full_name).includes(name);
-        const matchParty = !party || normalize(entry.party).includes(party);
-        const matchCity = !city || normalize(entry.location.city).includes(city);
-        const matchCep = !cep || normalize(entry.location.postal_code).includes(cep);
-        return matchName && matchParty && matchCity && matchCep;
-      });
-
+    const renderEntries = (entries) => {
       markerLayer.clearLayers();
 
-      filtered.forEach((entry) => {
+      entries.forEach((entry) => {
         const marker = L.marker([entry.location.latitude, entry.location.longitude], { icon: markerIcon }).addTo(markerLayer);
         marker.bindPopup(buildPopupHtml(entry));
         marker.on('click', () => openModal(entry));
       });
 
       renderResults(
-        filtered,
+        entries,
         (entry) => {
           map.setView([entry.location.latitude, entry.location.longitude], 13);
           openModal(entry);
@@ -393,18 +363,69 @@
         navigateExternal
       );
 
-      setStatus(`${filtered.length} resultado(s) encontrado(s).`, 'info');
-    }
+      if (entries.length > 0) {
+        const bounds = L.latLngBounds(entries.map((entry) => [entry.location.latitude, entry.location.longitude]));
+        map.fitBounds(bounds, { padding: [20, 20], maxZoom: 13 });
+      } else {
+        map.setView(GOIAS_CENTER, GOIAS_ZOOM);
+      }
 
-    [filters.name, filters.party, filters.city, filters.cep].forEach((input) => {
-      input?.addEventListener('input', applyFilters);
+      setStatus(`${entries.length} resultado(s) encontrado(s).`, 'info');
+    };
+
+    const fetchEntries = async () => {
+      const body = new URLSearchParams({
+        action: 'mapa_politico_search',
+        nonce: cfg.nonce || '',
+        name: String(filters.name?.value || '').trim(),
+        party: String(filters.party?.value || '').trim(),
+        city: String(filters.city?.value || '').trim(),
+      });
+
+      const response = await fetch(cfg.ajaxUrl || '', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body.toString(),
+      });
+
+      const payload = await response.json();
+      if (!payload?.success) {
+        throw new Error('Falha ao filtrar dados do mapa.');
+      }
+
+      return payload?.data?.entries || [];
+    };
+
+    let searchDebounce = null;
+
+    const applyFilters = async () => {
+      try {
+        setStatus('Filtrando resultados...', 'loading');
+        currentEntries = await fetchEntries();
+        renderEntries(currentEntries);
+      } catch (error) {
+        setStatus(error.message || 'Falha ao filtrar resultados.', 'error');
+      }
+    };
+
+    const scheduleFilter = () => {
+      if (searchDebounce) {
+        window.clearTimeout(searchDebounce);
+      }
+      searchDebounce = window.setTimeout(() => {
+        applyFilters();
+      }, 350);
+    };
+
+    [filters.name, filters.party, filters.city].forEach((input) => {
+      input?.addEventListener('input', scheduleFilter);
     });
 
     filters.clear?.addEventListener('click', () => {
-      [filters.name, filters.party, filters.city, filters.cep].forEach((input) => {
+      [filters.name, filters.party, filters.city].forEach((input) => {
         if (input) input.value = '';
       });
-      applyFilters();
+      scheduleFilter();
     });
 
     filters.clearRoute?.addEventListener('click', clearRoute);
@@ -414,7 +435,7 @@
       const routeBtn = event.target.closest('.mapa-politico-route-btn');
       if (routeBtn) {
         const id = Number(routeBtn.getAttribute('data-route-id'));
-        const entry = allEntries.find((item) => item.politician_id === id);
+        const entry = currentEntries.find((item) => item.politician_id === id);
         if (!entry) {
           setStatus('Não foi possível localizar o político para traçar rota.', 'error');
           return;
@@ -426,7 +447,7 @@
       const navBtn = event.target.closest('.mapa-politico-nav-btn');
       if (navBtn) {
         const id = Number(navBtn.getAttribute('data-nav-id'));
-        const entry = allEntries.find((item) => item.politician_id === id);
+        const entry = currentEntries.find((item) => item.politician_id === id);
         if (!entry) {
           setStatus('Não foi possível localizar o político para navegação externa.', 'error');
           return;
@@ -435,7 +456,7 @@
       }
     });
 
-    applyFilters();
+    await applyFilters();
   }
 
   document.addEventListener('DOMContentLoaded', initLeafletMap);

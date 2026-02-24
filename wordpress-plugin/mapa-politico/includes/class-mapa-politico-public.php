@@ -12,6 +12,8 @@ class MapaPoliticoPublic
         add_shortcode('mapa_politico', [self::class, 'renderShortcode']);
         add_action('wp_ajax_mapa_politico_data', [self::class, 'ajaxData']);
         add_action('wp_ajax_nopriv_mapa_politico_data', [self::class, 'ajaxData']);
+        add_action('wp_ajax_mapa_politico_search', [self::class, 'ajaxSearch']);
+        add_action('wp_ajax_nopriv_mapa_politico_search', [self::class, 'ajaxSearch']);
     }
 
     public static function registerAssets(): void
@@ -33,12 +35,24 @@ class MapaPoliticoPublic
             'nonce' => wp_create_nonce('mapa_politico_public_nonce'),
             'tilesUrl' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             'tilesAttribution' => '&copy; OpenStreetMap contributors',
+            'defaultLat' => -15.827,
+            'defaultLng' => -49.8362,
+            'defaultZoom' => 7,
+            'osrmServiceUrl' => 'https://router.project-osrm.org/route/v1',
         ]);
 
         ob_start();
         ?>
         <section class="mapa-politico-wrapper">
             <h2>Mapa Político</h2>
+            <div class="mapa-politico-filters">
+                <input type="search" id="filtro-nome" placeholder="Buscar por nome" aria-label="Buscar por nome">
+                <input type="search" id="filtro-partido" placeholder="Buscar por partido" aria-label="Buscar por partido">
+                <input type="search" id="filtro-cidade" placeholder="Buscar por município" aria-label="Buscar por município">
+                <button type="button" id="filtro-limpar">Limpar filtros</button>
+                <button type="button" id="rota-limpar">Limpar rota</button>
+            </div>
+            <div class="mapa-politico-status" id="mapa-politico-status" aria-live="polite"></div>
             <div class="mapa-politico-layout">
                 <div id="mapa-politico-map"></div>
                 <aside class="mapa-politico-results"><div id="mapa-politico-results-list"></div></aside>
@@ -59,22 +73,69 @@ class MapaPoliticoPublic
     {
         check_ajax_referer('mapa_politico_public_nonce', 'nonce');
 
+        $entries = self::queryEntries();
+        wp_send_json_success(['entries' => $entries]);
+    }
+
+    public static function ajaxSearch(): void
+    {
+        check_ajax_referer('mapa_politico_public_nonce', 'nonce');
+
+        $filters = [
+            'name' => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
+            'party' => sanitize_text_field(wp_unslash($_POST['party'] ?? '')),
+            'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
+        ];
+
+        $entries = self::queryEntries($filters);
+        wp_send_json_success(['entries' => $entries]);
+    }
+
+    private static function queryEntries(array $filters = []): array
+    {
         global $wpdb;
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
 
-        $rows = $wpdb->get_results(
-            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.biography, p.career_history,
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['name'])) {
+            $where[] = 'p.full_name LIKE %s';
+            $params[] = '%' . $wpdb->esc_like((string) $filters['name']) . '%';
+        }
+
+        if (!empty($filters['party'])) {
+            $where[] = 'p.party LIKE %s';
+            $params[] = '%' . $wpdb->esc_like((string) $filters['party']) . '%';
+        }
+
+        if (!empty($filters['city'])) {
+            $where[] = 'l.city LIKE %s';
+            $params[] = '%' . $wpdb->esc_like((string) $filters['city']) . '%';
+        }
+
+        $whereSql = '';
+        if (!empty($where)) {
+            $whereSql = ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql = "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.biography, p.career_history,
                     p.phone, p.email, p.photo_id,
                     l.id AS location_id, l.city, l.state, l.postal_code, l.latitude, l.longitude, l.address
              FROM {$politiciansTable} p
              INNER JOIN {$locationsTable} l ON l.id = p.location_id
-             ORDER BY p.full_name ASC",
-            ARRAY_A
-        );
+             {$whereSql}
+             ORDER BY p.full_name ASC";
+
+        if (!empty($params)) {
+            $sql = $wpdb->prepare($sql, $params);
+        }
+
+        $rows = $wpdb->get_results($sql, ARRAY_A);
 
         if ($rows === null) {
-            wp_send_json_error(['message' => 'Erro ao consultar mapa.'], 500);
+            return [];
         }
 
         $entries = [];
@@ -101,6 +162,6 @@ class MapaPoliticoPublic
             ];
         }
 
-        wp_send_json_success(['entries' => $entries]);
+        return $entries;
     }
 }

@@ -4,8 +4,6 @@
   if (!mapEl || typeof L === 'undefined') return;
 
   const fields = {
-    street: document.getElementById('address_street'),
-    lot: document.getElementById('address_lot'),
     city: document.getElementById('city'),
     state: document.getElementById('state'),
     lat: document.getElementById('latitude'),
@@ -54,15 +52,8 @@
 
   setCoordFields(Number(cfg.defaultLat || -15.827).toFixed(7), Number(cfg.defaultLng || -49.8362).toFixed(7));
 
-  const normalizePostalCode = (value) => String(value || '').replace(/\D/g, '');
-
   const buildAddress = () => {
-    const postalCode = normalizePostalCode(document.getElementById('postal_code')?.value || '');
-    if (postalCode.length >= 8) {
-      return [postalCode, 'Brazil'].join(', ');
-    }
-
-    return [fields.street?.value, fields.lot?.value, fields.city?.value, fields.state?.value, 'Brazil']
+    return [fields.city?.value, fields.state?.value, 'Brazil']
       .map((s) => String(s || '').trim())
       .filter(Boolean)
       .join(', ');
@@ -79,8 +70,7 @@
   const triggerAutoGeocode = () => {
     if (!findBtn) return;
 
-    const postalCode = normalizePostalCode(document.getElementById('postal_code')?.value || '');
-    if (postalCode.length < 8 && !hasCityState()) {
+    if (!hasCityState()) {
       return;
     }
 
@@ -102,12 +92,13 @@
 
     try {
       findBtn.disabled = true;
-      setFeedback('Buscando localização...', false);
+      setFeedback('Buscando localização do município...', false);
 
       const body = new URLSearchParams({
         action: 'mapa_politico_geocode_address',
         nonce: cfg.nonce || '',
-        address,
+        city: String(fields.city?.value || '').trim(),
+        state: String(fields.state?.value || '').trim(),
       });
 
       const response = await fetch(cfg.ajaxUrl || '', {
@@ -138,7 +129,7 @@
     }
   });
 
-  ['postal_code', 'city', 'state'].forEach((id) => {
+  ['city', 'state'].forEach((id) => {
     const field = document.getElementById(id);
     field?.addEventListener('change', triggerAutoGeocode);
     field?.addEventListener('blur', triggerAutoGeocode);
