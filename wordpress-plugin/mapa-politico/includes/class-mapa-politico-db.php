@@ -15,6 +15,7 @@ class MapaPoliticoDB
         $charsetCollate = $wpdb->get_charset_collate();
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+        $metaTable = $wpdb->prefix . 'mapa_politico_politician_meta';
 
         $sqlLocations = "CREATE TABLE {$locationsTable} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -49,7 +50,22 @@ class MapaPoliticoDB
             KEY idx_full_name (full_name)
         ) {$charsetCollate};";
 
+        $sqlMeta = "CREATE TABLE {$metaTable} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            politician_id BIGINT UNSIGNED NOT NULL,
+            meta_key VARCHAR(120) NOT NULL,
+            meta_label VARCHAR(190) NOT NULL,
+            meta_type VARCHAR(30) NOT NULL,
+            meta_value LONGTEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_politician (politician_id),
+            KEY idx_meta_key (meta_key)
+        ) {$charsetCollate};";
+
         dbDelta($sqlLocations);
         dbDelta($sqlPoliticians);
+        dbDelta($sqlMeta);
     }
 }

@@ -5,6 +5,7 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 }
 
 global $wpdb;
+$wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'mapa_politico_politician_meta');
 $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'mapa_politico_politicians');
 $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'mapa_politico_locations');
 

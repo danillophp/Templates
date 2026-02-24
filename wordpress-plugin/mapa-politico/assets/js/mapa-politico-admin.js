@@ -1,7 +1,52 @@
 (function () {
   const cfg = window.MapaPoliticoAdminConfig || {};
+
+  const initCustomFields = function () {
+    const wrap = document.getElementById('mp-custom-fields-wrap');
+    const addBtn = document.getElementById('mp-add-custom-field');
+    if (!wrap || !addBtn) return;
+
+    const buildFieldRow = function () {
+      const row = document.createElement('div');
+      row.className = 'mp-custom-field-row';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '2fr 1fr 3fr auto';
+      row.style.gap = '8px';
+      row.style.marginBottom = '8px';
+      row.style.alignItems = 'center';
+
+      row.innerHTML = `
+        <input type="text" name="custom_label[]" placeholder="Nome do campo">
+        <select name="custom_type[]">
+          <option value="text">Texto</option>
+          <option value="textarea">Área de texto</option>
+          <option value="email">E-mail</option>
+          <option value="url">URL</option>
+          <option value="number">Número</option>
+        </select>
+        <input type="text" name="custom_value[]" placeholder="Valor">
+        <button type="button" class="button-link-delete mp-remove-custom-field">Remover</button>
+      `;
+      return row;
+    };
+
+    addBtn.addEventListener('click', function () {
+      wrap.appendChild(buildFieldRow());
+    });
+
+    wrap.addEventListener('click', function (event) {
+      const removeBtn = event.target.closest('.mp-remove-custom-field');
+      if (!removeBtn) return;
+      const row = removeBtn.closest('.mp-custom-field-row');
+      if (row) row.remove();
+    });
+  };
+
   const mapEl = document.getElementById('mp-admin-map');
-  if (!mapEl || typeof L === 'undefined') return;
+  if (!mapEl || typeof L === 'undefined') {
+    initCustomFields();
+    return;
+  }
 
   const fields = {
     city: document.getElementById('city'),
@@ -16,22 +61,27 @@
   const findBtn = document.getElementById('mp-find-location');
   const aiBtn = document.getElementById('mp-search-ai');
 
-  const map = L.map(mapEl).setView([Number(cfg.defaultLat || -15.827), Number(cfg.defaultLng || -49.8362)], Number(cfg.defaultZoom || 7));
+  const defaultLat = Number(cfg.defaultLat || -15.827);
+  const defaultLng = Number(cfg.defaultLng || -49.8362);
+  const initialLat = Number(fields.lat?.value || defaultLat);
+  const initialLng = Number(fields.lng?.value || defaultLng);
+
+  const map = L.map(mapEl).setView([initialLat, initialLng], Number(cfg.defaultZoom || 7));
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19,
   }).addTo(map);
 
-  let marker = L.marker([Number(cfg.defaultLat || -15.827), Number(cfg.defaultLng || -49.8362)], { draggable: true }).addTo(map);
+  const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
 
-  const setCoordFields = (lat, lng) => {
-    fields.lat.value = String(lat);
-    fields.lng.value = String(lng);
+  const setCoordFields = function (lat, lng) {
+    if (fields.lat) fields.lat.value = String(lat);
+    if (fields.lng) fields.lng.value = String(lng);
     if (fields.latDisplay) fields.latDisplay.value = String(lat);
     if (fields.lngDisplay) fields.lngDisplay.value = String(lng);
   };
 
-  const setFeedback = (msg, isError) => {
+  const setFeedback = function (msg, isError) {
     if (!feedback) return;
     feedback.textContent = msg || '';
     feedback.style.color = isError ? '#b32d2e' : '#2271b1';
@@ -44,22 +94,16 @@
   });
 
   map.on('click', function (event) {
-    const { lat, lng } = event.latlng;
+    const lat = event.latlng.lat;
+    const lng = event.latlng.lng;
     marker.setLatLng([lat, lng]);
     setCoordFields(lat.toFixed(7), lng.toFixed(7));
     setFeedback('Posição definida manualmente no mapa.', false);
   });
 
-  setCoordFields(Number(cfg.defaultLat || -15.827).toFixed(7), Number(cfg.defaultLng || -49.8362).toFixed(7));
+  setCoordFields(initialLat.toFixed(7), initialLng.toFixed(7));
 
-  const buildAddress = () => {
-    return [fields.city?.value, fields.state?.value, 'Brazil']
-      .map((s) => String(s || '').trim())
-      .filter(Boolean)
-      .join(', ');
-  };
-
-  const hasCityState = () => {
+  const hasCityState = function () {
     const city = String(fields.city?.value || '').trim();
     const state = String(fields.state?.value || '').trim();
     return city.length >= 2 && state.length >= 2;
@@ -67,31 +111,14 @@
 
   let geocodeTimeout = null;
 
-  const triggerAutoGeocode = () => {
-    if (!findBtn) return;
-
+  const requestGeocode = async function () {
     if (!hasCityState()) {
-      return;
-    }
-
-    if (geocodeTimeout) {
-      window.clearTimeout(geocodeTimeout);
-    }
-
-    geocodeTimeout = window.setTimeout(() => {
-      findBtn.click();
-    }, 650);
-  };
-
-  findBtn?.addEventListener('click', async function () {
-    const address = buildAddress();
-    if (!address) {
-      setFeedback('Preencha endereço, lote, cidade e estado.', true);
+      setFeedback('Informe cidade e estado para geocodificar.', true);
       return;
     }
 
     try {
-      findBtn.disabled = true;
+      if (findBtn) findBtn.disabled = true;
       setFeedback('Buscando localização do município...', false);
 
       const body = new URLSearchParams({
@@ -109,7 +136,7 @@
 
       const json = await response.json();
       if (!json?.success) {
-        throw new Error(json?.data?.message || 'Não foi possível geocodificar o endereço.');
+        throw new Error(json?.data?.message || 'Não foi possível geocodificar.');
       }
 
       const lat = Number(json.data.lat);
@@ -119,20 +146,32 @@
       }
 
       marker.setLatLng([lat, lng]);
-      map.setView([lat, lng], 16);
+      map.setView([lat, lng], 13);
       setCoordFields(lat.toFixed(7), lng.toFixed(7));
-      setFeedback('Localização atualizada. Você ainda pode ajustar manualmente o marcador.', false);
+      setFeedback('Localização atualizada. Você pode ajustar manualmente o marcador.', false);
     } catch (error) {
-      setFeedback(error.message || 'Falha ao buscar localização. Ajuste manualmente no mapa.', true);
+      setFeedback(error.message || 'Falha na geocodificação. Ajuste manualmente no mapa.', true);
     } finally {
-      findBtn.disabled = false;
+      if (findBtn) findBtn.disabled = false;
     }
-  });
+  };
 
-  ['city', 'state'].forEach((id) => {
+  const triggerAutoGeocode = function () {
+    if (geocodeTimeout) window.clearTimeout(geocodeTimeout);
+    geocodeTimeout = window.setTimeout(function () {
+      requestGeocode();
+    }, 600);
+  };
+
+  if (findBtn) {
+    findBtn.addEventListener('click', requestGeocode);
+  }
+
+  ['city', 'state'].forEach(function (id) {
     const field = document.getElementById(id);
-    field?.addEventListener('change', triggerAutoGeocode);
-    field?.addEventListener('blur', triggerAutoGeocode);
+    if (!field) return;
+    field.addEventListener('change', triggerAutoGeocode);
+    field.addEventListener('blur', triggerAutoGeocode);
   });
 
   aiBtn?.addEventListener('click', async function () {
@@ -169,4 +208,6 @@
       aiBtn.disabled = false;
     }
   });
+
+  initCustomFields();
 })();

@@ -4,6 +4,101 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (is_admin() && !class_exists('WP_List_Table')) {
+    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+}
+
+class MapaPoliticoAdminListTable extends WP_List_Table
+{
+    private array $itemsData = [];
+
+    public function __construct()
+    {
+        parent::__construct([
+            'singular' => 'politico',
+            'plural' => 'politicos',
+            'ajax' => false,
+        ]);
+    }
+
+    public function set_items_data(array $items): void
+    {
+        $this->itemsData = $items;
+    }
+
+    public function get_columns(): array
+    {
+        return [
+            'cb' => '<input type="checkbox" />',
+            'full_name' => 'Nome',
+            'position' => 'Cargo',
+            'city' => 'Cidade',
+            'state' => 'Estado',
+        ];
+    }
+
+    protected function get_sortable_columns(): array
+    {
+        return [
+            'full_name' => ['full_name', false],
+            'position' => ['position', false],
+            'city' => ['city', false],
+            'state' => ['state', false],
+        ];
+    }
+
+    protected function get_bulk_actions(): array
+    {
+        return [
+            'delete' => 'Excluir selecionados',
+        ];
+    }
+
+    protected function column_cb($item): string
+    {
+        return '<input type="checkbox" name="politician_ids[]" value="' . absint($item['politician_id']) . '" />';
+    }
+
+    protected function column_full_name($item): string
+    {
+        $editUrl = admin_url('admin.php?page=mapa-politico-cadastro&edit=' . absint($item['politician_id']));
+        $deleteNonce = wp_create_nonce('mapa_politico_delete_entry_' . absint($item['politician_id']));
+        $deleteUrl = wp_nonce_url(
+            admin_url('admin-post.php?action=mapa_politico_delete_entry&politician_id=' . absint($item['politician_id'])),
+            'mapa_politico_delete_entry_' . absint($item['politician_id'])
+        );
+
+        $actions = [
+            'edit' => '<a href="' . esc_url($editUrl) . '">Editar</a>',
+            'delete' => '<a href="' . esc_url($deleteUrl) . '" onclick="return confirm(\'Deseja excluir este cadastro?\');" data-nonce="' . esc_attr($deleteNonce) . '">Excluir</a>',
+        ];
+
+        return '<strong>' . esc_html((string) $item['full_name']) . '</strong>' . $this->row_actions($actions);
+    }
+
+    protected function column_default($item, $column_name): string
+    {
+        return esc_html((string) ($item[$column_name] ?? ''));
+    }
+
+    public function prepare_items(): void
+    {
+        $perPage = 20;
+        $currentPage = $this->get_pagenum();
+        $totalItems = count($this->itemsData);
+
+        $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
+        $offset = ($currentPage - 1) * $perPage;
+        $this->items = array_slice($this->itemsData, $offset, $perPage);
+
+        $this->set_pagination_args([
+            'total_items' => $totalItems,
+            'per_page' => $perPage,
+            'total_pages' => (int) ceil($totalItems / $perPage),
+        ]);
+    }
+}
+
 class MapaPoliticoAdmin
 {
     public static function init(): void
@@ -15,42 +110,27 @@ class MapaPoliticoAdmin
         add_action('admin_post_mapa_politico_delete_entry', [self::class, 'deleteEntry']);
 
         add_action('wp_ajax_mapa_politico_geocode_address', [self::class, 'ajaxGeocodeAddress']);
-
         add_action('admin_notices', [self::class, 'renderNotices']);
     }
 
     public static function registerMenu(): void
     {
-        add_menu_page(
-            'Mapa Político',
-            'Mapa Político',
-            'manage_options',
-            'mapa-politico-cadastro',
-            [self::class, 'renderUnifiedForm'],
-            'dashicons-location-alt',
-            26
-        );
-
+        add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm'], 'dashicons-location-alt', 26);
         add_submenu_page('mapa-politico-cadastro', 'Cadastro Manual', 'Cadastro Manual', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
+        add_submenu_page('mapa-politico-cadastro', 'Políticos Cadastrados', 'Políticos Cadastrados', 'manage_options', 'mapa-politico-list', [self::class, 'renderListPage']);
         add_submenu_page('mapa-politico-cadastro', 'Logs da IA', 'Logs da IA', 'manage_options', 'mapa-politico-logs', [self::class, 'renderLogs']);
     }
 
     public static function enqueueAssets(string $hook): void
     {
-        if ($hook !== 'toplevel_page_mapa-politico-cadastro') {
+        if (!in_array($hook, ['toplevel_page_mapa-politico-cadastro', 'mapa-politico_page_mapa-politico-cadastro'], true)) {
             return;
         }
 
         wp_enqueue_style('mapa-politico-admin-leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', [], '1.9.4');
         wp_enqueue_script('mapa-politico-admin-leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], '1.9.4', true);
 
-        wp_enqueue_script(
-            'mapa-politico-admin-cadastro-js',
-            MAPA_POLITICO_URL . 'assets/js/mapa-politico-admin.js',
-            ['mapa-politico-admin-leaflet-js'],
-            MAPA_POLITICO_VERSION,
-            true
-        );
+        wp_enqueue_script('mapa-politico-admin-cadastro-js', MAPA_POLITICO_URL . 'assets/js/mapa-politico-admin.js', ['mapa-politico-admin-leaflet-js'], MAPA_POLITICO_VERSION, true);
 
         wp_localize_script('mapa-politico-admin-cadastro-js', 'MapaPoliticoAdminConfig', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -92,58 +172,48 @@ class MapaPoliticoAdmin
             wp_die('Sem permissão.');
         }
 
-        global $wpdb;
-        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
-        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
-
-        $entries = $wpdb->get_results(
-            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.phone,
-                    l.city, l.state, l.postal_code, l.latitude, l.longitude
-             FROM {$politiciansTable} p
-             INNER JOIN {$locationsTable} l ON l.id = p.location_id
-             ORDER BY p.id DESC LIMIT 200",
-            ARRAY_A
-        );
+        $politicianId = absint($_GET['edit'] ?? 0);
+        $entry = $politicianId > 0 ? self::getEntryById($politicianId) : null;
+        $metaFields = $politicianId > 0 ? self::getCustomFields($politicianId) : [];
         ?>
         <div class="wrap">
-            <h1>Cadastro Manual de Político</h1>
-            <p>Use o botão <strong>📍 Atualizar localização no mapa</strong> para geocodificar por CEP ou por cidade/estado. Depois ajuste manualmente o marcador se necessário.</p>
+            <h1><?php echo $politicianId > 0 ? 'Editar cadastro de político' : 'Cadastro Manual de Político'; ?></h1>
+            <p>Use o botão <strong>📍 Atualizar localização no mapa</strong> para geocodificar por cidade/estado. Depois ajuste manualmente o marcador se necessário.</p>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
                 <?php wp_nonce_field('mapa_politico_save_entry'); ?>
                 <input type="hidden" name="action" value="mapa_politico_save_entry">
+                <input type="hidden" name="politician_id" value="<?php echo esc_attr((string) $politicianId); ?>">
 
                 <table class="form-table" role="presentation">
                     <tr>
                         <th><label for="full_name">Nome completo do político</label></th>
                         <td style="display:flex;gap:8px;align-items:center;">
-                            <input required class="regular-text" id="full_name" name="full_name">
+                            <input required class="regular-text" id="full_name" name="full_name" value="<?php echo esc_attr((string) ($entry['full_name'] ?? '')); ?>">
                             <button type="button" class="button" id="mp-search-ai">🔍 Pesquisar informações com IA</button>
                         </td>
                     </tr>
                     <tr>
                         <th><label for="position">Cargo</label></th>
                         <td>
+                            <?php $position = (string) ($entry['position'] ?? 'Prefeito'); ?>
                             <select id="position" name="position">
-                                <option>Prefeito</option>
-                                <option>Vice-Prefeito</option>
-                                <option>Vereador</option>
-                                <option>Deputado Estadual</option>
-                                <option>Deputado Federal</option>
-                                <option>Senador</option>
-                                <option>Governador</option>
+                                <?php foreach (['Prefeito', 'Vice-Prefeito', 'Vereador', 'Deputado Estadual', 'Deputado Federal', 'Senador', 'Governador'] as $opt): ?>
+                                    <option value="<?php echo esc_attr($opt); ?>" <?php selected($position, $opt); ?>><?php echo esc_html($opt); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </td>
                     </tr>
-                    <tr><th><label for="city">Cidade</label></th><td><input required class="regular-text" id="city" name="city"></td></tr>
-                    <tr><th><label for="state">Estado</label></th><td><input class="regular-text" id="state" name="state" value="GO"></td></tr>
-                    <tr><th><label for="postal_code">CEP</label></th><td><input class="regular-text" id="postal_code" name="postal_code"></td></tr>
-                    <tr><th><label for="address_street">Rua / Quadra</label></th><td><input required class="regular-text" id="address_street" name="address_street"></td></tr>
-                    <tr><th><label for="address_lot">Lote</label></th><td><input required class="regular-text" id="address_lot" name="address_lot"></td></tr>
-                    <tr><th><label for="party">Partido</label></th><td><input class="regular-text" id="party" name="party"></td></tr>
-                    <tr><th><label for="phone">Telefone</label></th><td><input class="regular-text" id="phone" name="phone"></td></tr>
-                    <tr><th><label for="latitude_display">Latitude</label></th><td><input readonly class="regular-text" id="latitude_display"></td></tr>
-                    <tr><th><label for="longitude_display">Longitude</label></th><td><input readonly class="regular-text" id="longitude_display"></td></tr>
+                    <tr><th><label for="city">Cidade</label></th><td><input required class="regular-text" id="city" name="city" value="<?php echo esc_attr((string) ($entry['city'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="state">Estado</label></th><td><input class="regular-text" id="state" name="state" value="<?php echo esc_attr((string) ($entry['state'] ?? 'GO')); ?>"></td></tr>
+                    <tr><th><label for="postal_code">CEP</label></th><td><input class="regular-text" id="postal_code" name="postal_code" value="<?php echo esc_attr((string) ($entry['postal_code'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="address_street">Rua / Quadra</label></th><td><input required class="regular-text" id="address_street" name="address_street" value="<?php echo esc_attr((string) ($entry['address_street'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="address_lot">Lote</label></th><td><input required class="regular-text" id="address_lot" name="address_lot" value="<?php echo esc_attr((string) ($entry['address_lot'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="party">Partido</label></th><td><input class="regular-text" id="party" name="party" value="<?php echo esc_attr((string) ($entry['party'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="phone">Telefone</label></th><td><input class="regular-text" id="phone" name="phone" value="<?php echo esc_attr((string) ($entry['phone'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="email">E-mail</label></th><td><input class="regular-text" id="email" name="email" value="<?php echo esc_attr((string) ($entry['email'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="latitude_display">Latitude</label></th><td><input readonly class="regular-text" id="latitude_display" value="<?php echo esc_attr((string) ($entry['latitude'] ?? '')); ?>"></td></tr>
+                    <tr><th><label for="longitude_display">Longitude</label></th><td><input readonly class="regular-text" id="longitude_display" value="<?php echo esc_attr((string) ($entry['longitude'] ?? '')); ?>"></td></tr>
                     <tr>
                         <th>Pré-visualização do mapa</th>
                         <td>
@@ -156,38 +226,85 @@ class MapaPoliticoAdmin
                         </td>
                     </tr>
                     <tr><th><label for="photo">Foto (upload manual)</label></th><td><input type="file" id="photo" name="photo" accept="image/png,image/jpeg,image/webp"></td></tr>
-                    <tr><th><label for="biography">Biografia</label></th><td><textarea class="large-text" rows="4" id="biography" name="biography"></textarea></td></tr>
-                    <tr><th><label for="career_history">Histórico político</label></th><td><textarea class="large-text" rows="5" id="career_history" name="career_history"></textarea></td></tr>
+                    <tr><th><label for="biography">Biografia</label></th><td><textarea class="large-text" rows="4" id="biography" name="biography"><?php echo esc_textarea((string) ($entry['biography'] ?? '')); ?></textarea></td></tr>
+                    <tr><th><label for="career_history">Histórico político</label></th><td><textarea class="large-text" rows="5" id="career_history" name="career_history"><?php echo esc_textarea((string) ($entry['career_history'] ?? '')); ?></textarea></td></tr>
                 </table>
 
-                <input type="hidden" id="latitude" name="latitude" value="">
-                <input type="hidden" id="longitude" name="longitude" value="">
+                <input type="hidden" id="latitude" name="latitude" value="<?php echo esc_attr((string) ($entry['latitude'] ?? '')); ?>">
+                <input type="hidden" id="longitude" name="longitude" value="<?php echo esc_attr((string) ($entry['longitude'] ?? '')); ?>">
 
-                <?php submit_button('Salvar cadastro'); ?>
-            </form>
-
-            <h2>Registros</h2>
-            <table class="widefat striped">
-                <thead><tr><th>Nome</th><th>Cargo</th><th>Cidade</th><th>Estado</th><th>Ações</th></tr></thead>
-                <tbody>
-                    <?php foreach ($entries as $entry): ?>
-                        <tr>
-                            <td><?php echo esc_html((string) $entry['full_name']); ?></td>
-                            <td><?php echo esc_html((string) $entry['position']); ?></td>
-                            <td><?php echo esc_html((string) $entry['city']); ?></td>
-                            <td><?php echo esc_html((string) $entry['state']); ?></td>
-                            <td>
-                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                    <?php wp_nonce_field('mapa_politico_delete_entry_' . absint($entry['politician_id'])); ?>
-                                    <input type="hidden" name="action" value="mapa_politico_delete_entry">
-                                    <input type="hidden" name="politician_id" value="<?php echo esc_attr((string) $entry['politician_id']); ?>">
-                                    <button class="button button-link-delete">Excluir</button>
-                                </form>
-                            </td>
-                        </tr>
+                <h2>Campos Personalizados</h2>
+                <p>Adicione campos extras dinâmicos para este político.</p>
+                <div id="mp-custom-fields-wrap">
+                    <?php foreach ($metaFields as $field): ?>
+                        <div class="mp-custom-field-row" style="display:grid;grid-template-columns:2fr 1fr 3fr auto;gap:8px;margin-bottom:8px;align-items:center;">
+                            <input type="text" name="custom_label[]" placeholder="Nome do campo" value="<?php echo esc_attr((string) $field['label']); ?>">
+                            <select name="custom_type[]">
+                                <?php foreach (['text' => 'Texto', 'textarea' => 'Área de texto', 'email' => 'E-mail', 'url' => 'URL', 'number' => 'Número'] as $typeKey => $typeLabel): ?>
+                                    <option value="<?php echo esc_attr($typeKey); ?>" <?php selected((string) $field['field_type'], $typeKey); ?>><?php echo esc_html($typeLabel); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" name="custom_value[]" placeholder="Valor" value="<?php echo esc_attr((string) $field['field_value']); ?>">
+                            <button type="button" class="button-link-delete mp-remove-custom-field">Remover</button>
+                        </div>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
+                </div>
+                <p><button type="button" class="button" id="mp-add-custom-field">➕ Adicionar Campo</button></p>
+
+                <?php submit_button($politicianId > 0 ? 'Atualizar cadastro' : 'Salvar cadastro'); ?>
+            </form>
+        </div>
+        <?php
+    }
+
+    public static function renderListPage(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Sem permissão.');
+        }
+
+        if (isset($_POST['_wpnonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'mapa_politico_bulk_delete')) {
+            $action = sanitize_text_field(wp_unslash($_POST['action'] ?? ''));
+            if ($action === 'delete') {
+                $ids = wp_unslash($_POST['politician_ids'] ?? []);
+                if (is_array($ids)) {
+                    foreach ($ids as $id) {
+                        $politicianId = absint($id);
+                        if ($politicianId > 0) {
+                            self::deletePoliticianById($politicianId);
+                        }
+                    }
+                }
+                wp_safe_redirect(admin_url('admin.php?page=mapa-politico-list&deleted=1'));
+                exit;
+            }
+        }
+
+        global $wpdb;
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+
+        $rows = $wpdb->get_results(
+            "SELECT p.id AS politician_id, p.full_name, p.position, l.city, l.state
+             FROM {$politiciansTable} p
+             INNER JOIN {$locationsTable} l ON l.id = p.location_id
+             ORDER BY p.id DESC",
+            ARRAY_A
+        );
+
+        $table = new MapaPoliticoAdminListTable();
+        $table->set_items_data(is_array($rows) ? $rows : []);
+        $table->prepare_items();
+        ?>
+        <div class="wrap">
+            <h1 class="wp-heading-inline">Políticos Cadastrados</h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=mapa-politico-cadastro')); ?>" class="page-title-action">Adicionar novo</a>
+            <hr class="wp-header-end" />
+
+            <form method="post">
+                <?php wp_nonce_field('mapa_politico_bulk_delete'); ?>
+                <?php $table->display(); ?>
+            </form>
         </div>
         <?php
     }
@@ -268,10 +385,12 @@ class MapaPoliticoAdmin
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
 
+        $politicianId = absint($_POST['politician_id'] ?? 0);
         $fullName = sanitize_text_field(wp_unslash($_POST['full_name'] ?? ''));
         $position = sanitize_text_field(wp_unslash($_POST['position'] ?? ''));
         $party = sanitize_text_field(wp_unslash($_POST['party'] ?? ''));
         $phone = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
+        $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
         $city = sanitize_text_field(wp_unslash($_POST['city'] ?? ''));
         $state = sanitize_text_field(wp_unslash($_POST['state'] ?? 'GO'));
         $postalCode = sanitize_text_field(wp_unslash($_POST['postal_code'] ?? ''));
@@ -297,40 +416,76 @@ class MapaPoliticoAdmin
             }
         }
 
-        $wpdb->insert($locationsTable, [
-            'city' => $city,
-            'state' => $state,
-            'postal_code' => $postalCode,
-            'address' => $address,
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-        ]);
+        if ($politicianId > 0) {
+            $existing = self::getEntryById($politicianId);
+            if ($existing === null) {
+                wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Cadastro não encontrado.'));
+                exit;
+            }
 
-        if ($wpdb->insert_id < 1) {
-            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar localização.'));
-            exit;
+            $wpdb->update($locationsTable, [
+                'city' => $city,
+                'state' => $state,
+                'postal_code' => $postalCode,
+                'address' => $address,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ], ['id' => (int) $existing['location_id']]);
+
+            $politicianData = [
+                'full_name' => $fullName,
+                'position' => $position,
+                'party' => $party,
+                'phone' => $phone,
+                'email' => $email,
+                'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
+                'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
+            ];
+
+            if ($photoId !== null) {
+                $politicianData['photo_id'] = $photoId;
+            }
+
+            $wpdb->update($politiciansTable, $politicianData, ['id' => $politicianId]);
+            self::saveCustomFields($politicianId);
+        } else {
+            $wpdb->insert($locationsTable, [
+                'city' => $city,
+                'state' => $state,
+                'postal_code' => $postalCode,
+                'address' => $address,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ]);
+
+            if ($wpdb->insert_id < 1) {
+                wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar localização.'));
+                exit;
+            }
+
+            $locationId = (int) $wpdb->insert_id;
+            $wpdb->insert($politiciansTable, [
+                'location_id' => $locationId,
+                'full_name' => $fullName,
+                'position' => $position,
+                'party' => $party,
+                'phone' => $phone,
+                'email' => $email,
+                'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
+                'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
+                'photo_id' => $photoId,
+            ]);
+
+            if ($wpdb->insert_id < 1) {
+                wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar político.'));
+                exit;
+            }
+
+            $politicianId = (int) $wpdb->insert_id;
+            self::saveCustomFields($politicianId);
         }
 
-        $locationId = (int) $wpdb->insert_id;
-
-        $wpdb->insert($politiciansTable, [
-            'location_id' => $locationId,
-            'full_name' => $fullName,
-            'position' => $position,
-            'party' => $party,
-            'phone' => $phone,
-            'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
-            'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
-            'email' => sanitize_email(wp_unslash($_POST['email'] ?? '')),
-            'photo_id' => $photoId,
-        ]);
-
-        if ($wpdb->insert_id < 1) {
-            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar político.'));
-            exit;
-        }
-
-        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&saved=1'));
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-list&saved=1'));
         exit;
     }
 
@@ -340,15 +495,156 @@ class MapaPoliticoAdmin
             wp_die('Sem permissão.');
         }
 
-        $politicianId = absint($_POST['politician_id'] ?? 0);
+        $politicianId = absint($_REQUEST['politician_id'] ?? 0);
         check_admin_referer('mapa_politico_delete_entry_' . $politicianId);
 
+        if ($politicianId > 0) {
+            self::deletePoliticianById($politicianId);
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-list&deleted=1'));
+        exit;
+    }
+
+    private static function deletePoliticianById(int $politicianId): void
+    {
         global $wpdb;
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+        $metaTable = $wpdb->prefix . 'mapa_politico_politician_meta';
 
+        $locationId = (int) $wpdb->get_var($wpdb->prepare("SELECT location_id FROM {$politiciansTable} WHERE id = %d", $politicianId));
+        $wpdb->delete($metaTable, ['politician_id' => $politicianId]);
         $wpdb->delete($politiciansTable, ['id' => $politicianId]);
-        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&deleted=1'));
-        exit;
+
+        if ($locationId > 0) {
+            $exists = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$politiciansTable} WHERE location_id = %d", $locationId));
+            if ($exists === 0) {
+                $wpdb->delete($locationsTable, ['id' => $locationId]);
+            }
+        }
+    }
+
+    private static function saveCustomFields(int $politicianId): void
+    {
+        global $wpdb;
+        $metaTable = $wpdb->prefix . 'mapa_politico_politician_meta';
+
+        $labels = wp_unslash($_POST['custom_label'] ?? []);
+        $types = wp_unslash($_POST['custom_type'] ?? []);
+        $values = wp_unslash($_POST['custom_value'] ?? []);
+
+        if (!is_array($labels) || !is_array($types) || !is_array($values)) {
+            return;
+        }
+
+        $wpdb->delete($metaTable, ['politician_id' => $politicianId]);
+
+        $allowedTypes = ['text', 'textarea', 'email', 'url', 'number'];
+        $usedKeys = [];
+
+        foreach ($labels as $index => $labelRaw) {
+            $label = sanitize_text_field((string) $labelRaw);
+            $type = sanitize_key((string) ($types[$index] ?? 'text'));
+            $valueRaw = (string) ($values[$index] ?? '');
+
+            if ($label === '' || !in_array($type, $allowedTypes, true)) {
+                continue;
+            }
+
+            $key = sanitize_title($label);
+            if ($key === '') {
+                continue;
+            }
+
+            $baseKey = $key;
+            $suffix = 2;
+            while (in_array($key, $usedKeys, true)) {
+                $key = $baseKey . '-' . $suffix;
+                $suffix++;
+            }
+            $usedKeys[] = $key;
+
+            switch ($type) {
+                case 'email':
+                    $value = sanitize_email($valueRaw);
+                    break;
+                case 'url':
+                    $value = esc_url_raw($valueRaw);
+                    break;
+                case 'number':
+                    $value = is_numeric($valueRaw) ? (string) $valueRaw : '';
+                    break;
+                case 'textarea':
+                    $value = sanitize_textarea_field($valueRaw);
+                    break;
+                default:
+                    $value = sanitize_text_field($valueRaw);
+                    break;
+            }
+
+            $wpdb->insert($metaTable, [
+                'politician_id' => $politicianId,
+                'meta_key' => $key,
+                'meta_label' => $label,
+                'meta_type' => $type,
+                'meta_value' => $value,
+            ]);
+        }
+    }
+
+    private static function getCustomFields(int $politicianId): array
+    {
+        global $wpdb;
+        $metaTable = $wpdb->prefix . 'mapa_politico_politician_meta';
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT meta_label AS label, meta_type AS field_type, meta_value AS field_value
+                 FROM {$metaTable}
+                 WHERE politician_id = %d
+                 ORDER BY id ASC",
+                $politicianId
+            ),
+            ARRAY_A
+        );
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    private static function getEntryById(int $politicianId): ?array
+    {
+        global $wpdb;
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT p.id AS politician_id, p.location_id, p.full_name, p.position, p.party, p.phone, p.email, p.biography, p.career_history,
+                        l.city, l.state, l.postal_code, l.address, l.latitude, l.longitude
+                 FROM {$politiciansTable} p
+                 INNER JOIN {$locationsTable} l ON l.id = p.location_id
+                 WHERE p.id = %d",
+                $politicianId
+            ),
+            ARRAY_A
+        );
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $address = (string) ($row['address'] ?? '');
+        $street = $address;
+        $lot = '';
+        if (strpos($address, ' - Lote ') !== false) {
+            [$street, $lot] = explode(' - Lote ', $address, 2);
+        }
+
+        $row['address_street'] = $street;
+        $row['address_lot'] = $lot;
+
+        return $row;
     }
 
     public static function renderLogs(): void
