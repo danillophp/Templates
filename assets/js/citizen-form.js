@@ -17,6 +17,7 @@ const lngEl = document.getElementById('longitude');
 const statusEl = document.getElementById('localizacao_status');
 
 let lastValidCep = false;
+let cepDebounceTimer;
 
 function showGeo(message, type = 'info') {
   if (!geoFeedback) return;
@@ -44,7 +45,6 @@ function updateGoogleEmbedByAddress(addressText) {
 }
 
 function clearMap() {
-  if (googleEmbedEl) googleEmbedEl.classList.add('d-none');
   if (latEl) latEl.value = '';
   if (lngEl) lngEl.value = '';
 }
@@ -80,6 +80,13 @@ function buildAddressForMap(viacep, cleanCep) {
   }
 
   return `Santo Antônio do Descoberto, GO, ${cleanCep}, Brasil`;
+}
+
+function debounceCepLookup() {
+  clearTimeout(cepDebounceTimer);
+  cepDebounceTimer = setTimeout(() => {
+    onCepChange();
+  }, 500);
 }
 
 async function onCepChange() {
@@ -180,10 +187,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setStatus('PENDENTE');
   clearMap();
-  showGeo('Digite o CEP para atualizar o mapa do Google.', 'info');
+  showGeo('Mapa inicial de Santo Antônio do Descoberto carregado. Digite o CEP para atualizar para o endereço.', 'info');
 
   cepInput?.addEventListener('input', () => {
     cepInput.value = cepInput.value.replace(/\D+/g, '').slice(0, 8);
+    if (cepInput.value.length === 8) {
+      debounceCepLookup();
+    }
   });
   cepInput?.addEventListener('blur', onCepChange);
   pickupInput?.addEventListener('change', enforceThursday);

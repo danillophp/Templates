@@ -60,7 +60,7 @@
         <div id="geoFeedback" class="mt-2"></div>
         <div class="mt-3">
           <h6 class="mb-2">Visualização Google Maps</h6>
-          <iframe id="googleMapEmbed" class="w-100 rounded border d-none" style="height:260px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=-15.9439,-48.2585&z=14&output=embed"></iframe>
+          <iframe id="googleMapEmbed" class="w-100 rounded border" style="height:260px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Santo%20Ant%C3%B4nio%20do%20Descoberto%20GO%20Brasil&z=13&output=embed"></iframe>
         </div>
       </div>
     </div>

@@ -168,17 +168,23 @@ final class AdminController extends Controller
             $whatsAppMessages[] = [
                 'id' => $id,
                 'nome' => (string)$before['nome'],
-                'telefone' => $telefone,
-                'message_preview' => $mensagem,
-                'whatsapp_url' => $waWebLink,
+                'phone_e164' => $telefone,
+                'message_text' => $mensagem,
+                'whatsapp_web_url' => $waWebLink,
                 'whatsapp_mobile_url' => $waMobileLink,
             ];
             $logs->register($tenantId, $id, (int)Auth::user()['id'], 'WHATSAPP_DEEPLINK_GERADO', 'Deep link WhatsApp gerado: ' . $waWebLink . ' | Mensagem: ' . $mensagem);
         }
 
+        $first = $whatsAppMessages[0] ?? null;
         $this->json([
             'ok' => true,
+            'success' => true,
             'message' => 'Solicitações atualizadas. WhatsApp preparado para envio manual rápido.',
+            'message_text' => (string)($first['message_text'] ?? ''),
+            'phone_e164' => (string)($first['phone_e164'] ?? ''),
+            'whatsapp_web_url' => (string)($first['whatsapp_web_url'] ?? ''),
+            'whatsapp_mobile_url' => (string)($first['whatsapp_mobile_url'] ?? ''),
             'whatsapp_messages' => $whatsAppMessages,
         ]);
     }

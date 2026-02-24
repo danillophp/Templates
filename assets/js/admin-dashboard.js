@@ -27,10 +27,10 @@ function openWhatsAppMessagesModal(messages) {
   if (!body) return;
 
   body.innerHTML = messages.map((item) => {
-    const safeText = String(item.message_preview || item.mensagem || '');
+    const safeText = String(item.message_text || item.message_preview || item.mensagem || '');
     const safeName = String(item.nome || 'Munícipe');
-    const safePhone = String(item.telefone || '');
-    const safeLink = String(item.whatsapp_url || '#');
+    const safePhone = String(item.phone_e164 || item.telefone || '');
+    const safeLink = String(item.whatsapp_web_url || item.whatsapp_url || '#');
     const safeMobile = String(item.whatsapp_mobile_url || safeLink);
 
     return `<div class="border rounded p-2 mb-2">
@@ -38,8 +38,8 @@ function openWhatsAppMessagesModal(messages) {
       <textarea class="form-control form-control-sm mb-2 wa-msg-text" rows="3">${safeText}</textarea>
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-secondary btn-sm btnCopyWaMsg" type="button">Copiar</button>
-        <a class="btn btn-success btn-sm" href="${safeLink}" target="_blank" rel="noopener">Abrir WhatsApp Web</a>
-        <a class="btn btn-outline-success btn-sm" href="${safeMobile}" target="_blank" rel="noopener">Abrir no Celular</a>
+        <a class="btn btn-success btn-sm" href="${safeLink}" target="_blank" rel="noopener">Abrir WhatsApp no computador</a>
+        <a class="btn btn-outline-success btn-sm" href="${safeMobile}" target="_blank" rel="noopener">Abrir WhatsApp no celular</a>
       </div>
     </div>`;
   }).join('');
@@ -59,16 +59,6 @@ function openWhatsAppMessagesModal(messages) {
         showToast('Não foi possível copiar automaticamente.', 'warning');
       }
     });
-  });
-
-  messages.forEach((item) => {
-    const link = String(item.whatsapp_url || '');
-    if (link) {
-      const opened = window.open(link, '_blank');
-      if (!opened) {
-        showToast('Popup bloqueado. Use o botão "Abrir WhatsApp Web" no modal.', 'warning');
-      }
-    }
   });
 }
 
