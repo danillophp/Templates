@@ -6,6 +6,16 @@ if (!defined('ABSPATH')) {
 
 class MapaPoliticoAdmin
 {
+    private static function requiredCapability(): string
+    {
+        return 'edit_others_posts';
+    }
+
+    private static function canManagePoliticians(): bool
+    {
+        return current_user_can(self::requiredCapability()) || current_user_can('manage_options');
+    }
+
     public static function init(): void
     {
         add_action('admin_menu', [self::class, 'registerMenu']);
@@ -22,8 +32,8 @@ class MapaPoliticoAdmin
 
     public static function registerMenu(): void
     {
-        add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm'], 'dashicons-location-alt', 26);
-        add_submenu_page('mapa-politico-cadastro', 'Cadastro Manual', 'Cadastro Manual', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
+        add_menu_page('Mapa Político', 'Mapa Político', self::requiredCapability(), 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm'], 'dashicons-location-alt', 26);
+        add_submenu_page('mapa-politico-cadastro', 'Cadastro Manual', 'Cadastro Manual', self::requiredCapability(), 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
         add_submenu_page('mapa-politico-cadastro', 'Importar / Exportar', 'Importar / Exportar', 'manage_options', 'mapa-politico-import-export', [self::class, 'renderImportExportPage']);
         add_submenu_page('mapa-politico-cadastro', 'Logs da IA', 'Logs da IA', 'manage_options', 'mapa-politico-logs', [self::class, 'renderLogs']);
     }
@@ -50,7 +60,7 @@ class MapaPoliticoAdmin
 
     public static function renderNotices(): void
     {
-        if (!is_admin() || !current_user_can('manage_options')) {
+        if (!is_admin() || !self::canManagePoliticians()) {
             return;
         }
 
@@ -75,7 +85,7 @@ class MapaPoliticoAdmin
 
     public static function renderUnifiedForm(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!self::canManagePoliticians()) {
             wp_die('Sem permissão.');
         }
 
@@ -199,7 +209,7 @@ class MapaPoliticoAdmin
 
     public static function ajaxGeocodeAddress(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!self::canManagePoliticians()) {
             wp_send_json_error(['message' => 'Sem permissão.'], 403);
         }
 
@@ -263,7 +273,7 @@ class MapaPoliticoAdmin
 
     public static function saveEntry(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!self::canManagePoliticians()) {
             wp_die('Sem permissão.');
         }
 
@@ -379,7 +389,7 @@ class MapaPoliticoAdmin
 
     public static function deleteEntry(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!self::canManagePoliticians()) {
             wp_die('Sem permissão.');
         }
 

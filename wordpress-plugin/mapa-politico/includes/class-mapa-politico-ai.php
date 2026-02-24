@@ -13,7 +13,7 @@ class MapaPoliticoAI
 
     public static function ajaxEnrichText(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('edit_others_posts') && !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Sem permissão.'], 403);
         }
         check_ajax_referer('mapa_politico_admin_nonce', 'nonce');
