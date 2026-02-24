@@ -64,7 +64,7 @@ class MapaPoliticoPublic
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
 
         $rows = $wpdb->get_results(
-            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.age, p.biography, p.career_history,
+            "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.biography, p.career_history,
                     p.phone, p.email, p.photo_id,
                     l.id AS location_id, l.city, l.state, l.postal_code, l.latitude, l.longitude, l.address
              FROM {$politiciansTable} p
@@ -84,7 +84,6 @@ class MapaPoliticoPublic
                 'full_name' => (string) $row['full_name'],
                 'position' => (string) $row['position'],
                 'party' => (string) $row['party'],
-                'age' => $row['age'],
                 'biography' => (string) $row['biography'],
                 'career_history' => (string) $row['career_history'],
                 'phone' => (string) $row['phone'],

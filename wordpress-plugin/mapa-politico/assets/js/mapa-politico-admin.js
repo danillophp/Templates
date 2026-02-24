@@ -18,7 +18,7 @@
   const findBtn = document.getElementById('mp-find-location');
   const aiBtn = document.getElementById('mp-search-ai');
 
-  const map = L.map(mapEl).setView([Number(cfg.defaultLat || -15.827), Number(cfg.defaultLng || -49.8362)], Number(cfg.defaultZoom || 6));
+  const map = L.map(mapEl).setView([Number(cfg.defaultLat || -15.827), Number(cfg.defaultLng || -49.8362)], Number(cfg.defaultZoom || 7));
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19,
@@ -54,11 +54,43 @@
 
   setCoordFields(Number(cfg.defaultLat || -15.827).toFixed(7), Number(cfg.defaultLng || -49.8362).toFixed(7));
 
+  const normalizePostalCode = (value) => String(value || '').replace(/\D/g, '');
+
   const buildAddress = () => {
+    const postalCode = normalizePostalCode(document.getElementById('postal_code')?.value || '');
+    if (postalCode.length >= 8) {
+      return [postalCode, 'Brazil'].join(', ');
+    }
+
     return [fields.street?.value, fields.lot?.value, fields.city?.value, fields.state?.value, 'Brazil']
       .map((s) => String(s || '').trim())
       .filter(Boolean)
       .join(', ');
+  };
+
+  const hasCityState = () => {
+    const city = String(fields.city?.value || '').trim();
+    const state = String(fields.state?.value || '').trim();
+    return city.length >= 2 && state.length >= 2;
+  };
+
+  let geocodeTimeout = null;
+
+  const triggerAutoGeocode = () => {
+    if (!findBtn) return;
+
+    const postalCode = normalizePostalCode(document.getElementById('postal_code')?.value || '');
+    if (postalCode.length < 8 && !hasCityState()) {
+      return;
+    }
+
+    if (geocodeTimeout) {
+      window.clearTimeout(geocodeTimeout);
+    }
+
+    geocodeTimeout = window.setTimeout(() => {
+      findBtn.click();
+    }, 650);
   };
 
   findBtn?.addEventListener('click', async function () {
@@ -98,12 +130,18 @@
       marker.setLatLng([lat, lng]);
       map.setView([lat, lng], 16);
       setCoordFields(lat.toFixed(7), lng.toFixed(7));
-      setFeedback('Localização encontrada com sucesso.', false);
+      setFeedback('Localização atualizada. Você ainda pode ajustar manualmente o marcador.', false);
     } catch (error) {
       setFeedback(error.message || 'Falha ao buscar localização. Ajuste manualmente no mapa.', true);
     } finally {
       findBtn.disabled = false;
     }
+  });
+
+  ['postal_code', 'city', 'state'].forEach((id) => {
+    const field = document.getElementById(id);
+    field?.addEventListener('change', triggerAutoGeocode);
+    field?.addEventListener('blur', triggerAutoGeocode);
   });
 
   aiBtn?.addEventListener('click', async function () {

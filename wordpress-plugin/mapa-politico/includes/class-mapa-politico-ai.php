@@ -28,7 +28,7 @@ class MapaPoliticoAI
 
         $apiKey = self::getOpenAiApiKey();
         if ($apiKey === '') {
-            wp_send_json_error(['message' => 'API key da OpenAI não configurada.'], 400);
+            wp_send_json_error(['message' => 'Chave da OpenAI não configurada no servidor.'], 400);
         }
 
         $prompt = "Pesquise fontes oficiais confiáveis e responda APENAS texto plano (sem HTML/JSON) com:\n"
@@ -52,7 +52,8 @@ class MapaPoliticoAI
         ]);
 
         if (is_wp_error($response)) {
-            wp_send_json_error(['message' => 'Erro na IA: ' . $response->get_error_message()], 400);
+            self::log('erro', $city, 'ai_texto', 'Falha de conexão com OpenAI', []);
+            wp_send_json_error(['message' => 'Falha de comunicação com IA. Tente novamente em instantes.'], 400);
         }
 
         $statusCode = (int) wp_remote_retrieve_response_code($response);
@@ -107,14 +108,31 @@ class MapaPoliticoAI
         return $out;
     }
 
+    public static function hasApiKey(): bool
+    {
+        return self::getOpenAiApiKey() !== '';
+    }
+
     private static function getOpenAiApiKey(): string
     {
         if (defined('MAPA_POLITICO_OPENAI_API_KEY') && MAPA_POLITICO_OPENAI_API_KEY) {
             return (string) MAPA_POLITICO_OPENAI_API_KEY;
         }
 
-        $opt = get_option('mapa_politico_openai_api_key', '');
-        return is_string($opt) ? trim($opt) : '';
+        $envValue = getenv('OPENAI_API_KEY');
+        if (is_string($envValue) && trim($envValue) !== '') {
+            return trim($envValue);
+        }
+
+        if (isset($_ENV['OPENAI_API_KEY']) && is_string($_ENV['OPENAI_API_KEY']) && trim($_ENV['OPENAI_API_KEY']) !== '') {
+            return trim($_ENV['OPENAI_API_KEY']);
+        }
+
+        if (isset($_SERVER['OPENAI_API_KEY']) && is_string($_SERVER['OPENAI_API_KEY']) && trim($_SERVER['OPENAI_API_KEY']) !== '') {
+            return trim($_SERVER['OPENAI_API_KEY']);
+        }
+
+        return '';
     }
 
     public static function log(string $type, string $city, string $step, string $reason, array $sources = []): void

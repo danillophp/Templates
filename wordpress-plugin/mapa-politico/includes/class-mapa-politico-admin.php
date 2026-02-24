@@ -57,7 +57,7 @@ class MapaPoliticoAdmin
             'nonce' => wp_create_nonce('mapa_politico_admin_nonce'),
             'defaultLat' => -15.827,
             'defaultLng' => -49.8362,
-            'defaultZoom' => 6,
+            'defaultZoom' => 7,
         ]);
     }
 
@@ -77,6 +77,12 @@ class MapaPoliticoAdmin
 
         if (isset($_GET['error'])) {
             echo '<div class="notice notice-error"><p>' . esc_html((string) wp_unslash($_GET['error'])) . '</p></div>';
+        }
+
+        if (!MapaPoliticoAI::hasApiKey()) {
+            echo '<div class="notice notice-warning"><p>'
+                . esc_html__('Mapa Político: defina a chave da OpenAI em MAPA_POLITICO_OPENAI_API_KEY (wp-config.php) ou na variável de ambiente OPENAI_API_KEY para usar o botão de IA.', 'mapa-politico')
+                . '</p></div>';
         }
     }
 
@@ -101,7 +107,7 @@ class MapaPoliticoAdmin
         ?>
         <div class="wrap">
             <h1>Cadastro Manual de Político</h1>
-            <p>Use o botão <strong>📍 Find location on map</strong> para geocodificar o endereço e ajustar manualmente no mapa, se necessário.</p>
+            <p>Use o botão <strong>📍 Atualizar localização no mapa</strong> para geocodificar por CEP ou por cidade/estado. Depois ajuste manualmente o marcador se necessário.</p>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
                 <?php wp_nonce_field('mapa_politico_save_entry'); ?>
@@ -129,27 +135,26 @@ class MapaPoliticoAdmin
                             </select>
                         </td>
                     </tr>
-                    <tr><th><label for="city">Município</label></th><td><input required class="regular-text" id="city" name="city"></td></tr>
+                    <tr><th><label for="city">Cidade</label></th><td><input required class="regular-text" id="city" name="city"></td></tr>
                     <tr><th><label for="state">Estado</label></th><td><input class="regular-text" id="state" name="state" value="GO"></td></tr>
+                    <tr><th><label for="postal_code">CEP</label></th><td><input class="regular-text" id="postal_code" name="postal_code"></td></tr>
                     <tr><th><label for="address_street">Rua / Quadra</label></th><td><input required class="regular-text" id="address_street" name="address_street"></td></tr>
                     <tr><th><label for="address_lot">Lote</label></th><td><input required class="regular-text" id="address_lot" name="address_lot"></td></tr>
+                    <tr><th><label for="party">Partido</label></th><td><input class="regular-text" id="party" name="party"></td></tr>
+                    <tr><th><label for="phone">Telefone</label></th><td><input class="regular-text" id="phone" name="phone"></td></tr>
+                    <tr><th><label for="latitude_display">Latitude</label></th><td><input readonly class="regular-text" id="latitude_display"></td></tr>
+                    <tr><th><label for="longitude_display">Longitude</label></th><td><input readonly class="regular-text" id="longitude_display"></td></tr>
                     <tr>
-                        <th>Localização</th>
+                        <th>Pré-visualização do mapa</th>
                         <td>
                             <p>
-                                <button type="button" class="button" id="mp-find-location">📍 Find location on map</button>
+                                <button type="button" class="button" id="mp-find-location">📍 Atualizar localização no mapa</button>
                                 <span id="mp-geo-feedback" style="margin-left:8px;"></span>
                             </p>
                             <div id="mp-admin-map" style="height:360px;max-width:900px;border:1px solid #dcdcde;border-radius:8px;"></div>
                             <p><em>Você pode arrastar o marcador para ajustar latitude/longitude manualmente.</em></p>
                         </td>
                     </tr>
-                    <tr><th><label for="party">Partido</label></th><td><input class="regular-text" id="party" name="party"></td></tr>
-                    <tr><th><label for="age">Idade</label></th><td><input class="small-text" id="age" name="age"></td></tr>
-                    <tr><th><label for="phone">Telefone</label></th><td><input class="regular-text" id="phone" name="phone"></td></tr>
-                    <tr><th><label for="postal_code">CEP</label></th><td><input class="regular-text" id="postal_code" name="postal_code"></td></tr>
-                    <tr><th><label for="latitude_display">Latitude</label></th><td><input readonly class="regular-text" id="latitude_display"></td></tr>
-                    <tr><th><label for="longitude_display">Longitude</label></th><td><input readonly class="regular-text" id="longitude_display"></td></tr>
                     <tr><th><label for="photo">Foto (upload manual)</label></th><td><input type="file" id="photo" name="photo" accept="image/png,image/jpeg,image/webp"></td></tr>
                     <tr><th><label for="biography">Biografia</label></th><td><textarea class="large-text" rows="4" id="biography" name="biography"></textarea></td></tr>
                     <tr><th><label for="career_history">Histórico político</label></th><td><textarea class="large-text" rows="5" id="career_history" name="career_history"></textarea></td></tr>
@@ -263,7 +268,6 @@ class MapaPoliticoAdmin
         $fullName = sanitize_text_field(wp_unslash($_POST['full_name'] ?? ''));
         $position = sanitize_text_field(wp_unslash($_POST['position'] ?? ''));
         $party = sanitize_text_field(wp_unslash($_POST['party'] ?? ''));
-        $age = absint($_POST['age'] ?? 0);
         $phone = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
         $city = sanitize_text_field(wp_unslash($_POST['city'] ?? ''));
         $state = sanitize_text_field(wp_unslash($_POST['state'] ?? 'GO'));
@@ -311,7 +315,6 @@ class MapaPoliticoAdmin
             'full_name' => $fullName,
             'position' => $position,
             'party' => $party,
-            'age' => $age > 0 ? $age : null,
             'phone' => $phone,
             'biography' => sanitize_textarea_field(wp_unslash($_POST['biography'] ?? '')),
             'career_history' => sanitize_textarea_field(wp_unslash($_POST['career_history'] ?? '')),
