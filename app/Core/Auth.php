@@ -18,22 +18,31 @@ final class Auth
 
     public static function is(string $role): bool
     {
-        return ($_SESSION['user']['role'] ?? '') === $role;
+        return ($_SESSION['user']['tipo'] ?? '') === $role;
+    }
+
+    public static function tenantId(): ?int
+    {
+        return $_SESSION['user']['tenant_id'] ?? null;
     }
 
     public static function login(array $user): void
     {
+        session_regenerate_id(true);
+        $_SESSION['usuario_id'] = (int)$user['id'];
         $_SESSION['user'] = [
-            'id' => (int) $user['id'],
-            'name' => $user['full_name'],
-            'role' => $user['role'],
-            'username' => $user['username'],
+            'id' => (int)$user['id'],
+            'tenant_id' => $user['tenant_id'] !== null ? (int)$user['tenant_id'] : null,
+            'nome' => $user['nome'],
+            'tipo' => $user['tipo'],
+            'email' => $user['email'],
         ];
     }
 
     public static function logout(): void
     {
         $_SESSION = [];
+        unset($_SESSION['usuario_id']);
         session_destroy();
     }
 }
