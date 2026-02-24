@@ -22,3 +22,10 @@ Configure opção `mapa_politico_openai_api_key` (ou constante `MAPA_POLITICO_OP
 A IA é usada apenas para gerar texto de:
 - Biografia
 - Histórico político
+
+
+## Geolocalização manual no cadastro
+
+- Preencha Rua/Quadra, Lote, Município e Estado.
+- Clique em `📍 Find location on map` para buscar latitude/longitude via Nominatim (OpenStreetMap).
+- Ajuste o marcador manualmente por arrastar/soltar antes de salvar.

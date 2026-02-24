@@ -9,16 +9,56 @@ class MapaPoliticoAdmin
     public static function init(): void
     {
         add_action('admin_menu', [self::class, 'registerMenu']);
+        add_action('admin_enqueue_scripts', [self::class, 'enqueueAssets']);
+
         add_action('admin_post_mapa_politico_save_entry', [self::class, 'saveEntry']);
         add_action('admin_post_mapa_politico_delete_entry', [self::class, 'deleteEntry']);
+
+        add_action('wp_ajax_mapa_politico_geocode_address', [self::class, 'ajaxGeocodeAddress']);
+
         add_action('admin_notices', [self::class, 'renderNotices']);
     }
 
     public static function registerMenu(): void
     {
-        add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm'], 'dashicons-location-alt', 26);
+        add_menu_page(
+            'Mapa Político',
+            'Mapa Político',
+            'manage_options',
+            'mapa-politico-cadastro',
+            [self::class, 'renderUnifiedForm'],
+            'dashicons-location-alt',
+            26
+        );
+
         add_submenu_page('mapa-politico-cadastro', 'Cadastro Manual', 'Cadastro Manual', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
         add_submenu_page('mapa-politico-cadastro', 'Logs da IA', 'Logs da IA', 'manage_options', 'mapa-politico-logs', [self::class, 'renderLogs']);
+    }
+
+    public static function enqueueAssets(string $hook): void
+    {
+        if ($hook !== 'toplevel_page_mapa-politico-cadastro') {
+            return;
+        }
+
+        wp_enqueue_style('mapa-politico-admin-leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', [], '1.9.4');
+        wp_enqueue_script('mapa-politico-admin-leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], '1.9.4', true);
+
+        wp_enqueue_script(
+            'mapa-politico-admin-cadastro-js',
+            MAPA_POLITICO_URL . 'assets/js/mapa-politico-admin.js',
+            ['mapa-politico-admin-leaflet-js'],
+            MAPA_POLITICO_VERSION,
+            true
+        );
+
+        wp_localize_script('mapa-politico-admin-cadastro-js', 'MapaPoliticoAdminConfig', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mapa_politico_admin_nonce'),
+            'defaultLat' => -15.827,
+            'defaultLng' => -49.8362,
+            'defaultZoom' => 6,
+        ]);
     }
 
     public static function renderNotices(): void
@@ -30,9 +70,11 @@ class MapaPoliticoAdmin
         if (isset($_GET['saved'])) {
             echo '<div class="notice notice-success is-dismissible"><p>Cadastro salvo com sucesso.</p></div>';
         }
+
         if (isset($_GET['deleted'])) {
             echo '<div class="notice notice-success is-dismissible"><p>Cadastro removido com sucesso.</p></div>';
         }
+
         if (isset($_GET['error'])) {
             echo '<div class="notice notice-error"><p>' . esc_html((string) wp_unslash($_GET['error'])) . '</p></div>';
         }
@@ -47,7 +89,6 @@ class MapaPoliticoAdmin
         global $wpdb;
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
-        $nonce = wp_create_nonce('mapa_politico_admin_nonce');
 
         $entries = $wpdb->get_results(
             "SELECT p.id AS politician_id, p.full_name, p.position, p.party, p.phone,
@@ -60,6 +101,8 @@ class MapaPoliticoAdmin
         ?>
         <div class="wrap">
             <h1>Cadastro Manual de Político</h1>
+            <p>Use o botão <strong>📍 Find location on map</strong> para geocodificar o endereço e ajustar manualmente no mapa, se necessário.</p>
+
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
                 <?php wp_nonce_field('mapa_politico_save_entry'); ?>
                 <input type="hidden" name="action" value="mapa_politico_save_entry">
@@ -76,8 +119,13 @@ class MapaPoliticoAdmin
                         <th><label for="position">Cargo</label></th>
                         <td>
                             <select id="position" name="position">
-                                <option>Prefeito</option><option>Vice-Prefeito</option><option>Vereador</option>
-                                <option>Deputado Estadual</option><option>Deputado Federal</option><option>Senador</option><option>Governador</option>
+                                <option>Prefeito</option>
+                                <option>Vice-Prefeito</option>
+                                <option>Vereador</option>
+                                <option>Deputado Estadual</option>
+                                <option>Deputado Federal</option>
+                                <option>Senador</option>
+                                <option>Governador</option>
                             </select>
                         </td>
                     </tr>
@@ -85,16 +133,31 @@ class MapaPoliticoAdmin
                     <tr><th><label for="state">Estado</label></th><td><input class="regular-text" id="state" name="state" value="GO"></td></tr>
                     <tr><th><label for="address_street">Rua / Quadra</label></th><td><input required class="regular-text" id="address_street" name="address_street"></td></tr>
                     <tr><th><label for="address_lot">Lote</label></th><td><input required class="regular-text" id="address_lot" name="address_lot"></td></tr>
+                    <tr>
+                        <th>Localização</th>
+                        <td>
+                            <p>
+                                <button type="button" class="button" id="mp-find-location">📍 Find location on map</button>
+                                <span id="mp-geo-feedback" style="margin-left:8px;"></span>
+                            </p>
+                            <div id="mp-admin-map" style="height:360px;max-width:900px;border:1px solid #dcdcde;border-radius:8px;"></div>
+                            <p><em>Você pode arrastar o marcador para ajustar latitude/longitude manualmente.</em></p>
+                        </td>
+                    </tr>
                     <tr><th><label for="party">Partido</label></th><td><input class="regular-text" id="party" name="party"></td></tr>
                     <tr><th><label for="age">Idade</label></th><td><input class="small-text" id="age" name="age"></td></tr>
                     <tr><th><label for="phone">Telefone</label></th><td><input class="regular-text" id="phone" name="phone"></td></tr>
                     <tr><th><label for="postal_code">CEP</label></th><td><input class="regular-text" id="postal_code" name="postal_code"></td></tr>
-                    <tr><th><label for="latitude">Latitude</label></th><td><input required type="number" step="0.000001" id="latitude" name="latitude"></td></tr>
-                    <tr><th><label for="longitude">Longitude</label></th><td><input required type="number" step="0.000001" id="longitude" name="longitude"></td></tr>
+                    <tr><th><label for="latitude_display">Latitude</label></th><td><input readonly class="regular-text" id="latitude_display"></td></tr>
+                    <tr><th><label for="longitude_display">Longitude</label></th><td><input readonly class="regular-text" id="longitude_display"></td></tr>
                     <tr><th><label for="photo">Foto (upload manual)</label></th><td><input type="file" id="photo" name="photo" accept="image/png,image/jpeg,image/webp"></td></tr>
                     <tr><th><label for="biography">Biografia</label></th><td><textarea class="large-text" rows="4" id="biography" name="biography"></textarea></td></tr>
                     <tr><th><label for="career_history">Histórico político</label></th><td><textarea class="large-text" rows="5" id="career_history" name="career_history"></textarea></td></tr>
                 </table>
+
+                <input type="hidden" id="latitude" name="latitude" value="">
+                <input type="hidden" id="longitude" name="longitude" value="">
+
                 <?php submit_button('Salvar cadastro'); ?>
             </form>
 
@@ -121,38 +184,68 @@ class MapaPoliticoAdmin
                 </tbody>
             </table>
         </div>
-
-        <script>
-            (() => {
-                const ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-                const nonce = <?php echo wp_json_encode($nonce); ?>;
-                const btn = document.getElementById('mp-search-ai');
-
-                btn?.addEventListener('click', async () => {
-                    const name = document.getElementById('full_name')?.value || '';
-                    const position = document.getElementById('position')?.value || '';
-                    const city = document.getElementById('city')?.value || '';
-                    try {
-                        btn.disabled = true;
-                        const body = new URLSearchParams({ action: 'mapa_politico_ai_enrich_text', nonce, name, position, city });
-                        const res = await fetch(ajaxUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-                            body: body.toString()
-                        });
-                        const json = await res.json();
-                        if (!json?.success) throw new Error(json?.data?.message || 'Falha na IA');
-                        document.getElementById('biography').value = json.data.biography || '';
-                        document.getElementById('career_history').value = json.data.history || '';
-                    } catch (e) {
-                        alert(e.message);
-                    } finally {
-                        btn.disabled = false;
-                    }
-                });
-            })();
-        </script>
         <?php
+    }
+
+    public static function ajaxGeocodeAddress(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
+
+        check_ajax_referer('mapa_politico_admin_nonce', 'nonce');
+
+        $userId = get_current_user_id();
+        $rateKey = 'mapa_politico_geo_rate_' . (string) $userId;
+        $last = (int) get_transient($rateKey);
+        $now = time();
+        if ($last > 0 && ($now - $last) < 2) {
+            wp_send_json_error(['message' => 'Aguarde um instante antes de nova consulta.'], 429);
+        }
+        set_transient($rateKey, $now, 10);
+
+        $address = sanitize_text_field(wp_unslash($_POST['address'] ?? ''));
+        if ($address === '') {
+            wp_send_json_error(['message' => 'Endereço vazio para geocodificação.'], 400);
+        }
+
+        $cacheKey = 'mapa_politico_geo_cache_' . md5($address);
+        $cached = get_transient($cacheKey);
+        if (is_array($cached) && isset($cached['lat'], $cached['lng'])) {
+            wp_send_json_success($cached);
+        }
+
+        $url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' . rawurlencode($address);
+        $response = wp_remote_get($url, [
+            'timeout' => 12,
+            'headers' => [
+                'User-Agent' => 'MapaPolitico/' . MAPA_POLITICO_VERSION . ' (' . home_url('/') . ')',
+                'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.7',
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            wp_send_json_error(['message' => 'Falha de conexão com serviço de geocodificação.'], 400);
+        }
+
+        $statusCode = (int) wp_remote_retrieve_response_code($response);
+        if ($statusCode < 200 || $statusCode >= 300) {
+            wp_send_json_error(['message' => 'Serviço de geocodificação indisponível no momento.'], 400);
+        }
+
+        $json = json_decode((string) wp_remote_retrieve_body($response), true);
+        if (!is_array($json) || empty($json[0]['lat']) || empty($json[0]['lon'])) {
+            wp_send_json_error(['message' => 'Endereço não encontrado. Ajuste os dados ou posicione no mapa manualmente.'], 404);
+        }
+
+        $result = [
+            'lat' => (float) $json[0]['lat'],
+            'lng' => (float) $json[0]['lon'],
+        ];
+
+        set_transient($cacheKey, $result, DAY_IN_SECONDS);
+
+        wp_send_json_success($result);
     }
 
     public static function saveEntry(): void
@@ -182,7 +275,7 @@ class MapaPoliticoAdmin
         $longitude = (float) ($_POST['longitude'] ?? 0);
 
         if ($fullName === '' || $position === '' || $city === '' || $street === '' || $lot === '' || !is_finite($latitude) || !is_finite($longitude)) {
-            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Campos obrigatórios inválidos'));
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Campos obrigatórios inválidos.'));
             exit;
         }
 
@@ -207,7 +300,7 @@ class MapaPoliticoAdmin
         ]);
 
         if ($wpdb->insert_id < 1) {
-            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar localização'));
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar localização.'));
             exit;
         }
 
@@ -227,7 +320,7 @@ class MapaPoliticoAdmin
         ]);
 
         if ($wpdb->insert_id < 1) {
-            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar político'));
+            wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&error=Falha ao salvar político.'));
             exit;
         }
 
@@ -262,6 +355,7 @@ class MapaPoliticoAdmin
         if (!is_array($logs)) {
             $logs = [];
         }
+
         $logs = array_reverse(array_slice($logs, -300));
         ?>
         <div class="wrap">
