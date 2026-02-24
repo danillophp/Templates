@@ -12,6 +12,7 @@ use App\Models\PointModel;
 use App\Models\RequestModel;
 use App\Services\AuditoriaService;
 use App\Services\MessageQueueService;
+use App\Services\MessageTemplateService;
 
 final class AdminController extends Controller
 {
@@ -160,7 +161,11 @@ final class AdminController extends Controller
             $after = $model->find($id, $tenantId);
             $audit->registrar((int)Auth::user()['id'], strtoupper($action), 'solicitacoes', $id, $before, $after);
 
-            $mensagem = sprintf('Olá, %s. Sua solicitação %s foi %s. Prefeitura Municipal de Santo Antônio do Descoberto - GO.', $before['nome'], $before['protocolo'], $statusTexto);
+            $mensagem = MessageTemplateService::buildStatusMessage([
+                'nome' => (string)$before['nome'],
+                'protocolo' => (string)$before['protocolo'],
+                'status' => (string)($after['status'] ?? $statusTexto),
+            ]);
             $telefone = $this->toE164Br((string)$before['telefone']);
             $waWebLink = $this->buildWhatsAppWebLink($telefone, $mensagem);
             $waMobileLink = $this->buildWhatsAppMobileLink($telefone, $mensagem);
@@ -272,25 +277,31 @@ final class AdminController extends Controller
         if ($chartData !== '') {
             $html .= '<p><img alt="Gráfico" style="max-width:100%;height:auto" src="' . htmlspecialchars($chartData, ENT_QUOTES, 'UTF-8') . '"></p>';
         }
-        $html .= '<table><tr><th>Protocolo</th><th>Nome</th><th>Email</th><th>Telefone</th><th>CEP</th><th>Bairro</th><th>Endereço</th><th>Data agendada</th><th>Status</th><th>Criado em</th><th>Atualizado em</th><th>Latitude</th><th>Longitude</th><th>Foto</th></tr>';
+        $html .= '<table><tr><th>Protocolo</th><th>Nome</th><th>Telefone</th><th>CEP</th><th>Bairro</th><th>Endereço</th><th>Data agendada</th><th>Status</th><th>Foto</th></tr>';
         foreach ($rows as $row) {
-            $foto = (string)($row['foto'] ?? '');
-            $fotoRef = $foto !== '' ? (APP_BASE_PATH . '/uploads/' . $foto) : '-';
+            $fotoThumb = 'Sem foto';
+            $foto = trim((string)($row['foto'] ?? ''));
+            if ($foto !== '') {
+                $fotoPath = UPLOAD_PATH . '/' . basename($foto);
+                if (is_file($fotoPath) && is_readable($fotoPath)) {
+                    $bin = @file_get_contents($fotoPath);
+                    if ($bin !== false) {
+                        $mime = @mime_content_type($fotoPath) ?: 'image/jpeg';
+                        $fotoThumb = '<img src="data:' . htmlspecialchars($mime, ENT_QUOTES, 'UTF-8') . ';base64,' . base64_encode($bin) . '" width="120" alt="Foto">';
+                    }
+                }
+            }
+
             $html .= '<tr>'
                 . '<td>' . htmlspecialchars((string)$row['protocolo']) . '</td>'
                 . '<td>' . htmlspecialchars((string)$row['nome']) . '</td>'
-                . '<td>' . htmlspecialchars((string)($row['email'] ?? '')) . '</td>'
                 . '<td>' . htmlspecialchars((string)($row['telefone'] ?? '')) . '</td>'
                 . '<td>' . htmlspecialchars((string)($row['cep'] ?? '')) . '</td>'
                 . '<td>' . htmlspecialchars((string)($row['bairro'] ?? '')) . '</td>'
                 . '<td>' . htmlspecialchars((string)$row['endereco']) . '</td>'
                 . '<td>' . htmlspecialchars((string)$row['data_solicitada']) . '</td>'
                 . '<td>' . htmlspecialchars((string)$row['status']) . '</td>'
-                . '<td>' . htmlspecialchars((string)($row['criado_em'] ?? '')) . '</td>'
-                . '<td>' . htmlspecialchars((string)($row['atualizado_em'] ?? '')) . '</td>'
-                . '<td>' . htmlspecialchars((string)($row['latitude'] ?? '')) . '</td>'
-                . '<td>' . htmlspecialchars((string)($row['longitude'] ?? '')) . '</td>'
-                . '<td>' . htmlspecialchars($fotoRef) . '</td>'
+                . '<td>' . $fotoThumb . '</td>'
                 . '</tr>';
         }
         $html .= '</table></body></html>';
