@@ -44,6 +44,7 @@ class MapaPoliticoPublic
             <h2>Mapa Político</h2>
             <div class="mapa-politico-filters">
                 <input type="search" id="filtro-geral" placeholder="Pesquisar por nome, partido ou cidade" aria-label="Pesquisar por nome, partido ou cidade">
+                <button type="button" id="mapa-politico-toggle-list" class="mapa-politico-toggle-list">Lista</button>
             </div>
             <div class="mapa-politico-status" id="mapa-politico-status" aria-live="polite"></div>
             <div class="mapa-politico-layout">

@@ -19,14 +19,37 @@
     el.dataset.type = type || 'info';
   }
 
-  function sanitizePhoneToTel(phone) {
-    const digits = String(phone || '').replace(/\D/g, '');
+  function normalizeText(value) {
+    return String(value || '').toLowerCase().trim();
+  }
+
+  function sanitizePhoneDigits(phone) {
+    return String(phone || '').replace(/\D/g, '');
+  }
+
+  function buildTelLink(phone) {
+    const digits = sanitizePhoneDigits(phone);
     return digits ? `+${digits}` : '';
   }
 
-  function buildExternalRouteLink(lat, lng) {
-    const wazeUrl = `https://waze.com/ul?ll=${encodeURIComponent(`${lat},${lng}`)}&navigate=yes`;
-    const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}`;
+  function buildWhatsappLink(phone) {
+    const digits = sanitizePhoneDigits(phone);
+    if (!digits) {
+      return '';
+    }
+
+    const national = digits.startsWith('55') ? digits.slice(2) : digits;
+    if (!national) {
+      return '';
+    }
+
+    return `https://wa.me/55${national}`;
+  }
+
+  function buildRouteLink(lat, lng) {
+    const destination = encodeURIComponent(`${lat},${lng}`);
+    const wazeUrl = `https://waze.com/ul?ll=${destination}&navigate=yes`;
+    const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 
     if (/Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent || '')) {
       return wazeUrl;
@@ -38,28 +61,32 @@
   function buildCustomFieldsHtml(entry, visibilityKey) {
     const fields = Array.isArray(entry.custom_fields) ? entry.custom_fields : [];
     const visible = fields.filter((field) => Number(field[visibilityKey] || 0) === 1);
-    if (!visible.length) return '';
+    if (!visible.length) {
+      return '';
+    }
 
     return `<div class="mapa-politico-custom-fields">${visible.map((field) => `<p><strong>${escapeHtml(field.label)}:</strong> ${escapeHtml(field.value)}</p>`).join('')}</div>`;
   }
 
-  function buildPopupHtml(entry) {
-    const tel = sanitizePhoneToTel(entry.phone);
-    const routeLink = buildExternalRouteLink(entry.location.latitude, entry.location.longitude);
-    const phoneAction = tel
-      ? `<a class="mapa-politico-call-btn" href="tel:${tel}">📞 Ligar</a>`
-      : `<span class="mapa-politico-phone-text">📞 ${escapeHtml(entry.phone || 'Não informado')}</span>`;
+  function buildContactActions(entry) {
+    const telLink = buildTelLink(entry.phone);
+    const whatsappLink = buildWhatsappLink(entry.phone);
 
+    return `
+      <a class="mapa-politico-nav-btn" href="${buildRouteLink(entry.location.latitude, entry.location.longitude)}" target="_blank" rel="noopener noreferrer">➡️ Como chegar</a>
+      ${telLink ? `<a class="mapa-politico-call-btn" href="tel:${telLink}">📞 Ligar</a>` : ''}
+      ${whatsappLink ? `<a class="mapa-politico-whatsapp-btn" href="${whatsappLink}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>` : ''}
+    `;
+  }
+
+  function buildPopupHtml(entry) {
     return `
       <div class="mapa-politico-popup">
         <strong>${escapeHtml(entry.full_name)}</strong>
         <div>${escapeHtml(entry.position)} · ${escapeHtml(entry.party)}</div>
         <div>${escapeHtml(entry.location.city)} - ${escapeHtml(entry.location.state || '')}</div>
         ${buildCustomFieldsHtml(entry, 'show_on_map')}
-        <div class="mapa-politico-actions">
-          <a class="mapa-politico-nav-btn" href="${routeLink}" target="_blank" rel="noopener noreferrer">➡️ Como chegar</a>
-          ${phoneAction}
-        </div>
+        <div class="mapa-politico-actions">${buildContactActions(entry)}</div>
       </div>
     `;
   }
@@ -67,10 +94,9 @@
   function openModal(entry) {
     const modal = document.getElementById('mapa-politico-modal');
     const body = document.getElementById('mapa-politico-modal-body');
-    if (!modal || !body) return;
-
-    const tel = sanitizePhoneToTel(entry.phone);
-    const routeLink = buildExternalRouteLink(entry.location.latitude, entry.location.longitude);
+    if (!modal || !body) {
+      return;
+    }
 
     body.innerHTML = `
       <article class="mapa-politico-card">
@@ -80,13 +106,8 @@
         <p><strong>Partido:</strong> ${escapeHtml(entry.party)}</p>
         <p><strong>Cidade:</strong> ${escapeHtml(entry.location.city)}</p>
         <p><strong>Estado:</strong> ${escapeHtml(entry.location.state)}</p>
-        <p><strong>Biografia:</strong> ${escapeHtml(entry.biography)}</p>
-        <p><strong>Histórico:</strong> ${escapeHtml(entry.career_history)}</p>
         ${buildCustomFieldsHtml(entry, 'show_on_profile')}
-        <div class="mapa-politico-actions">
-          <a class="mapa-politico-nav-btn" href="${routeLink}" target="_blank" rel="noopener noreferrer">➡️ Como chegar</a>
-          ${tel ? `<a class="mapa-politico-call-btn" href="tel:${tel}">📞 Ligar</a>` : ''}
-        </div>
+        <div class="mapa-politico-actions">${buildContactActions(entry)}</div>
       </article>
     `;
 
@@ -96,14 +117,19 @@
 
   function closeModal() {
     const modal = document.getElementById('mapa-politico-modal');
-    if (!modal) return;
+    if (!modal) {
+      return;
+    }
+
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
   }
 
   function renderResults(entries, onSelect) {
     const list = document.getElementById('mapa-politico-results-list');
-    if (!list) return;
+    if (!list) {
+      return;
+    }
 
     if (!entries.length) {
       list.innerHTML = '<p>Nenhum resultado encontrado.</p>';
@@ -111,25 +137,33 @@
     }
 
     list.innerHTML = entries.map((entry) => `
-      <div class="mapa-politico-result-item" data-id="${entry.politician_id}">
-        <button type="button" class="mapa-politico-select-btn">
+      <article class="mapa-politico-result-item" data-id="${entry.politician_id}">
+        <button type="button" class="mapa-politico-select-btn" aria-label="Selecionar ${escapeHtml(entry.full_name)}">
           <strong>${escapeHtml(entry.full_name)}</strong>
-          <span>${escapeHtml(entry.party)} · ${escapeHtml(entry.location.city)} (${escapeHtml(entry.location.state)})</span>
+          <span>${escapeHtml(entry.position)}</span>
+          <span>${escapeHtml(entry.party)} · ${escapeHtml(entry.location.city)}</span>
         </button>
-      </div>
+      </article>
     `).join('');
 
     list.querySelectorAll('.mapa-politico-result-item').forEach((container) => {
       const id = Number(container.dataset.id);
       const selected = entries.find((entry) => entry.politician_id === id);
-      if (!selected) return;
-      container.querySelector('.mapa-politico-select-btn')?.addEventListener('click', () => onSelect(selected));
+      if (!selected) {
+        return;
+      }
+
+      container.querySelector('.mapa-politico-select-btn')?.addEventListener('click', function () {
+        onSelect(selected);
+      });
     });
   }
 
   async function initLeafletMap() {
     const mapEl = document.getElementById('mapa-politico-map');
-    if (!mapEl) return;
+    if (!mapEl) {
+      return;
+    }
 
     if (typeof L === 'undefined') {
       mapEl.innerHTML = '<p>Não foi possível carregar o Leaflet.</p>';
@@ -140,6 +174,7 @@
       center: GOIAS_CENTER,
       zoom: GOIAS_ZOOM,
       minZoom: 3,
+      zoomControl: true,
     });
 
     L.tileLayer(cfg.tilesUrl, {
@@ -158,24 +193,37 @@
 
     const allEntries = Array.isArray(payload.data?.entries) ? payload.data.entries : [];
     const markerLayer = L.layerGroup().addTo(map);
+    const markersById = new Map();
 
-    const applyFilter = function () {
-      const term = String(document.getElementById('filtro-geral')?.value || '').toLowerCase().trim();
+    function applyFilter() {
+      const term = normalizeText(document.getElementById('filtro-geral')?.value || '');
       const filtered = allEntries.filter((entry) => {
-        if (!term) return true;
-        const source = `${entry.full_name} ${entry.party} ${entry.location.city}`.toLowerCase();
+        if (!term) {
+          return true;
+        }
+
+        const source = normalizeText(`${entry.full_name} ${entry.party} ${entry.location.city}`);
         return source.includes(term);
       });
 
       markerLayer.clearLayers();
+      markersById.clear();
+
       filtered.forEach((entry) => {
         const marker = L.marker([entry.location.latitude, entry.location.longitude]).addTo(markerLayer);
         marker.bindPopup(buildPopupHtml(entry));
-        marker.on('click', function () { openModal(entry); });
+        marker.on('click', function () {
+          openModal(entry);
+        });
+        markersById.set(entry.politician_id, marker);
       });
 
-      renderResults(filtered, (entry) => {
+      renderResults(filtered, function (entry) {
+        const marker = markersById.get(entry.politician_id);
         map.setView([entry.location.latitude, entry.location.longitude], 13);
+        if (marker) {
+          marker.openPopup();
+        }
         openModal(entry);
       });
 
@@ -187,9 +235,17 @@
       }
 
       setStatus(`${filtered.length} resultado(s) encontrado(s).`, 'info');
-    };
+    }
 
-    document.getElementById('filtro-geral')?.addEventListener('input', applyFilter);
+    const filterInput = document.getElementById('filtro-geral');
+    filterInput?.addEventListener('input', applyFilter);
+
+    const listToggle = document.getElementById('mapa-politico-toggle-list');
+    const resultsPanel = document.querySelector('.mapa-politico-results');
+    listToggle?.addEventListener('click', function () {
+      resultsPanel?.classList.toggle('mapa-politico-results-open');
+    });
+
     applyFilter();
   }
 
