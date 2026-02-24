@@ -1,37 +1,24 @@
-# Mapa Político — Instalação e uso
+# Mapa Político (WordPress) — Instalação
+
+## Arquitetura atual
+
+- Cadastro manual no wp-admin
+- IA somente para biografia e histórico (ação manual por botão)
+- Sem sincronização automática
+- Sem filas/cron de IA
+- Foto apenas por upload manual (Media Library), salvando `photo_id`
 
 ## Instalação
-1. Compacte a pasta `mapa-politico` em um `.zip`.
-2. No WordPress: **Plugins > Adicionar novo > Enviar plugin**.
-3. Ative o plugin.
-4. Menu admin: **Mapa Político**.
 
-## Sincronização por fila
-No menu **Mapa Político > Atualização IA Goiás**:
-- **Sincronizar município**: enfileira 1 município.
-- **Sincronizar todos**: enfileira todos os municípios de GO.
-- **Processar próximo da fila**: processa 1 item por execução.
+1. Compacte a pasta `wordpress-plugin/mapa-politico` e instale no WordPress.
+2. Ative o plugin.
+3. Acesse `Mapa Político > Cadastro Manual`.
+4. Cadastre registros manualmente.
+5. Use shortcode `[mapa_politico]` em uma página.
 
-Status da fila:
-- `pendente`
-- `processando`
-- `concluido`
-- `erro`
+## IA
 
-## Front-end
-Use o shortcode:
-
-```
-[mapa_politico]
-```
-
-O mapa mostra apenas **Prefeitos**, com pesquisa e ações de rota/contato.
-
-## Segurança
-- Todos os endpoints admin usam `nonce` + `current_user_can('manage_options')`.
-- Dados inseridos são sanitizados.
-- Somente fontes públicas/institucionais são persistidas como oficiais.
-
-## Observações
-- A rotina de IA registra logs detalhados por município/etapa.
-- A criação de tabelas ocorre automaticamente na ativação.
+Configure opção `mapa_politico_openai_api_key` (ou constante `MAPA_POLITICO_OPENAI_API_KEY`).
+A IA é usada apenas para gerar texto de:
+- Biografia
+- Histórico político
