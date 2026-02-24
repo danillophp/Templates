@@ -11,7 +11,13 @@
       <a class="btn btn-outline-info w-100 mb-2" href="<?= APP_BASE_PATH ?>/?r=admin/reports/comm-csv">Exportar Comunicação CSV</a>
 
       <hr>
-      <h6 class="mb-2">Agenda do mês</h6>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Agenda do mês</h6>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Navegação do calendário">
+          <button id="btnPrevMonth" type="button" class="btn btn-outline-secondary">&lt;</button>
+          <button id="btnNextMonth" type="button" class="btn btn-outline-secondary">&gt;</button>
+        </div>
+      </div>
       <div id="calendarWidget" class="calendar-widget"></div>
 
       <hr>

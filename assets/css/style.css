@@ -203,3 +203,17 @@ body {
 @media (min-width: 992px) {
   #btnSubmitMobile { display: none !important; }
 }
+
+
+.institutional-header { background: #ffffff; border-bottom: 1px solid #dce7f3; }
+.inst-logo img { height: 56px; width: auto; object-fit: contain; }
+.logo-placeholder { min-width: 140px; padding: .4rem .7rem; border: 1px dashed #9db3c9; border-radius: 8px; font-size: .85rem; color: #37506c; text-align: center; }
+.inst-title { font-weight: 700; color: #1d3557; text-align: center; flex: 1; min-width: 240px; }
+.institutional-footer { background: #12324a; color: #f2f7fc; }
+.institutional-footer strong { color: #ffffff; }
+.footer-credit { border-top: 1px solid rgba(255,255,255,.2); padding-top: .8rem; font-size: .92rem; }
+.calendar-day:hover { outline: 1px solid #95b8de; }
+@media (max-width: 767px) {
+  .inst-logo img { height: 44px; }
+  .inst-title { font-size: .95rem; order: 3; width: 100%; }
+}

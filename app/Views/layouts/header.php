@@ -11,6 +11,31 @@
   <style>:root { --tenant-primary: <?= htmlspecialchars($_config['cor_primaria'] ?? '#198754') ?>; }</style>
 </head>
 <body>
+<?php
+$logoCataPath = __DIR__ . '/../../../resources/assets/img/logo-cata-treco.png';
+$logoPrefPath = __DIR__ . '/../../../resources/assets/img/logo-prefeitura.png';
+$logoCataUrl = APP_BASE_PATH . '/resources/assets/img/logo-cata-treco.png';
+$logoPrefUrl = APP_BASE_PATH . '/resources/assets/img/logo-prefeitura.png';
+?>
+<header class="institutional-header">
+  <div class="container-fluid px-4 py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="inst-logo">
+      <?php if (is_file($logoCataPath)): ?>
+        <img src="<?= htmlspecialchars($logoCataUrl) ?>" alt="Logo Cata Treco">
+      <?php else: ?>
+        <div class="logo-placeholder">Cata Treco</div>
+      <?php endif; ?>
+    </div>
+    <div class="inst-title">Cata Treco — Prefeitura de Santo Antônio do Descoberto – GO</div>
+    <div class="inst-logo">
+      <?php if (is_file($logoPrefPath)): ?>
+        <img src="<?= htmlspecialchars($logoPrefUrl) ?>" alt="Logo Prefeitura de Santo Antônio do Descoberto">
+      <?php else: ?>
+        <div class="logo-placeholder">Prefeitura SAD-GO</div>
+      <?php endif; ?>
+    </div>
+  </div>
+</header>
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: var(--tenant-primary)">
   <div class="container-fluid px-4">
     <a class="navbar-brand" href="<?= APP_BASE_PATH ?>/?r=citizen/home"><?= htmlspecialchars($_config['nome_prefeitura'] ?? APP_NAME) ?> • Cata Treco</a>

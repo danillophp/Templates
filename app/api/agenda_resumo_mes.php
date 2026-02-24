@@ -15,14 +15,25 @@ if (!Auth::check() || !Auth::is('admin')) {
     exit;
 }
 
-$rawMonth = trim((string)($_GET['mes'] ?? date('Y-m')));
-if (!preg_match('/^\d{4}-\d{2}$/', $rawMonth)) {
+date_default_timezone_set('America/Sao_Paulo');
+$year = (int)($_GET['year'] ?? 0);
+$month = (int)($_GET['month'] ?? 0);
+if ($year <= 0 || $month <= 0) {
+    $rawMonth = trim((string)($_GET['mes'] ?? date('Y-m')));
+    if (preg_match('/^(\d{4})-(\d{2})$/', $rawMonth, $m) === 1) {
+        $year = (int)$m[1];
+        $month = (int)$m[2];
+    }
+}
+
+if ($year < 2020 || $year > 2100 || $month < 1 || $month > 12) {
     http_response_code(422);
-    echo json_encode(['ok' => false, 'message' => 'Mês inválido.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => false, 'message' => 'Parâmetros de mês inválidos.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
+$yearMonth = sprintf('%04d-%02d', $year, $month);
 $tenantId = (int)Auth::tenantId();
-$data = (new RequestModel())->summaryByMonthDate($tenantId, $rawMonth);
+$data = (new RequestModel())->summaryByMonthDate($tenantId, $yearMonth);
 
-echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+echo json_encode(['ok' => true, 'year' => $year, 'month' => $month, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

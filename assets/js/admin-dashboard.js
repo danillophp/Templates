@@ -1,6 +1,7 @@
 const APP_BASE = (window.APP_BASE_PATH || '').replace(/\/$/, '');
 const rows = document.getElementById('reqRows');
 let chartInstance = null;
+let calendarCursor = null;
 
 const POLL_KEY = 'admin_notifications_last_id';
 const pollUrl = window.ADMIN_NOTIFICATION_POLL_URL || `${APP_BASE}/app/api/poll_novos_agendamentos.php`;
@@ -141,7 +142,8 @@ function renderCalendar(monthData, yearMonth) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const labels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-  const html = [`<div class="calendar-head">${yearMonth}</div><div class="calendar-grid">`];
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const html = [`<div class="calendar-head">${monthLabel}</div><div class="calendar-grid">`];
   labels.forEach((d) => html.push(`<div class="calendar-cell calendar-weekday">${d}</div>`));
   for (let i = 0; i < startWeekday; i += 1) html.push('<div class="calendar-cell calendar-empty"></div>');
 
@@ -149,7 +151,7 @@ function renderCalendar(monthData, yearMonth) {
     const date = `${yearMonth}-${String(day).padStart(2, '0')}`;
     const count = Number(monthData[date] || 0);
     const active = count > 0;
-    html.push(`<button class="calendar-cell calendar-day ${active ? 'is-active' : ''}" data-date="${date}" data-tooltip="${active ? `${count} agendamentos` : ''}">${day}${active ? `<span class="calendar-badge">${count}</span>` : ''}</button>`);
+    html.push(`<button class="calendar-cell calendar-day ${active ? 'is-active' : ''}" data-date="${date}" title="${count} agendamentos" data-tooltip="${count} agendamentos">${day}${active ? `<span class=\"calendar-badge\">${count}</span>` : ''}</button>`);
   }
 
   html.push('</div>');
@@ -158,14 +160,30 @@ function renderCalendar(monthData, yearMonth) {
 
 async function loadCalendarSummary() {
   const dateInput = document.getElementById('fDate');
-  const current = (dateInput?.value || new Date().toISOString().slice(0, 10)).slice(0, 7);
-  try {
-    const res = await fetch(`${calendarUrl}?mes=${encodeURIComponent(current)}`);
-    const json = await res.json();
-    renderCalendar(json.data || {}, current);
-  } catch (_) {
-    renderCalendar({}, current);
+  if (!calendarCursor) {
+    const initial = (dateInput?.value || new Date().toISOString().slice(0, 10));
+    const [y, m] = initial.split('-').map((v) => Number(v));
+    calendarCursor = { year: y, month: m };
   }
+
+  try {
+    const params = new URLSearchParams({ year: String(calendarCursor.year), month: String(calendarCursor.month).padStart(2, '0') });
+    const res = await fetch(`${calendarUrl}?${params.toString()}`);
+    const json = await res.json();
+    renderCalendar(json.data || {}, `${calendarCursor.year}-${String(calendarCursor.month).padStart(2, '0')}`);
+  } catch (_) {
+    renderCalendar({}, `${calendarCursor.year}-${String(calendarCursor.month).padStart(2, '0')}`);
+  }
+}
+
+function shiftCalendarMonth(step) {
+  if (!calendarCursor) return;
+  let y = calendarCursor.year;
+  let m = calendarCursor.month + step;
+  if (m < 1) { m = 12; y -= 1; }
+  if (m > 12) { m = 1; y += 1; }
+  calendarCursor = { year: y, month: m };
+  loadCalendarSummary();
 }
 
 function renderComm(report) {
@@ -252,7 +270,7 @@ async function loadChart() {
 }
 
 document.addEventListener('click', (event) => {
-  if (event.target.closest('.calendar-day.is-active')) {
+  if (event.target.closest('.calendar-day')) {
     const btn = event.target.closest('.calendar-day');
     const date = btn.getAttribute('data-date');
     const dateInput = document.getElementById('fDate');
@@ -262,6 +280,9 @@ document.addEventListener('click', (event) => {
     }
   }
 });
+
+document.getElementById('btnPrevMonth')?.addEventListener('click', () => shiftCalendarMonth(-1));
+document.getElementById('btnNextMonth')?.addEventListener('click', () => shiftCalendarMonth(1));
 
 document.getElementById('btnFilter')?.addEventListener('click', async () => {
   await loadRequests();

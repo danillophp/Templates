@@ -153,18 +153,18 @@ INSERT INTO planos (nome, limite_solicitacoes_mes, limite_funcionarios, valor_me
 ('Pro', 2000, 20, 799.90, 1);
 
 INSERT INTO tenants (nome, slug, dominio, ativo) VALUES
-('Prefeitura Demo', 'demo', 'demo.catatreco.com', 1);
+('Prefeitura Municipal de Santo Antônio do Descoberto - GO', 'catatreco-sad', 'prefsade.com.br', 1);
 
 INSERT INTO assinaturas (tenant_id, plano_id, status, vencimento) VALUES
 (1, 2, 'ATIVA', DATE_ADD(CURDATE(), INTERVAL 30 DAY));
 
 INSERT INTO configuracoes (tenant_id, nome_prefeitura, cor_primaria, texto_rodape, email_contato) VALUES
-(1, 'Prefeitura Demo', '#198754', 'Cata Treco SaaS', 'contato@prefdemo.gov.br');
+(1, 'Prefeitura Municipal de Santo Antônio do Descoberto - GO', '#198754', 'Cata Treco', 'secomsade@santoantoniododescoberto.go.gov.br');
 
 INSERT INTO usuarios (tenant_id, nome, email, senha, tipo, ativo) VALUES
 (NULL, 'Owner SaaS', 'owner@catatreco.com', '$2y$12$Y7qehFLNLO20wLibm2gL0eBcPoSpuXeng43FC8OIR.mJvvL2Cimwy', 'super_admin', 1),
-(1, 'Admin Demo', 'admin@prefdemo.gov.br', '$2y$12$Y7qehFLNLO20wLibm2gL0eBcPoSpuXeng43FC8OIR.mJvvL2Cimwy', 'admin', 1),
-(1, 'Funcionário Demo', 'funcionario@prefdemo.gov.br', '$2y$12$pl9kIpvdu3INlC.3LOdGyuZ61pLjHYL/urAZA9DWdfKuvv/O54KGC', 'funcionario', 1);
+(1, 'Admin Cata Treco', 'admin@prefsade.com.br', '$2y$12$Y7qehFLNLO20wLibm2gL0eBcPoSpuXeng43FC8OIR.mJvvL2Cimwy', 'admin', 1),
+(1, 'Funcionário Cata Treco', 'funcionario@prefsade.com.br', '$2y$12$pl9kIpvdu3INlC.3LOdGyuZ61pLjHYL/urAZA9DWdfKuvv/O54KGC', 'funcionario', 1);
 
 INSERT INTO pontos_mapa (tenant_id, titulo, latitude, longitude, cor_pin, ativo) VALUES
 (1, 'Ecoponto Centro', -23.550520, -46.633308, '#198754', 1);
