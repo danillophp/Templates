@@ -34,16 +34,9 @@
 
   function buildWhatsappLink(phone) {
     const digits = sanitizePhoneDigits(phone);
-    if (!digits) {
-      return '';
-    }
-
+    if (!digits) return '';
     const national = digits.startsWith('55') ? digits.slice(2) : digits;
-    if (!national) {
-      return '';
-    }
-
-    return `https://wa.me/55${national}`;
+    return national ? `https://wa.me/55${national}` : '';
   }
 
   function buildRouteLink(lat, lng) {
@@ -58,14 +51,34 @@
     return googleUrl;
   }
 
-  function buildCustomFieldsHtml(entry, visibilityKey) {
-    const fields = Array.isArray(entry.custom_fields) ? entry.custom_fields : [];
-    const visible = fields.filter((field) => Number(field[visibilityKey] || 0) === 1);
-    if (!visible.length) {
-      return '';
+  function buildCustomFieldValue(field) {
+    const type = String(field?.type || 'text');
+    const value = String(field?.value || '').trim();
+    if (!value) return '';
+
+    if (type === 'email') {
+      return `<a href="mailto:${escapeHtml(value)}">${escapeHtml(value)}</a>`;
     }
 
-    return `<div class="mapa-politico-custom-fields">${visible.map((field) => `<p><strong>${escapeHtml(field.label)}:</strong> ${escapeHtml(field.value)}</p>`).join('')}</div>`;
+    if (type === 'url') {
+      const safeUrl = value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+      return `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>`;
+    }
+
+    return escapeHtml(value);
+  }
+
+  function buildCustomFieldsHtml(entry) {
+    const fields = Array.isArray(entry.custom_fields) ? entry.custom_fields : [];
+    const visible = fields.filter((field) => Number(field.show_on_map || 0) === 1 && String(field.value || '').trim() !== '');
+    if (!visible.length) return '';
+
+    return `
+      <div class="mapa-politico-custom-fields">
+        <h4>Campos personalizados</h4>
+        ${visible.map((field) => `<p><strong>${escapeHtml(field.label)}:</strong> ${buildCustomFieldValue(field)}</p>`).join('')}
+      </div>
+    `;
   }
 
   function buildContactActions(entry) {
@@ -80,56 +93,30 @@
   }
 
   function buildPopupHtml(entry) {
+    const biography = String(entry.biography || '').trim();
+    const history = String(entry.career_history || '').trim();
+    const address = String(entry.location?.address || '').trim();
+
     return `
-      <div class="mapa-politico-popup">
-        <strong>${escapeHtml(entry.full_name)}</strong>
-        <div>${escapeHtml(entry.position)} · ${escapeHtml(entry.party)}</div>
-        <div>${escapeHtml(entry.location.city)} - ${escapeHtml(entry.location.state || '')}</div>
-        ${buildCustomFieldsHtml(entry, 'show_on_map')}
+      <div class="mapa-politico-popup-content">
+        ${entry.photo_url ? `<img class="mapa-politico-popup-photo" src="${escapeHtml(entry.photo_url)}" alt="Foto de ${escapeHtml(entry.full_name)}">` : ''}
+        <h3>${escapeHtml(entry.full_name)}</h3>
+        <p><strong>Cargo:</strong> ${escapeHtml(entry.position || '-')}</p>
+        <p><strong>Partido:</strong> ${escapeHtml(entry.party || '-')}</p>
+        <p><strong>Cidade:</strong> ${escapeHtml(entry.location.city || '-')}</p>
+        <p><strong>Estado:</strong> ${escapeHtml(entry.location.state || '-')}</p>
+        ${address ? `<p><strong>Endereço:</strong> ${escapeHtml(address)}</p>` : ''}
+        ${biography ? `<p><strong>Biografia:</strong> ${escapeHtml(biography)}</p>` : ''}
+        ${history ? `<p><strong>Histórico:</strong> ${escapeHtml(history)}</p>` : ''}
+        ${buildCustomFieldsHtml(entry)}
         <div class="mapa-politico-actions">${buildContactActions(entry)}</div>
       </div>
     `;
   }
 
-  function openModal(entry) {
-    const modal = document.getElementById('mapa-politico-modal');
-    const body = document.getElementById('mapa-politico-modal-body');
-    if (!modal || !body) {
-      return;
-    }
-
-    body.innerHTML = `
-      <article class="mapa-politico-card">
-        <h2>${escapeHtml(entry.full_name)}</h2>
-        ${entry.photo_url ? `<img src="${escapeHtml(entry.photo_url)}" alt="Foto de ${escapeHtml(entry.full_name)}">` : ''}
-        <p><strong>Cargo:</strong> ${escapeHtml(entry.position)}</p>
-        <p><strong>Partido:</strong> ${escapeHtml(entry.party)}</p>
-        <p><strong>Cidade:</strong> ${escapeHtml(entry.location.city)}</p>
-        <p><strong>Estado:</strong> ${escapeHtml(entry.location.state)}</p>
-        ${buildCustomFieldsHtml(entry, 'show_on_profile')}
-        <div class="mapa-politico-actions">${buildContactActions(entry)}</div>
-      </article>
-    `;
-
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeModal() {
-    const modal = document.getElementById('mapa-politico-modal');
-    if (!modal) {
-      return;
-    }
-
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden', 'true');
-  }
-
   function renderResults(entries, onSelect) {
     const list = document.getElementById('mapa-politico-results-list');
-    if (!list) {
-      return;
-    }
+    if (!list) return;
 
     if (!entries.length) {
       list.innerHTML = '<p>Nenhum resultado encontrado.</p>';
@@ -140,8 +127,8 @@
       <article class="mapa-politico-result-item" data-id="${entry.politician_id}">
         <button type="button" class="mapa-politico-select-btn" aria-label="Selecionar ${escapeHtml(entry.full_name)}">
           <strong>${escapeHtml(entry.full_name)}</strong>
-          <span>${escapeHtml(entry.position)}</span>
-          <span>${escapeHtml(entry.party)} · ${escapeHtml(entry.location.city)}</span>
+          <span>${escapeHtml(entry.position || '-')}</span>
+          <span>${escapeHtml(entry.party || '-')} · ${escapeHtml(entry.location.city || '-')}</span>
         </button>
       </article>
     `).join('');
@@ -149,9 +136,7 @@
     list.querySelectorAll('.mapa-politico-result-item').forEach((container) => {
       const id = Number(container.dataset.id);
       const selected = entries.find((entry) => entry.politician_id === id);
-      if (!selected) {
-        return;
-      }
+      if (!selected) return;
 
       container.querySelector('.mapa-politico-select-btn')?.addEventListener('click', function () {
         onSelect(selected);
@@ -161,9 +146,7 @@
 
   async function initLeafletMap() {
     const mapEl = document.getElementById('mapa-politico-map');
-    if (!mapEl) {
-      return;
-    }
+    if (!mapEl) return;
 
     if (typeof L === 'undefined') {
       mapEl.innerHTML = '<p>Não foi possível carregar o Leaflet.</p>';
@@ -198,10 +181,7 @@
     function applyFilter() {
       const term = normalizeText(document.getElementById('filtro-geral')?.value || '');
       const filtered = allEntries.filter((entry) => {
-        if (!term) {
-          return true;
-        }
-
+        if (!term) return true;
         const source = normalizeText(`${entry.full_name} ${entry.party} ${entry.location.city}`);
         return source.includes(term);
       });
@@ -211,20 +191,14 @@
 
       filtered.forEach((entry) => {
         const marker = L.marker([entry.location.latitude, entry.location.longitude]).addTo(markerLayer);
-        marker.bindPopup(buildPopupHtml(entry));
-        marker.on('click', function () {
-          openModal(entry);
-        });
+        marker.bindPopup(buildPopupHtml(entry), { maxWidth: 360, className: 'mapa-politico-popup-wrapper' });
         markersById.set(entry.politician_id, marker);
       });
 
       renderResults(filtered, function (entry) {
         const marker = markersById.get(entry.politician_id);
         map.setView([entry.location.latitude, entry.location.longitude], 13);
-        if (marker) {
-          marker.openPopup();
-        }
-        openModal(entry);
+        if (marker) marker.openPopup();
       });
 
       if (filtered.length > 0) {
@@ -237,8 +211,7 @@
       setStatus(`${filtered.length} resultado(s) encontrado(s).`, 'info');
     }
 
-    const filterInput = document.getElementById('filtro-geral');
-    filterInput?.addEventListener('input', applyFilter);
+    document.getElementById('filtro-geral')?.addEventListener('input', applyFilter);
 
     const listToggle = document.getElementById('mapa-politico-toggle-list');
     const resultsPanel = document.querySelector('.mapa-politico-results');
@@ -250,9 +223,4 @@
   }
 
   document.addEventListener('DOMContentLoaded', initLeafletMap);
-  document.addEventListener('click', function (event) {
-    if (event.target?.id === 'mapa-politico-close' || event.target?.id === 'mapa-politico-modal') {
-      closeModal();
-    }
-  });
 })();
