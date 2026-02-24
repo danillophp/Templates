@@ -18,16 +18,45 @@ use App\Services\TenantService;
 final class CitizenController extends Controller
 {
     private const BAIRROS_PERMITIDOS = [
-        'Centro',
+        'Aldeia da Paz',
+        'Área Rural de Santo Antônio do Descoberto',
         'Beira Rio',
+        'Beira Rio II',
+        'Centro',
+        'Conjunto Habitacional Conceição Gomes Rabelo',
+        'Fazenda Capoeirinha',
+        'Jardim Ana Beatriz I',
+        'Jardim Ana Beatriz II',
+        'Jardim de Alá',
         'Mansões Bittencourt',
-        'Mansões Entrelagos',
-        'Parque Estrela Dalva',
-        'Residencial Porto Seguro',
+        'Meu Lote Minha Casa',
+        'Parque das Rosas',
+        'Parque Estrela Dalva XI',
+        'Parque Estrela Dalva XI-A',
+        'Parque Estrela Dalva XII',
+        'Parque Estrela Dalva XIII',
+        'Parque Estrela Dalva XIV',
+        'Parque Estrela Dalva XV',
+        'Parque Estrela Dalva XVI',
+        'Parque Estrela Dalva XVII',
+        'Parque Santo Antônio',
+        'Residencial Mangueiras',
+        'Setor de Indústria',
+        'Vila Betel',
+        'Vila Cortes',
+        'Vila Esperança',
+        'Vila Maria Auxiliadora',
+        'Vila Montes Claros',
+        'Vila Montes Claros II',
+        'Vila Paraíso I',
+        'Vila Paraíso II',
+        'Vila Paraíso III',
+        'Vila Parque',
+        'Vila Raio de Luz',
         'Vila São Luiz',
-        'Outro bairro da cidade',
+        'Vila São Luiz II',
+        'Vila União',
     ];
-
     public function home(): void
     {
         $tenant = TenantService::current();
@@ -82,7 +111,7 @@ final class CitizenController extends Controller
             $nome = trim(strip_tags((string)($_POST['full_name'] ?? '')));
             $endereco = trim(strip_tags((string)($_POST['address'] ?? '')));
             $cep = preg_replace('/\D+/', '', trim((string)($_POST['cep'] ?? ''))) ?? '';
-            $bairro = trim(strip_tags((string)($_POST['district'] ?? '')));
+            $bairro = trim(strip_tags((string)($_POST['bairro'] ?? $_POST['district'] ?? '')));
             $telefone = preg_replace('/\D+/', '', (string)($_POST['whatsapp'] ?? '')) ?? '';
             $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_SANITIZE_EMAIL);
             $dataSolicitada = trim((string)($_POST['pickup_datetime'] ?? ''));

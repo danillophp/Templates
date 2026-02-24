@@ -30,7 +30,10 @@ final class User
 
     public function findByIdentifier(string $identifier, ?int $tenantId): ?array
     {
-        $sql = 'SELECT * FROM usuarios WHERE (email = :identifier OR nome = :identifier) AND ativo = 1';
+        $pdo = Database::connection();
+        $identifierField = $this->hasUsuarioColumn($pdo) ? 'usuario' : 'nome';
+
+        $sql = 'SELECT * FROM usuarios WHERE (email = :identifier OR ' . $identifierField . ' = :identifier) AND ativo = 1';
         $params = ['identifier' => $identifier];
 
         if ($tenantId !== null) {
@@ -41,10 +44,20 @@ final class User
         }
 
         $sql .= ' LIMIT 1';
-        $stmt = Database::connection()->prepare($sql);
+        $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    private function hasUsuarioColumn(\PDO $pdo): bool
+    {
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM usuarios LIKE 'usuario'");
+            return (bool)$stmt->fetch();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function updatePassword(int $id, string $hash): void

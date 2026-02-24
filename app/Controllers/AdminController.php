@@ -19,26 +19,51 @@ final class AdminController extends Controller
 {
     private function guard(): int
     {
-        if (!Auth::check() || !Auth::is('admin')) {
+        if (!Auth::check()) {
             $this->redirect('/?r=auth/login');
         }
-        return (int)Auth::tenantId();
+        return (int)(Auth::tenantId() ?? APP_DEFAULT_TENANT);
     }
 
     public function dashboard(): void
     {
         $tenantId = $this->guard();
         $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
-        $report = (new MessageQueueService())->report($tenantId);
-        $waService = new WhatsAppService();
+
+        $summary = [];
+        $points = [];
+        $report = ['enviadas' => 0, 'erros' => 0, 'falhas' => [], 'chart' => [], 'taxa_entrega' => 0, 'tempo_medio' => 0];
+        $whatsAppReady = false;
+        $waConfig = null;
+
+        try {
+            $summary = (new RequestModel())->summary($tenantId);
+            $points = (new PointModel())->active($tenantId);
+        } catch (\Throwable $e) {
+            \App\Core\ErrorHandler::log('ADMIN_DASHBOARD base-data erro: ' . $e->getMessage());
+        }
+
+        try {
+            $report = (new MessageQueueService())->report($tenantId);
+        } catch (\Throwable $e) {
+            \App\Core\ErrorHandler::log('ADMIN_DASHBOARD queue-report erro: ' . $e->getMessage());
+        }
+
+        try {
+            $waService = new WhatsAppService();
+            $whatsAppReady = $waService->isConfigured();
+            $waConfig = $waService->getMaskedConfig();
+        } catch (\Throwable $e) {
+            \App\Core\ErrorHandler::log('ADMIN_DASHBOARD whatsapp-state erro: ' . $e->getMessage());
+        }
 
         $this->view('admin/dashboard', [
-            'summary' => (new RequestModel())->summary($tenantId),
-            'points' => (new PointModel())->active($tenantId),
+            'summary' => $summary,
+            'points' => $points,
             'csrf' => Csrf::token(),
             'today' => $today,
-            'whatsAppReady' => $waService->isConfigured(),
-            'waConfig' => $waService->getMaskedConfig(),
+            'whatsAppReady' => $whatsAppReady,
+            'waConfig' => $waConfig,
             'commReport' => $report,
         ]);
     }

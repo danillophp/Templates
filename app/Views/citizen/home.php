@@ -26,7 +26,7 @@
             <div class="col-md-4"><label class="form-label">CEP</label><input class="form-control" id="cep" name="cep" required maxlength="8" placeholder="73890000"></div>
             <div class="col-md-6">
               <label class="form-label">Bairro</label>
-              <select class="form-select" id="district" name="district" required>
+              <select class="form-select" id="bairro" name="bairro" required>
                 <option value="">Selecione o bairro</option>
                 <?php foreach (($bairrosPermitidos ?? []) as $bairro): ?>
                   <option value="<?= htmlspecialchars((string)$bairro) ?>"><?= htmlspecialchars((string)$bairro) ?></option>
@@ -57,14 +57,10 @@
     <div class="card shadow-sm glass-card border-0">
       <div class="card-body p-3">
         <h5 class="mb-2">Mapa de confirmação</h5>
-        <div id="map" class="map-canvas"></div>
         <div id="geoFeedback" class="mt-2"></div>
-        <div class="mt-2 d-flex gap-2 flex-wrap">
-          <button type="button" id="btnEmergencyMode" class="btn btn-outline-warning btn-sm">Ativar modo de emergência</button>
-        </div>
         <div class="mt-3">
           <h6 class="mb-2">Visualização Google Maps</h6>
-          <iframe id="googleMapEmbed" class="w-100 rounded border" style="height:260px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=-15.9439,-48.2585&z=14&output=embed"></iframe>
+          <iframe id="googleMapEmbed" class="w-100 rounded border d-none" style="height:260px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=-15.9439,-48.2585&z=14&output=embed"></iframe>
         </div>
       </div>
     </div>
@@ -91,6 +87,4 @@ window.CATA_MAP_CONFIG = {
   allowedUf: 'GO'
 };
 </script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="<?= APP_BASE_PATH ?>/assets/js/citizen-form.js" defer></script>

@@ -29,6 +29,7 @@ final class Auth
     public static function login(array $user): void
     {
         session_regenerate_id(true);
+        $_SESSION['usuario_id'] = (int)$user['id'];
         $_SESSION['user'] = [
             'id' => (int)$user['id'],
             'tenant_id' => $user['tenant_id'] !== null ? (int)$user['tenant_id'] : null,
@@ -41,6 +42,7 @@ final class Auth
     public static function logout(): void
     {
         $_SESSION = [];
+        unset($_SESSION['usuario_id']);
         session_destroy();
     }
 }

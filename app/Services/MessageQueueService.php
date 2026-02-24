@@ -16,7 +16,7 @@ final class MessageQueueService
             tenant_id INT NOT NULL,
             solicitacao_id INT NULL,
             destino VARCHAR(40) NOT NULL,
-            payload_json JSON NOT NULL,
+            payload_json LONGTEXT NOT NULL,
             status ENUM('pendente','enviando','enviado','erro','manual') NOT NULL DEFAULT 'pendente',
             tentativas INT NOT NULL DEFAULT 0,
             erro_mensagem VARCHAR(500) NULL,

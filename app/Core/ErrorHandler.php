@@ -19,7 +19,7 @@ final class ErrorHandler
             return false;
         }
 
-        self::log("PHP Error [{$severity}] {$message} in {$file}:{$line}");
+        self::log(sprintf('PHP Error [%d] %s in %s:%d', $severity, $message, $file, $line));
         self::render500();
         return true;
     }
@@ -52,7 +52,7 @@ final class ErrorHandler
 
     public static function handleException(\Throwable $e): void
     {
-        self::log('Uncaught Exception: ' . (string)$e);
+        self::log(sprintf('Uncaught Exception: %s in %s:%d | trace=%s', $e->getMessage(), $e->getFile(), $e->getLine(), str_replace(["\n", "\r"], ' ', $e->getTraceAsString())));
 
         if (APP_DEBUG) {
             http_response_code(500);
@@ -78,10 +78,11 @@ final class ErrorHandler
     public static function log(string $content): void
     {
         $request = sprintf(
-            'method=%s uri=%s ip=%s ua=%s',
+            'method=%s uri=%s ip=%s user_id=%s ua=%s',
             (string)($_SERVER['REQUEST_METHOD'] ?? '-'),
             (string)($_SERVER['REQUEST_URI'] ?? '-'),
             (string)($_SERVER['REMOTE_ADDR'] ?? '-'),
+            isset($_SESSION['user']['id']) ? (string)$_SESSION['user']['id'] : '-',
             substr((string)($_SERVER['HTTP_USER_AGENT'] ?? '-'), 0, 180)
         );
         $dir = __DIR__ . '/../../storage/logs';
