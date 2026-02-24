@@ -4,101 +4,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-if (is_admin() && !class_exists('WP_List_Table')) {
-    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
-}
-
-class MapaPoliticoAdminListTable extends WP_List_Table
-{
-    private array $itemsData = [];
-
-    public function __construct()
-    {
-        parent::__construct([
-            'singular' => 'politico',
-            'plural' => 'politicos',
-            'ajax' => false,
-        ]);
-    }
-
-    public function set_items_data(array $items): void
-    {
-        $this->itemsData = $items;
-    }
-
-    public function get_columns(): array
-    {
-        return [
-            'cb' => '<input type="checkbox" />',
-            'full_name' => 'Nome',
-            'position' => 'Cargo',
-            'city' => 'Cidade',
-            'state' => 'Estado',
-        ];
-    }
-
-    protected function get_sortable_columns(): array
-    {
-        return [
-            'full_name' => ['full_name', false],
-            'position' => ['position', false],
-            'city' => ['city', false],
-            'state' => ['state', false],
-        ];
-    }
-
-    protected function get_bulk_actions(): array
-    {
-        return [
-            'delete' => 'Excluir selecionados',
-        ];
-    }
-
-    protected function column_cb($item): string
-    {
-        return '<input type="checkbox" name="politician_ids[]" value="' . absint($item['politician_id']) . '" />';
-    }
-
-    protected function column_full_name($item): string
-    {
-        $editUrl = admin_url('admin.php?page=mapa-politico-cadastro&edit=' . absint($item['politician_id']));
-        $deleteNonce = wp_create_nonce('mapa_politico_delete_entry_' . absint($item['politician_id']));
-        $deleteUrl = wp_nonce_url(
-            admin_url('admin-post.php?action=mapa_politico_delete_entry&politician_id=' . absint($item['politician_id'])),
-            'mapa_politico_delete_entry_' . absint($item['politician_id'])
-        );
-
-        $actions = [
-            'edit' => '<a href="' . esc_url($editUrl) . '">Editar</a>',
-            'delete' => '<a href="' . esc_url($deleteUrl) . '" onclick="return confirm(\'Deseja excluir este cadastro?\');" data-nonce="' . esc_attr($deleteNonce) . '">Excluir</a>',
-        ];
-
-        return '<strong>' . esc_html((string) $item['full_name']) . '</strong>' . $this->row_actions($actions);
-    }
-
-    protected function column_default($item, $column_name): string
-    {
-        return esc_html((string) ($item[$column_name] ?? ''));
-    }
-
-    public function prepare_items(): void
-    {
-        $perPage = 20;
-        $currentPage = $this->get_pagenum();
-        $totalItems = count($this->itemsData);
-
-        $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
-        $offset = ($currentPage - 1) * $perPage;
-        $this->items = array_slice($this->itemsData, $offset, $perPage);
-
-        $this->set_pagination_args([
-            'total_items' => $totalItems,
-            'per_page' => $perPage,
-            'total_pages' => (int) ceil($totalItems / $perPage),
-        ]);
-    }
-}
-
 class MapaPoliticoAdmin
 {
     public static function init(): void
@@ -117,7 +22,6 @@ class MapaPoliticoAdmin
     {
         add_menu_page('Mapa Político', 'Mapa Político', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm'], 'dashicons-location-alt', 26);
         add_submenu_page('mapa-politico-cadastro', 'Cadastro Manual', 'Cadastro Manual', 'manage_options', 'mapa-politico-cadastro', [self::class, 'renderUnifiedForm']);
-        add_submenu_page('mapa-politico-cadastro', 'Políticos Cadastrados', 'Políticos Cadastrados', 'manage_options', 'mapa-politico-list', [self::class, 'renderListPage']);
         add_submenu_page('mapa-politico-cadastro', 'Logs da IA', 'Logs da IA', 'manage_options', 'mapa-politico-logs', [self::class, 'renderLogs']);
     }
 
@@ -175,6 +79,17 @@ class MapaPoliticoAdmin
         $politicianId = absint($_GET['edit'] ?? 0);
         $entry = $politicianId > 0 ? self::getEntryById($politicianId) : null;
         $metaFields = $politicianId > 0 ? self::getCustomFields($politicianId) : [];
+
+        global $wpdb;
+        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
+        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+        $entries = $wpdb->get_results(
+            "SELECT p.id AS politician_id, p.full_name, p.position, l.city, l.state
+             FROM {$politiciansTable} p
+             INNER JOIN {$locationsTable} l ON l.id = p.location_id
+             ORDER BY p.id DESC",
+            ARRAY_A
+        );
         ?>
         <div class="wrap">
             <h1><?php echo $politicianId > 0 ? 'Editar cadastro de político' : 'Cadastro Manual de Político'; ?></h1>
@@ -251,60 +166,28 @@ class MapaPoliticoAdmin
                 </div>
                 <p><button type="button" class="button" id="mp-add-custom-field">➕ Adicionar Campo</button></p>
 
-                <?php submit_button($politicianId > 0 ? 'Atualizar cadastro' : 'Salvar cadastro'); ?>
+                <?php submit_button($politicianId > 0 ? '💾 Atualizar Político' : 'Salvar cadastro'); ?>
             </form>
-        </div>
-        <?php
-    }
 
-    public static function renderListPage(): void
-    {
-        if (!current_user_can('manage_options')) {
-            wp_die('Sem permissão.');
-        }
-
-        if (isset($_POST['_wpnonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'mapa_politico_bulk_delete')) {
-            $action = sanitize_text_field(wp_unslash($_POST['action'] ?? ''));
-            if ($action === 'delete') {
-                $ids = wp_unslash($_POST['politician_ids'] ?? []);
-                if (is_array($ids)) {
-                    foreach ($ids as $id) {
-                        $politicianId = absint($id);
-                        if ($politicianId > 0) {
-                            self::deletePoliticianById($politicianId);
-                        }
-                    }
-                }
-                wp_safe_redirect(admin_url('admin.php?page=mapa-politico-list&deleted=1'));
-                exit;
-            }
-        }
-
-        global $wpdb;
-        $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
-        $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
-
-        $rows = $wpdb->get_results(
-            "SELECT p.id AS politician_id, p.full_name, p.position, l.city, l.state
-             FROM {$politiciansTable} p
-             INNER JOIN {$locationsTable} l ON l.id = p.location_id
-             ORDER BY p.id DESC",
-            ARRAY_A
-        );
-
-        $table = new MapaPoliticoAdminListTable();
-        $table->set_items_data(is_array($rows) ? $rows : []);
-        $table->prepare_items();
-        ?>
-        <div class="wrap">
-            <h1 class="wp-heading-inline">Políticos Cadastrados</h1>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=mapa-politico-cadastro')); ?>" class="page-title-action">Adicionar novo</a>
-            <hr class="wp-header-end" />
-
-            <form method="post">
-                <?php wp_nonce_field('mapa_politico_bulk_delete'); ?>
-                <?php $table->display(); ?>
-            </form>
+            <h2>Políticos cadastrados</h2>
+            <table class="widefat striped">
+                <thead><tr><th>Nome</th><th>Cargo</th><th>Cidade</th><th>Ações</th></tr></thead>
+                <tbody>
+                    <?php if (empty($entries)): ?>
+                        <tr><td colspan="4">Nenhum cadastro encontrado.</td></tr>
+                    <?php else: foreach ($entries as $listEntry): ?>
+                        <tr>
+                            <td><?php echo esc_html((string) $listEntry['full_name']); ?></td>
+                            <td><?php echo esc_html((string) $listEntry['position']); ?></td>
+                            <td><?php echo esc_html((string) $listEntry['city']); ?></td>
+                            <td>
+                                <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=mapa-politico-cadastro&edit=' . absint($listEntry['politician_id']))); ?>">Editar</a>
+                                <a class="button button-small button-link-delete" onclick="return confirm('Deseja excluir este cadastro?');" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=mapa_politico_delete_entry&politician_id=' . absint($listEntry['politician_id'])), 'mapa_politico_delete_entry_' . absint($listEntry['politician_id']))); ?>">Excluir</a>
+                            </td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                </tbody>
+            </table>
         </div>
         <?php
     }
@@ -485,7 +368,7 @@ class MapaPoliticoAdmin
             self::saveCustomFields($politicianId);
         }
 
-        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-list&saved=1'));
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&saved=1'));
         exit;
     }
 
@@ -502,7 +385,7 @@ class MapaPoliticoAdmin
             self::deletePoliticianById($politicianId);
         }
 
-        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-list&deleted=1'));
+        wp_safe_redirect(admin_url('admin.php?page=mapa-politico-cadastro&deleted=1'));
         exit;
     }
 

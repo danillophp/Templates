@@ -59,6 +59,14 @@
     return url.toString();
   }
 
+
+  function buildCustomFieldsHtml(entry) {
+    const fields = Array.isArray(entry.custom_fields) ? entry.custom_fields : [];
+    if (!fields.length) return '';
+
+    return `<div class="mapa-politico-custom-fields">${fields.map((field) => `<p><strong>${escapeHtml(field.label)}:</strong> ${escapeHtml(field.value)}</p>`).join('')}</div>`;
+  }
+
   function buildWazeDirectionUrl(destLat, destLng) {
     const url = new URL('https://waze.com/ul');
     url.searchParams.set('ll', `${destLat},${destLng}`);
@@ -76,6 +84,7 @@
         <div>${escapeHtml(entry.position)} · ${escapeHtml(entry.party)}</div>
         <div>${escapeHtml(entry.location.city)} - ${escapeHtml(entry.location.state || '')}</div>
         <div>CEP: ${escapeHtml(entry.location.postal_code || '-')}</div>
+        ${buildCustomFieldsHtml(entry)}
         <div class="mapa-politico-actions">
           <button type="button" class="mapa-politico-route-btn" data-route-id="${entry.politician_id}">🛣️ Traçar rota no mapa</button>
           <button type="button" class="mapa-politico-nav-btn" data-nav-id="${entry.politician_id}">📍 Como chegar</button>
@@ -107,6 +116,7 @@
         ${phoneBlock}
         <p><strong>Biografia:</strong> ${escapeHtml(entry.biography)}</p>
         <p><strong>Histórico:</strong> ${escapeHtml(entry.career_history)}</p>
+        ${buildCustomFieldsHtml(entry)}
         <div class="mapa-politico-actions">
           <button type="button" class="mapa-politico-route-btn" data-route-id="${entry.politician_id}">🛣️ Traçar rota no mapa</button>
           <button type="button" class="mapa-politico-nav-btn" data-nav-id="${entry.politician_id}">📍 Como chegar</button>

@@ -54,3 +54,5 @@
   .mapa-politico-call-btn,
   .mapa-politico-phone-text { width: 100%; text-align: center; }
 }
+
+.mapa-politico-custom-fields p { margin: .2rem 0; }

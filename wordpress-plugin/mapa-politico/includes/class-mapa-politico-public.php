@@ -96,6 +96,7 @@ class MapaPoliticoPublic
         global $wpdb;
         $locationsTable = $wpdb->prefix . 'mapa_politico_locations';
         $politiciansTable = $wpdb->prefix . 'mapa_politico_politicians';
+        $metaTable = $wpdb->prefix . 'mapa_politico_politician_meta';
 
         $where = [];
         $params = [];
@@ -140,6 +141,24 @@ class MapaPoliticoPublic
 
         $entries = [];
         foreach ($rows as $row) {
+            $customRows = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT meta_label, meta_type, meta_value FROM {$metaTable} WHERE politician_id = %d ORDER BY id ASC",
+                    (int) $row['politician_id']
+                ),
+                ARRAY_A
+            );
+
+            $customFields = [];
+            if (is_array($customRows)) {
+                foreach ($customRows as $customRow) {
+                    $customFields[] = [
+                        'label' => (string) ($customRow['meta_label'] ?? ''),
+                        'type' => (string) ($customRow['meta_type'] ?? 'text'),
+                        'value' => (string) ($customRow['meta_value'] ?? ''),
+                    ];
+                }
+            }
             $entries[] = [
                 'politician_id' => (int) $row['politician_id'],
                 'full_name' => (string) $row['full_name'],
@@ -150,6 +169,7 @@ class MapaPoliticoPublic
                 'phone' => (string) $row['phone'],
                 'email' => (string) $row['email'],
                 'photo_url' => !empty($row['photo_id']) ? wp_get_attachment_image_url((int) $row['photo_id'], 'medium') : null,
+                'custom_fields' => $customFields,
                 'location' => [
                     'id' => (int) $row['location_id'],
                     'city' => (string) $row['city'],
