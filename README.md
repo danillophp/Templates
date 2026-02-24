@@ -43,11 +43,13 @@ Sistema web em PHP 8+ (MVC) para gestão de solicitações de Cata Treco da pref
 
 ## Banco de dados (HostGator)
 
-Credenciais configuradas:
+⚠️ **Segurança:** não versione credenciais reais no repositório. Use variáveis de ambiente e mantenha segredos apenas no servidor.
 
-- Banco: `santo821_treco`
-- Usuário: `santo821_catatreco`
-- Senha: `php@3903`
+Exemplo de configuração:
+
+- Banco: `SEU_BANCO`
+- Usuário: `SEU_USUARIO`
+- Senha: `SUA_SENHA_FORTE`
 
 Arquivos:
 
