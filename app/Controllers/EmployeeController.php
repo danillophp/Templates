@@ -9,7 +9,6 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Models\LogModel;
 use App\Models\RequestModel;
-use App\Services\WhatsAppService;
 
 final class EmployeeController extends Controller
 {
@@ -64,7 +63,16 @@ final class EmployeeController extends Controller
 
         $wa = null;
         if ($notify) {
-            $wa = (new WhatsAppService())->send($tenantId, (string)$request['telefone'], 'Sua coleta de Cata Treco foi finalizada. Prefeitura Municipal.');
+            $phone = preg_replace('/\D+/', '', (string)$request['telefone']) ?? '';
+            if (!str_starts_with($phone, '55')) {
+                $phone = '55' . $phone;
+            }
+            $msg = 'Sua coleta de Cata Treco foi finalizada. Prefeitura Municipal de Santo Antônio do Descoberto - GO.';
+            $wa = [
+                'whatsapp_url' => 'https://web.whatsapp.com/send?phone=' . $phone . '&text=' . rawurlencode($msg),
+                'whatsapp_mobile_url' => 'https://wa.me/' . $phone . '?text=' . rawurlencode($msg),
+                'message_preview' => $msg,
+            ];
         }
 
         $this->json(['ok' => true, 'message' => 'Status atualizado.', 'whatsapp' => $wa]);

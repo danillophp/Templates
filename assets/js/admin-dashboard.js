@@ -27,17 +27,19 @@ function openWhatsAppMessagesModal(messages) {
   if (!body) return;
 
   body.innerHTML = messages.map((item) => {
-    const safeText = String(item.mensagem || '');
+    const safeText = String(item.message_preview || item.mensagem || '');
     const safeName = String(item.nome || 'Munícipe');
     const safePhone = String(item.telefone || '');
-    const safeLink = String(item.wa_link || '#');
+    const safeLink = String(item.whatsapp_url || '#');
+    const safeMobile = String(item.whatsapp_mobile_url || safeLink);
 
     return `<div class="border rounded p-2 mb-2">
       <div class="fw-semibold mb-1">${safeName} • ${safePhone}</div>
       <textarea class="form-control form-control-sm mb-2 wa-msg-text" rows="3">${safeText}</textarea>
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-secondary btn-sm btnCopyWaMsg" type="button">Copiar</button>
-        <a class="btn btn-success btn-sm" href="${safeLink}" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+        <a class="btn btn-success btn-sm" href="${safeLink}" target="_blank" rel="noopener">Abrir WhatsApp Web</a>
+        <a class="btn btn-outline-success btn-sm" href="${safeMobile}" target="_blank" rel="noopener">Abrir no Celular</a>
       </div>
     </div>`;
   }).join('');
@@ -46,6 +48,28 @@ function openWhatsAppMessagesModal(messages) {
   if (!modalEl) return;
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+
+  body.querySelectorAll('.btnCopyWaMsg').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const text = btn.closest('.border')?.querySelector('.wa-msg-text')?.value || '';
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Mensagem copiada.', 'success');
+      } catch (_) {
+        showToast('Não foi possível copiar automaticamente.', 'warning');
+      }
+    });
+  });
+
+  messages.forEach((item) => {
+    const link = String(item.whatsapp_url || '');
+    if (link) {
+      const opened = window.open(link, '_blank');
+      if (!opened) {
+        showToast('Popup bloqueado. Use o botão "Abrir WhatsApp Web" no modal.', 'warning');
+      }
+    }
+  });
 }
 
 function selectedIds(singleId = null) {
@@ -247,16 +271,6 @@ document.addEventListener('click', (event) => {
       loadRequests();
     }
   }
-});
-
-document.getElementById('btnSaveWaConfig')?.addEventListener('click', async () => {
-  const fd = new FormData();
-  fd.append('_csrf', window.CSRF);
-  fd.append('wa_token', document.getElementById('waToken')?.value || '');
-  fd.append('wa_phone_number_id', document.getElementById('waPhoneId')?.value || '');
-  const res = await fetch(window.ADMIN_SAVE_WA_CONFIG_URL, { method: 'POST', body: fd });
-  const json = await res.json();
-  showToast(json.message, json.ok ? 'success' : 'danger');
 });
 
 document.getElementById('btnFilter')?.addEventListener('click', async () => {

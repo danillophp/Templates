@@ -23,7 +23,6 @@ final class Router
         'api/admin/update',
         'api/admin/dashboard',
         'api/admin/comm-report',
-        'api/admin/whatsapp/config',
         'api/employee/start',
         'api/employee/finish',
         'api/solicitacoes',
@@ -59,7 +58,6 @@ final class Router
             case 'api/admin/update': (new AdminController())->update(); break;
             case 'api/admin/dashboard': (new AdminController())->dashboardApi(); break;
             case 'api/admin/comm-report': (new AdminController())->commReportApi(); break;
-            case 'api/admin/whatsapp/config': (new AdminController())->saveWhatsAppConfig(); break;
             case 'admin/reports/csv': (new AdminController())->exportCsv(); break;
             case 'admin/reports/pdf': (new AdminController())->exportPdf(); break;
             case 'admin/reports/comm-csv': (new AdminController())->exportCommCsv(); break;

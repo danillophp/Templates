@@ -148,13 +148,6 @@ final class CitizenController extends Controller
                 throw new \RuntimeException('Agendamentos apenas às quintas-feiras.');
             }
 
-            if ($latitude === 0.0 || $longitude === 0.0) {
-                throw new \RuntimeException('Confirme a localização no mapa antes de enviar.');
-            }
-            if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
-                throw new \RuntimeException('Coordenadas inválidas. Ajuste o marcador no mapa.');
-            }
-
             if ($viacepCity !== '' || $viacepUf !== '') {
                 if ($this->normalize($viacepCity) !== $this->normalize('Santo Antônio do Descoberto') || $viacepUf !== 'GO') {
                     throw new \RuntimeException('Atendimento exclusivo para Santo Antônio do Descoberto - GO.');
@@ -187,6 +180,9 @@ final class CitizenController extends Controller
             $receipt = [
                 'nome' => $nome,
                 'endereco' => $endereco,
+                'bairro' => $bairro,
+                'cidade' => 'Santo Antônio do Descoberto',
+                'uf' => 'GO',
                 'data_solicitada' => $requestedDate->format('Y-m-d'),
                 'telefone' => $telefone,
                 'email' => $email,
