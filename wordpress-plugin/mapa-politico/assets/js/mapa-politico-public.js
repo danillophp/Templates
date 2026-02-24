@@ -100,12 +100,16 @@
 
     return `
       <article class="mapa-politico-modal-article">
-        ${entry.photo_url ? `<img class="mapa-politico-modal-photo" src="${escapeHtml(entry.photo_url)}" alt="Foto de ${escapeHtml(entry.full_name)}">` : ''}
-        <h3>${escapeHtml(entry.full_name)}</h3>
-        <p><strong>Cargo:</strong> ${escapeHtml(entry.position || '-')}</p>
-        <p><strong>Partido:</strong> ${escapeHtml(entry.party || '-')}</p>
-        <p><strong>Cidade:</strong> ${escapeHtml(entry.location.city || '-')}</p>
-        <p><strong>Estado:</strong> ${escapeHtml(entry.location.state || '-')}</p>
+        <header class="mapa-politico-modal-header">
+          ${entry.photo_url ? `<img class="mapa-politico-modal-photo" src="${escapeHtml(entry.photo_url)}" alt="Foto de ${escapeHtml(entry.full_name)}">` : ''}
+          <div class="mapa-politico-modal-identity">
+            <h3>${escapeHtml(entry.full_name)}</h3>
+            <p><strong>Cargo:</strong> ${escapeHtml(entry.position || '-')}</p>
+            <p><strong>Partido:</strong> ${escapeHtml(entry.party || '-')}</p>
+            <p><strong>Cidade:</strong> ${escapeHtml(entry.location.city || '-')}</p>
+            <p><strong>Estado:</strong> ${escapeHtml(entry.location.state || '-')}</p>
+          </div>
+        </header>
         ${address ? `<p><strong>Endereço:</strong> ${escapeHtml(address)}</p>` : ''}
         ${biography ? `<p><strong>Biografia:</strong> ${escapeHtml(biography)}</p>` : ''}
         ${history ? `<p><strong>Histórico:</strong> ${escapeHtml(history)}</p>` : ''}
