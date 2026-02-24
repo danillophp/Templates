@@ -1,0 +1,9 @@
+.mpg-wrap { max-width: 1200px; margin: 0 auto; }
+.mpg-filters { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); margin-bottom: 12px; }
+.mpg-filters input, .mpg-filters button { padding: 10px; }
+.mpg-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+#mpg-map { min-height: 520px; border-radius: 8px; overflow: hidden; }
+#mpg-results { max-height: 520px; overflow: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px; background: #fff; }
+.mpg-card { border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-bottom: 8px; cursor: pointer; }
+.mpg-card:hover { background: #f8fbff; }
+@media (max-width: 900px) { .mpg-layout { grid-template-columns: 1fr; } }
