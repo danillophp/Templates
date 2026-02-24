@@ -1,7 +1,7 @@
 .mapa-politico-wrapper { margin: 1rem 0; }
 .mapa-politico-filters { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: .5rem; margin-bottom: .75rem; }
 .mapa-politico-filters input,
-.mapa-politico-filters button { padding: .6rem .7rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: .95rem; }
+.mapa-politico-filters button { padding: .65rem .75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: .95rem; }
 .mapa-politico-toggle-list { background: #f8fafc; color: #1f2937; cursor: pointer; }
 
 .mapa-politico-status { min-height: 1.25rem; margin: .25rem 0 .75rem; font-size: .92rem; }
@@ -17,7 +17,7 @@
 .mapa-politico-select-btn strong { display: block; color: #111827; }
 .mapa-politico-select-btn span { display: block; color: #4b5563; margin-top: .2rem; }
 
-.mapa-politico-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .5rem; }
+.mapa-politico-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .75rem; }
 .mapa-politico-nav-btn,
 .mapa-politico-call-btn,
 .mapa-politico-whatsapp-btn,
@@ -28,13 +28,17 @@
 .mapa-politico-whatsapp-btn { border: 1px solid #86efac; background: #dcfce7; color: #166534; }
 .mapa-politico-phone-text { border: 1px dashed #d1d5db; color: #374151; background: #f9fafb; }
 
-#mapa-politico-modal { position: fixed; inset: 0; display: none; background: rgba(0,0,0,.5); align-items: center; justify-content: center; padding: 1rem; z-index: 99999; }
+#mapa-politico-modal { position: fixed; inset: 0; display: none; background: rgba(0, 0, 0, .58); align-items: center; justify-content: center; padding: 1rem; z-index: 99999; }
 #mapa-politico-modal.open { display: flex; }
-.mapa-politico-modal-content { position: relative; background: #fff; width: min(900px, 100%); max-height: 90vh; overflow: auto; border-radius: 12px; padding: 1rem; }
-#mapa-politico-close { position: absolute; top: .5rem; right: .5rem; border: none; width: 2rem; height: 2rem; border-radius: 999px; cursor: pointer; }
-.mapa-politico-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: .8rem; margin-bottom: .75rem; }
-.mapa-politico-card img { max-width: 160px; border-radius: 8px; }
-.mapa-politico-custom-fields p { margin: .2rem 0; }
+.mapa-politico-modal-content { position: relative; background: #fff; width: min(980px, 100%); max-height: 92vh; overflow: auto; border-radius: 14px; padding: 1rem; }
+#mapa-politico-close { position: absolute; top: .6rem; right: .6rem; border: none; width: 2rem; height: 2rem; border-radius: 999px; cursor: pointer; font-size: 1.15rem; }
+
+.mapa-politico-modal-article { font-size: .95rem; line-height: 1.45; }
+.mapa-politico-modal-article h3 { margin: .25rem 0 .65rem; font-size: 1.25rem; }
+.mapa-politico-modal-article p { margin: .35rem 0; }
+.mapa-politico-modal-photo { width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; margin-bottom: .75rem; }
+.mapa-politico-custom-fields h4 { margin: .75rem 0 .35rem; font-size: 1rem; }
+.mapa-politico-custom-fields p { margin: .25rem 0; }
 
 @media (max-width: 1024px) {
   .mapa-politico-layout { grid-template-columns: 1fr; }
@@ -46,17 +50,14 @@
   .mapa-politico-filters { grid-template-columns: 1fr; }
   .mapa-politico-results { display: none; }
   .mapa-politico-results.mapa-politico-results-open { display: block; }
+
   .mapa-politico-actions { flex-direction: column; align-items: stretch; }
   .mapa-politico-nav-btn,
   .mapa-politico-call-btn,
   .mapa-politico-whatsapp-btn,
   .mapa-politico-phone-text { width: 100%; }
+
+  #mapa-politico-modal { padding: 0; }
+  .mapa-politico-modal-content { width: 100%; height: 100%; max-height: 100vh; border-radius: 0; padding: 1rem .85rem; }
+  .mapa-politico-modal-photo { max-height: 220px; }
 }
-
-
-.mapa-politico-popup-wrapper .leaflet-popup-content { margin: 10px 12px; }
-.mapa-politico-popup-content { max-height: 300px; overflow-y: auto; font-size: .92rem; line-height: 1.4; }
-.mapa-politico-popup-content h3 { margin: .25rem 0 .45rem; font-size: 1rem; }
-.mapa-politico-popup-content p { margin: .25rem 0; }
-.mapa-politico-popup-photo { width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
-.mapa-politico-custom-fields h4 { margin: .45rem 0 .25rem; font-size: .92rem; }

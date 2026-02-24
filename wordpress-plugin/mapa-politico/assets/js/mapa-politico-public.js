@@ -12,15 +12,15 @@
       .replace(/'/g, '&#39;');
   }
 
+  function normalizeText(value) {
+    return String(value || '').toLowerCase().trim();
+  }
+
   function setStatus(message, type) {
     const el = document.getElementById('mapa-politico-status');
     if (!el) return;
     el.textContent = message || '';
     el.dataset.type = type || 'info';
-  }
-
-  function normalizeText(value) {
-    return String(value || '').toLowerCase().trim();
   }
 
   function sanitizePhoneDigits(phone) {
@@ -71,35 +71,36 @@
   function buildCustomFieldsHtml(entry) {
     const fields = Array.isArray(entry.custom_fields) ? entry.custom_fields : [];
     const visible = fields.filter((field) => Number(field.show_on_map || 0) === 1 && String(field.value || '').trim() !== '');
+
     if (!visible.length) return '';
 
     return `
-      <div class="mapa-politico-custom-fields">
+      <section class="mapa-politico-custom-fields">
         <h4>Campos personalizados</h4>
         ${visible.map((field) => `<p><strong>${escapeHtml(field.label)}:</strong> ${buildCustomFieldValue(field)}</p>`).join('')}
-      </div>
+      </section>
     `;
   }
 
   function buildContactActions(entry) {
-    const telLink = buildTelLink(entry.phone);
-    const whatsappLink = buildWhatsappLink(entry.phone);
+    const tel = buildTelLink(entry.phone);
+    const whatsapp = buildWhatsappLink(entry.phone);
 
     return `
       <a class="mapa-politico-nav-btn" href="${buildRouteLink(entry.location.latitude, entry.location.longitude)}" target="_blank" rel="noopener noreferrer">➡️ Como chegar</a>
-      ${telLink ? `<a class="mapa-politico-call-btn" href="tel:${telLink}">📞 Ligar</a>` : ''}
-      ${whatsappLink ? `<a class="mapa-politico-whatsapp-btn" href="${whatsappLink}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>` : ''}
+      ${tel ? `<a class="mapa-politico-call-btn" href="tel:${tel}">📞 Ligar</a>` : ''}
+      ${whatsapp ? `<a class="mapa-politico-whatsapp-btn" href="${whatsapp}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>` : ''}
     `;
   }
 
-  function buildPopupHtml(entry) {
+  function buildModalHtml(entry) {
+    const address = String(entry.location?.address || '').trim();
     const biography = String(entry.biography || '').trim();
     const history = String(entry.career_history || '').trim();
-    const address = String(entry.location?.address || '').trim();
 
     return `
-      <div class="mapa-politico-popup-content">
-        ${entry.photo_url ? `<img class="mapa-politico-popup-photo" src="${escapeHtml(entry.photo_url)}" alt="Foto de ${escapeHtml(entry.full_name)}">` : ''}
+      <article class="mapa-politico-modal-article">
+        ${entry.photo_url ? `<img class="mapa-politico-modal-photo" src="${escapeHtml(entry.photo_url)}" alt="Foto de ${escapeHtml(entry.full_name)}">` : ''}
         <h3>${escapeHtml(entry.full_name)}</h3>
         <p><strong>Cargo:</strong> ${escapeHtml(entry.position || '-')}</p>
         <p><strong>Partido:</strong> ${escapeHtml(entry.party || '-')}</p>
@@ -110,8 +111,25 @@
         ${history ? `<p><strong>Histórico:</strong> ${escapeHtml(history)}</p>` : ''}
         ${buildCustomFieldsHtml(entry)}
         <div class="mapa-politico-actions">${buildContactActions(entry)}</div>
-      </div>
+      </article>
     `;
+  }
+
+  function openModal(entry) {
+    const modal = document.getElementById('mapa-politico-modal');
+    const body = document.getElementById('mapa-politico-modal-body');
+    if (!modal || !body) return;
+
+    body.innerHTML = buildModalHtml(entry);
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('mapa-politico-modal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
   }
 
   function renderResults(entries, onSelect) {
@@ -178,6 +196,11 @@
     const markerLayer = L.layerGroup().addTo(map);
     const markersById = new Map();
 
+    function focusEntry(entry) {
+      map.setView([entry.location.latitude, entry.location.longitude], 13);
+      openModal(entry);
+    }
+
     function applyFilter() {
       const term = normalizeText(document.getElementById('filtro-geral')?.value || '');
       const filtered = allEntries.filter((entry) => {
@@ -191,15 +214,13 @@
 
       filtered.forEach((entry) => {
         const marker = L.marker([entry.location.latitude, entry.location.longitude]).addTo(markerLayer);
-        marker.bindPopup(buildPopupHtml(entry), { maxWidth: 360, className: 'mapa-politico-popup-wrapper' });
+        marker.on('click', function () {
+          focusEntry(entry);
+        });
         markersById.set(entry.politician_id, marker);
       });
 
-      renderResults(filtered, function (entry) {
-        const marker = markersById.get(entry.politician_id);
-        map.setView([entry.location.latitude, entry.location.longitude], 13);
-        if (marker) marker.openPopup();
-      });
+      renderResults(filtered, focusEntry);
 
       if (filtered.length > 0) {
         const bounds = L.latLngBounds(filtered.map((entry) => [entry.location.latitude, entry.location.longitude]));
@@ -217,6 +238,13 @@
     const resultsPanel = document.querySelector('.mapa-politico-results');
     listToggle?.addEventListener('click', function () {
       resultsPanel?.classList.toggle('mapa-politico-results-open');
+    });
+
+    document.getElementById('mapa-politico-close')?.addEventListener('click', closeModal);
+    document.getElementById('mapa-politico-modal')?.addEventListener('click', function (event) {
+      if (event.target?.id === 'mapa-politico-modal') {
+        closeModal();
+      }
     });
 
     applyFilter();
