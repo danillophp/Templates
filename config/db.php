@@ -2,14 +2,11 @@
 
 declare(strict_types=1);
 
-/**
- * Credenciais de conexão MySQL para HostGator.
- */
 final class DbConfig
 {
     public const HOST = 'localhost';
-    public const DATABASE = 'santo821_treco';
-    public const USERNAME = 'catatreco';
-    public const PASSWORD = 'php@3903';
+    public const DATABASE = 'educasade';
+    public const USERNAME = 'root';
+    public const PASSWORD = '';
     public const CHARSET = 'utf8mb4';
 }

@@ -2,25 +2,18 @@
 
 declare(strict_types=1);
 
-// Configurações principais da aplicação.
-const APP_NAME = 'CATA TRECO';
-const APP_URL = 'https://www.prefsade.com.br/catatreco';
-const APP_BASE_PATH = '/catatreco/public';
+const APP_NAME = 'Educa SADE';
 const APP_TIMEZONE = 'America/Sao_Paulo';
+const APP_BASE_PATH = '';
+const SESSION_NAME = 'educa_sade';
+const UPLOAD_PATH = __DIR__ . '/../storage/uploads';
+const LOG_PATH = __DIR__ . '/../storage/logs/app.log';
 
-// Uploads.
-const UPLOAD_PATH = __DIR__ . '/../uploads';
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-
-// WhatsApp Cloud API (Meta) - preencher em produção.
-const WA_API_ENABLED = false;
-const WA_TOKEN = '';
-const WA_PHONE_NUMBER_ID = '';
-const WA_BUSINESS_NUMBER = '5511999999999';
-const WA_TEMPLATE_APPROVED = 'cata_treco_aprovada';
-const WA_TEMPLATE_RESCHEDULED = 'cata_treco_reagendada';
-const WA_TEMPLATE_FINISHED = 'cata_treco_finalizada';
-const WA_API_VERSION = 'v20.0';
-
-// Segurança da sessão.
-const SESSION_NAME = 'catatreco_session';
+const ROLES = [
+    'super_admin',
+    'secretaria',
+    'gestor',
+    'diretor',
+    'estoque',
+    'conteudo',
+];

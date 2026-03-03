@@ -21,6 +21,12 @@ spl_autoload_register(static function (string $class): void {
 date_default_timezone_set(APP_TIMEZONE);
 
 session_name(SESSION_NAME);
+session_set_cookie_params([
+    'httponly' => true,
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'samesite' => 'Lax',
+]);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
