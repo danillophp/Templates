@@ -25,4 +25,22 @@ class Controller
         header('Location: ' . APP_BASE_PATH . '/index.php?r=' . ltrim($path, '/'));
         exit;
     }
+
+    protected function applyHttpCacheHeaders(string $etag, string $lastModified): bool
+    {
+        header('ETag: "' . $etag . '"');
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', strtotime($lastModified)) . ' GMT');
+        header('Cache-Control: public, max-age=60, stale-while-revalidate=120');
+
+        $ifNoneMatch = trim((string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''), '"');
+        $ifModifiedSince = (string) ($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? '');
+        $imsTime = $ifModifiedSince ? strtotime($ifModifiedSince) : false;
+
+        if ($ifNoneMatch === $etag || ($imsTime !== false && $imsTime >= strtotime($lastModified))) {
+            http_response_code(304);
+            return true;
+        }
+
+        return false;
+    }
 }

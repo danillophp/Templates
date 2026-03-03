@@ -1,40 +1,37 @@
-# Educa SADE - Portal + E-EDUCA
+# EDUCASADECOM + E-EDUCA
 
-Ecossistema web para a Secretaria Municipal de Educação de Santo Antônio do Descoberto (GO), compatível com **HostGator shared hosting**, **PHP 8.2+** e **MySQL 8**.
+Plataforma web da Secretaria Municipal de Educação de Santo Antônio do Descoberto (GO), com portal público + módulo restrito de gestão, em **PHP 8.2** e **MySQL 8**, otimizada para **HostGator compartilhada**.
 
-## Estrutura de pastas
+## Módulos
+- Portal institucional público.
+- Primeira Infância.
+- Transparência + SIC/e-SIC (base estrutural).
+- E-EDUCA (admin): escolas/creches, conteúdos e estoque.
+- APIs públicas e administrativas.
+- Cache interno em MySQL com TTL + tags + ETag/Last-Modified.
 
-- `public/`: front controller web (`index.php`) e assets públicos.
-- `app/Core`: núcleo (Router, Controller, Auth, Csrf, Database).
-- `app/Controllers`: controllers públicos, admin, auth e API.
-- `app/Models`: acesso a dados com PDO + prepared statements.
-- `app/Services`: serviços transversais (auditoria).
-- `app/Views`: páginas portal, admin e autenticação.
-- `config/`: configurações da aplicação e banco.
-- `sql/`: script completo de banco (`educasade.sql`) + migrations.
-- `storage/uploads`: uploads (com proteção via `.htaccess`).
-- `storage/logs`: logs técnicos.
-- `docs/`: planejamento e documentação técnica.
+## Estrutura
+- `app/Core`: roteamento, auth, csrf, db, headers.
+- `app/Controllers`: público, admin, auth, api.
+- `app/Models`: persistência via PDO prepared statements.
+- `app/Services`: `CacheService` e `AuditService`.
+- `app/Views`: frontend responsivo Bootstrap 5.
+- `sql/educasade.sql`: schema completo incluindo cache.
+- `docs/PLANEJAMENTO.md`: desenho de módulos e roadmap.
+- `docs/CACHE.md`: desenho do cache, SQL, estratégia e testes.
 
-## Instalação (HostGator)
-1. Suba os arquivos para `public_html/educa`.
-2. Configure `config/db.php` com usuário/senha reais.
-3. Importe `sql/educasade.sql` no phpMyAdmin.
-4. Garanta permissão de escrita para `storage/uploads` e `storage/logs`.
-5. Configure DocumentRoot para `/public` (ou mantenha `index.php` raiz redirecionando para `public/index.php`).
-6. Acesse `/index.php?r=home`.
+## Instalação rápida (HostGator)
+1. Upload para `public_html/educa`.
+2. Ajuste `config/db.php`.
+3. Importe `sql/educasade.sql`.
+4. Permissões de escrita em `storage/uploads`, `storage/logs`, `storage/cache`.
+5. Acesse `index.php?r=home`.
 
-## Segurança aplicada
-- PDO com prepared statements.
-- CSRF em formulários sensíveis.
-- Sessão com `HttpOnly` + `SameSite=Lax`.
-- RBAC por perfis: super_admin, secretaria, gestor, diretor, estoque, conteudo.
-- Auditoria em `audit_logs` para ações críticas.
-- Dados públicos apenas agregados (LGPD).
-
-## Checklist rápido
-- [ ] Trocar senha do usuário seed (`superadmin`).
-- [ ] Ativar HTTPS obrigatório no domínio.
-- [ ] Restringir acesso a arquivos sensíveis por `.htaccess`.
-- [ ] Validar MIMEs/extensões de upload em produção.
-- [ ] Configurar rotina de backup diário do MySQL.
+## Segurança
+- CSRF em formulários críticos.
+- Sessão segura (`HttpOnly`, `SameSite`).
+- RBAC por perfis.
+- Prepared statements.
+- Auditoria (`audit_logs`).
+- Upload protegido (`storage/uploads/.htaccess`).
+- LGPD: público só com dados agregados.

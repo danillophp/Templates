@@ -12,12 +12,22 @@ use App\Models\NewsModel;
 use App\Models\SchoolModel;
 use App\Models\StockModel;
 use App\Services\AuditService;
+use App\Services\CacheService;
 
 final class AdminController extends Controller
 {
+    private CacheService $cache;
+
+    public function __construct()
+    {
+        $this->cache = new CacheService();
+    }
     public function dashboard(): void
     {
         Auth::requireRole(ROLES);
+        if (random_int(1, 20) === 1) {
+            $this->cache->purgeExpired();
+        }
         $schools = (new SchoolModel())->allPublic();
         $stock = (new StockModel())->itemsWithAlerts();
         $this->view('admin/dashboard', [
@@ -53,6 +63,9 @@ final class AdminController extends Controller
             ':region' => trim((string) $_POST['region']),
         ]);
         AuditService::log('school', $schoolId, 'create', Auth::user()['id'] ?? null, ['name' => $_POST['name']]);
+        $this->cache->invalidateTag('map_public');
+        $this->cache->invalidateTag('schools');
+        $this->cache->invalidateTag('school_' . $schoolId);
         $this->redirect('admin/escolas');
     }
 
@@ -81,6 +94,8 @@ final class AdminController extends Controller
             ':created_by' => Auth::user()['id'] ?? null,
         ]);
         AuditService::log('news', $id, 'create', Auth::user()['id'] ?? null);
+        $this->cache->invalidateTag('news');
+        $this->cache->invalidateTag('home');
         $this->redirect('admin/noticias');
     }
 
@@ -107,6 +122,8 @@ final class AdminController extends Controller
             ':created_by' => Auth::user()['id'] ?? null,
         ]);
         AuditService::log('document', $id, 'create', Auth::user()['id'] ?? null);
+        $this->cache->invalidateTag('docs');
+        $this->cache->invalidateTag('transparencia');
         $this->redirect('admin/documentos');
     }
 
@@ -132,6 +149,8 @@ final class AdminController extends Controller
             ':created_by' => Auth::user()['id'] ?? null,
         ]);
         AuditService::log('stock_movement', $id, 'create', Auth::user()['id'] ?? null);
+        $this->cache->invalidateTag('menu');
+        $this->cache->invalidateTag('map_public');
         $this->redirect('admin/estoque');
     }
 }

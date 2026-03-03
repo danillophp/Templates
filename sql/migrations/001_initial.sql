@@ -165,6 +165,29 @@ CREATE TABLE sync_logs (
   INDEX idx_sync_provider_time (provider, started_at)
 ) ENGINE=InnoDB;
 
+
+CREATE TABLE cache_store (
+  cache_key VARCHAR(191) PRIMARY KEY,
+  cache_value LONGTEXT NOT NULL,
+  created_at DATETIME NOT NULL,
+  expires_at DATETIME NOT NULL,
+  tags VARCHAR(500) NULL,
+  checksum CHAR(64) NOT NULL,
+  hits BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  last_hit_at DATETIME NULL,
+  last_modified_at DATETIME NOT NULL,
+  INDEX idx_cache_expires (expires_at),
+  INDEX idx_cache_lastmod (last_modified_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE cache_tags (
+  tag_name VARCHAR(100) NOT NULL,
+  cache_key VARCHAR(191) NOT NULL,
+  PRIMARY KEY (tag_name, cache_key),
+  CONSTRAINT fk_cache_tags_key FOREIGN KEY (cache_key) REFERENCES cache_store(cache_key) ON DELETE CASCADE,
+  INDEX idx_cache_tag_key (cache_key)
+) ENGINE=InnoDB;
+
 CREATE TABLE audit_logs (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   entity_type VARCHAR(80) NOT NULL,
