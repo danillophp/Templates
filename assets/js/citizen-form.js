@@ -206,19 +206,20 @@ function renderTrackResults(payload) {
     return;
   }
 
+  const info = `<div class="alert alert-success mb-2">Foram encontradas ${rows.length} solicitações.</div>`;
   const items = rows.map((row) => `
     <div class="card mb-2 border-0 shadow-sm">
       <div class="card-body py-2 px-3">
         <div><strong>Protocolo:</strong> ${escapeHtml(row.protocolo || '-')}</div>
         <div><strong>Nome:</strong> ${escapeHtml(row.nome || '-')}</div>
-        <div><strong>Endereço:</strong> ${escapeHtml(row.endereco || '-')}</div>
+        <div><strong>Endereço / Bairro:</strong> ${escapeHtml(row.endereco || '-')} ${row.bairro ? '- ' + escapeHtml(row.bairro) : ''}</div>
         <div><strong>Data agendada:</strong> ${escapeHtml(row.data_solicitada || '-')}</div>
-        <div><strong>Status atual:</strong> ${escapeHtml(row.status || '-')}</div>
+        <div><strong>Status:</strong> ${escapeHtml(row.status || '-')}</div>
       </div>
     </div>
   `).join('');
 
-  resultEl.innerHTML = items;
+  resultEl.innerHTML = info + items;
 }
 
 async function handleTrackSearch() {
@@ -231,11 +232,17 @@ async function handleTrackSearch() {
   const phone = (phoneInput.value || '').replace(/\D+/g, '');
 
   if (!protocol && !phone) {
-    renderTrackResults({ ok: false, message: 'Informe o protocolo ou telefone.' });
+    renderTrackResults({ ok: false, message: 'Informe o Protocolo ou o Celular.' });
     return;
   }
 
-  resultEl.innerHTML = '<div class="alert alert-info mb-0">Consultando...</div>';
+  if (protocol && phone) {
+    resultEl.innerHTML = '<div class="alert alert-info mb-2">Protocolo informado. A consulta foi priorizada pelo Protocolo.</div>';
+  } else {
+    resultEl.innerHTML = '';
+  }
+
+  resultEl.innerHTML += '<div class="alert alert-info mb-0">Consultando...</div>';
 
   try {
     const params = new URLSearchParams();

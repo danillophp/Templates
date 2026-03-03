@@ -71,7 +71,7 @@
       <div class="card-body">
         <h6 class="mb-2">Consultar protocolo</h6>
         <div class="mb-2"><input id="trackProtocol" class="form-control" placeholder="CAT-2026-000123"></div>
-        <div class="mb-2"><input id="trackPhone" class="form-control" placeholder="Telefone informado"></div>
+        <div class="mb-2"><input id="trackPhone" class="form-control" placeholder="Celular/WhatsApp cadastrado"></div>
         <button id="btnTrack" class="btn btn-primary w-100">Consultar status</button>
         <div id="trackResult" class="mt-3"></div>
       </div>

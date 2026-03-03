@@ -95,28 +95,41 @@ final class RequestModel
         return $row ?: null;
     }
 
-    public function searchForTrack(string $protocol, string $phoneDigits, int $tenantId): array
+    public function searchForTrack(string $protocol, array $phoneCandidates, int $tenantId): array
     {
         if ($protocol !== '') {
             $stmt = Database::connection()->prepare(
-                'SELECT id, protocolo, nome, endereco, data_solicitada, status, atualizado_em
+                'SELECT id, protocolo, nome, endereco, bairro, data_solicitada, status, atualizado_em
                  FROM solicitacoes
                  WHERE tenant_id = :tenant_id AND protocolo = :protocolo
-                 ORDER BY criado_em DESC LIMIT 1'
+                 ORDER BY data_solicitada DESC, id DESC
+                 LIMIT 1'
             );
             $stmt->execute(['tenant_id' => $tenantId, 'protocolo' => $protocol]);
             $row = $stmt->fetch();
             return $row ? [$row] : [];
         }
 
+        if ($phoneCandidates === []) {
+            return [];
+        }
+
+        $inClause = [];
+        $params = ['tenant_id' => $tenantId];
+        foreach (array_values($phoneCandidates) as $index => $candidate) {
+            $key = ':telefone' . $index;
+            $inClause[] = $key;
+            $params['telefone' . $index] = $candidate;
+        }
+
         $stmt = Database::connection()->prepare(
-            'SELECT id, protocolo, nome, endereco, data_solicitada, status, atualizado_em
+            'SELECT id, protocolo, nome, endereco, bairro, data_solicitada, status, atualizado_em
              FROM solicitacoes
              WHERE tenant_id = :tenant_id
-               AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(telefone, "-", ""), "(", ""), ")", ""), " ", ""), "+", "") = :telefone
-             ORDER BY criado_em DESC'
+               AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(telefone, "-", ""), "(", ""), ")", ""), " ", ""), "+", "") IN (' . implode(',', $inClause) . ')
+             ORDER BY data_solicitada DESC, id DESC'
         );
-        $stmt->execute(['tenant_id' => $tenantId, 'telefone' => $phoneDigits]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 

@@ -209,20 +209,28 @@ final class CitizenController extends Controller
     public function track(): void
     {
         $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
-        $protocol = strtoupper(trim((string)($_GET['protocol'] ?? '')));
-        $phoneDigits = preg_replace('/\D+/', '', (string)($_GET['phone'] ?? '')) ?? '';
+        $protocol = preg_replace('/\s+/', '', strtoupper(trim((string)($_GET['protocol'] ?? '')))) ?? '';
+        $phoneRaw = (string)($_GET['phone'] ?? '');
+        $phoneDigits = preg_replace('/\D+/', '', $phoneRaw) ?? '';
+        $phoneCandidates = $this->phoneCandidatesForTrack($phoneDigits);
 
         $searchType = $protocol !== '' ? 'protocol' : ($phoneDigits !== '' ? 'phone' : 'empty');
-        ErrorHandler::log(sprintf('CITIZEN_TRACK input protocol="%s" phone_digits="%s" search_type=%s', $protocol, $phoneDigits, $searchType));
+        ErrorHandler::log(sprintf('CITIZEN_TRACK input protocol="%s" phone_raw="%s" phone_norm="%s" search_type=%s', $protocol, trim($phoneRaw), $phoneDigits, $searchType));
 
         if (!$tenantId || ($protocol === '' && $phoneDigits === '')) {
             ErrorHandler::log('CITIZEN_TRACK result_count=0 reason=empty_query');
-            $this->json(['ok' => false, 'message' => 'Informe o protocolo ou telefone.'], 422);
+            $this->json(['ok' => false, 'message' => 'Informe o Protocolo ou o Celular.'], 422);
+            return;
+        }
+
+        if ($protocol === '' && !$this->isValidTrackPhone($phoneDigits)) {
+            ErrorHandler::log('CITIZEN_TRACK result_count=0 reason=invalid_phone');
+            $this->json(['ok' => false, 'message' => 'Informe um Celular válido com DDD.'], 422);
             return;
         }
 
         try {
-            $rows = (new RequestModel())->searchForTrack($protocol, $phoneDigits, $tenantId);
+            $rows = (new RequestModel())->searchForTrack($protocol, $phoneCandidates, $tenantId);
             ErrorHandler::log('CITIZEN_TRACK result_count=' . count($rows));
 
             if ($rows === []) {
@@ -230,11 +238,42 @@ final class CitizenController extends Controller
                 return;
             }
 
-            $this->json(['ok' => true, 'data' => $rows]);
+            $this->json(['ok' => true, 'data' => $rows, 'search_type' => $searchType]);
         } catch (\Throwable $e) {
             ErrorHandler::log('CITIZEN_TRACK sql_error=' . $e->getMessage());
             $this->json(['ok' => false, 'message' => 'Erro ao consultar protocolo. Tente novamente em instantes.'], 500);
         }
+    }
+
+
+    private function isValidTrackPhone(string $phoneDigits): bool
+    {
+        if ($phoneDigits === '') {
+            return false;
+        }
+
+        if (strlen($phoneDigits) === 10 || strlen($phoneDigits) === 11) {
+            return true;
+        }
+
+        return str_starts_with($phoneDigits, '55') && (strlen($phoneDigits) === 12 || strlen($phoneDigits) === 13);
+    }
+
+    private function phoneCandidatesForTrack(string $phoneDigits): array
+    {
+        if ($phoneDigits === '') {
+            return [];
+        }
+
+        $candidates = [$phoneDigits];
+        if (str_starts_with($phoneDigits, '55') && strlen($phoneDigits) > 11) {
+            $withoutCountry = substr($phoneDigits, 2);
+            if ($withoutCountry !== false && $withoutCountry !== '') {
+                $candidates[] = $withoutCountry;
+            }
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     private function savePhoto(array $file): string
