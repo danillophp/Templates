@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+RewriteBase /catatreco/
+
+# Mantém arquivos/pastas reais funcionando (assets, uploads etc.)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Todo o restante passa pelo front controller em /public/index.php
+RewriteRule ^ public/index.php [QSA,L]

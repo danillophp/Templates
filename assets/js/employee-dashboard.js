@@ -1,12 +1,13 @@
+const APP_BASE = (window.APP_BASE_PATH || "").replace(/\/$/, "");
 async function action(url, id) {
   const fd = new FormData();
   fd.append('_csrf', window.CSRF);
   fd.append('request_id', id);
   const res = await fetch(url, { method: 'POST', body: fd });
   const json = await res.json();
-  alert(json.ok ? 'Ação concluída.' : (json.message || 'Erro'));
-  if (json.ok) location.reload();
+  showToast(json.ok ? 'Ação concluída.' : (json.message || 'Erro'), json.ok ? 'success' : 'danger');
+  if (json.ok) setTimeout(() => location.reload(), 500);
 }
 
-document.querySelectorAll('.btnStart').forEach(btn => btn.addEventListener('click', () => action('?r=api/employee/start', btn.dataset.id)));
-document.querySelectorAll('.btnFinish').forEach(btn => btn.addEventListener('click', () => action('?r=api/employee/finish', btn.dataset.id)));
+document.querySelectorAll('.btnStart').forEach((btn) => btn.addEventListener('click', () => action(`${APP_BASE}/?r=api/employee/start`, btn.dataset.id)));
+document.querySelectorAll('.btnFinish').forEach((btn) => btn.addEventListener('click', () => action(`${APP_BASE}/?r=api/employee/finish`, btn.dataset.id)));

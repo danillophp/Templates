@@ -2,25 +2,29 @@
 
 declare(strict_types=1);
 
-// Configurações principais da aplicação.
-const APP_NAME = 'CATA TRECO';
-const APP_URL = 'https://www.prefsade.com.br/catatreco';
-const APP_BASE_PATH = '/catatreco/public';
+/**
+ * Configuração principal para instalação em /catatreco (HostGator).
+ */
+const APP_NAME = 'Cata Treco';
+const APP_ENV = 'production'; // production | development
+const APP_DEBUG = APP_ENV !== 'production';
+
+const APP_URL = 'https://prefsade.com.br/catatreco';
+const APP_BASE_PATH = '/catatreco';
 const APP_TIMEZONE = 'America/Sao_Paulo';
 
-// Uploads.
+// Simplificação multi-tenant: tenant padrão por ID (funciona sem subdomínio).
+const APP_DEFAULT_TENANT = 1;
+
+const APP_FORCE_HTTPS = false; // Evita loop de redirect em proxy compartilhado
+
 const UPLOAD_PATH = __DIR__ . '/../uploads';
+const STORAGE_PATH = __DIR__ . '/../storage';
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-// WhatsApp Cloud API (Meta) - preencher em produção.
-const WA_API_ENABLED = false;
-const WA_TOKEN = '';
-const WA_PHONE_NUMBER_ID = '';
-const WA_BUSINESS_NUMBER = '5511999999999';
-const WA_TEMPLATE_APPROVED = 'cata_treco_aprovada';
-const WA_TEMPLATE_RESCHEDULED = 'cata_treco_reagendada';
-const WA_TEMPLATE_FINISHED = 'cata_treco_finalizada';
 const WA_API_VERSION = 'v20.0';
 
-// Segurança da sessão.
+const MAIL_FROM_ADDRESS = 'nao-responda@prefsade.com.br';
+const MAIL_FROM_NAME = 'Prefeitura Municipal - Cata Treco';
+
 const SESSION_NAME = 'catatreco_session';

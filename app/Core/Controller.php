@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Services\TenantService;
+
 class Controller
 {
     protected function view(string $view, array $data = []): void
     {
+        $data['_tenant'] = TenantService::current();
+        $data['_config'] = TenantService::config($data['_tenant']['id'] ?? null);
         extract($data, EXTR_SKIP);
+
         $viewPath = __DIR__ . '/../Views/' . $view . '.php';
         require __DIR__ . '/../Views/layouts/header.php';
         require $viewPath;
