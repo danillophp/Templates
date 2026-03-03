@@ -181,6 +181,78 @@ async function submitCitizenForm(event) {
   }
 }
 
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderTrackResults(payload) {
+  const resultEl = document.getElementById('trackResult');
+  if (!resultEl) return;
+
+  if (!payload?.ok) {
+    resultEl.innerHTML = `<div class="alert alert-warning mb-0">${escapeHtml(payload?.message || 'Nenhuma solicitação encontrada com os dados informados.')}</div>`;
+    return;
+  }
+
+  const rows = Array.isArray(payload.data) ? payload.data : [];
+  if (!rows.length) {
+    resultEl.innerHTML = '<div class="alert alert-warning mb-0">Nenhuma solicitação encontrada com os dados informados.</div>';
+    return;
+  }
+
+  const items = rows.map((row) => `
+    <div class="card mb-2 border-0 shadow-sm">
+      <div class="card-body py-2 px-3">
+        <div><strong>Protocolo:</strong> ${escapeHtml(row.protocolo || '-')}</div>
+        <div><strong>Nome:</strong> ${escapeHtml(row.nome || '-')}</div>
+        <div><strong>Endereço:</strong> ${escapeHtml(row.endereco || '-')}</div>
+        <div><strong>Data agendada:</strong> ${escapeHtml(row.data_solicitada || '-')}</div>
+        <div><strong>Status atual:</strong> ${escapeHtml(row.status || '-')}</div>
+      </div>
+    </div>
+  `).join('');
+
+  resultEl.innerHTML = items;
+}
+
+async function handleTrackSearch() {
+  const protocolInput = document.getElementById('trackProtocol');
+  const phoneInput = document.getElementById('trackPhone');
+  const resultEl = document.getElementById('trackResult');
+  if (!protocolInput || !phoneInput || !resultEl) return;
+
+  const protocol = (protocolInput.value || '').trim().toUpperCase();
+  const phone = (phoneInput.value || '').replace(/\D+/g, '');
+
+  if (!protocol && !phone) {
+    renderTrackResults({ ok: false, message: 'Informe o protocolo ou telefone.' });
+    return;
+  }
+
+  resultEl.innerHTML = '<div class="alert alert-info mb-0">Consultando...</div>';
+
+  try {
+    const params = new URLSearchParams();
+    if (protocol) params.set('protocol', protocol);
+    if (phone) params.set('phone', phone);
+
+    const res = await fetch(`${APP_BASE}/?r=api/citizen/track&${params.toString()}`, {
+      headers: { Accept: 'application/json' }
+    });
+    const json = await res.json();
+    renderTrackResults(json);
+  } catch (error) {
+    console.error('[CATA_TRECO][TRACK]', error);
+    renderTrackResults({ ok: false, message: 'Erro de comunicação ao consultar protocolo.' });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().slice(0, 10);
   if (pickupInput) pickupInput.min = today;
@@ -198,4 +270,5 @@ document.addEventListener('DOMContentLoaded', () => {
   cepInput?.addEventListener('blur', onCepChange);
   pickupInput?.addEventListener('change', enforceThursday);
   formEl?.addEventListener('submit', submitCitizenForm);
+  document.getElementById('btnTrack')?.addEventListener('click', handleTrackSearch);
 });

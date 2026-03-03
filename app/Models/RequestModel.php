@@ -95,26 +95,29 @@ final class RequestModel
         return $row ?: null;
     }
 
-    public function findByProtocolOrPhone(string $protocol, string $phone, int $tenantId): ?array
+    public function searchForTrack(string $protocol, string $phoneDigits, int $tenantId): array
     {
-        if ($protocol !== '' && $phone !== '') {
-            $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND protocolo = :protocolo AND telefone = :telefone LIMIT 1');
-            $stmt->execute(['tenant_id' => $tenantId, 'protocolo' => $protocol, 'telefone' => $phone]);
-            $row = $stmt->fetch();
-            return $row ?: null;
-        }
-
         if ($protocol !== '') {
-            $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND protocolo = :protocolo LIMIT 1');
+            $stmt = Database::connection()->prepare(
+                'SELECT id, protocolo, nome, endereco, data_solicitada, status, atualizado_em
+                 FROM solicitacoes
+                 WHERE tenant_id = :tenant_id AND protocolo = :protocolo
+                 ORDER BY criado_em DESC LIMIT 1'
+            );
             $stmt->execute(['tenant_id' => $tenantId, 'protocolo' => $protocol]);
             $row = $stmt->fetch();
-            return $row ?: null;
+            return $row ? [$row] : [];
         }
 
-        $stmt = Database::connection()->prepare('SELECT id, protocolo, status, data_solicitada, criado_em FROM solicitacoes WHERE tenant_id = :tenant_id AND telefone = :telefone ORDER BY criado_em DESC LIMIT 1');
-        $stmt->execute(['tenant_id' => $tenantId, 'telefone' => $phone]);
-        $row = $stmt->fetch();
-        return $row ?: null;
+        $stmt = Database::connection()->prepare(
+            'SELECT id, protocolo, nome, endereco, data_solicitada, status, atualizado_em
+             FROM solicitacoes
+             WHERE tenant_id = :tenant_id
+               AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(telefone, "-", ""), "(", ""), ")", ""), " ", ""), "+", "") = :telefone
+             ORDER BY criado_em DESC'
+        );
+        $stmt->execute(['tenant_id' => $tenantId, 'telefone' => $phoneDigits]);
+        return $stmt->fetchAll();
     }
 
     public function updateStatus(int $id, int $tenantId, string $status, ?string $date = null): void

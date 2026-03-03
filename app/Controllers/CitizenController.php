@@ -209,21 +209,32 @@ final class CitizenController extends Controller
     public function track(): void
     {
         $tenantId = TenantService::tenantId() ?? (int) APP_DEFAULT_TENANT;
-        $protocol = trim((string)($_GET['protocol'] ?? ''));
-        $phone = preg_replace('/\D+/', '', (string)($_GET['phone'] ?? '')) ?? '';
+        $protocol = strtoupper(trim((string)($_GET['protocol'] ?? '')));
+        $phoneDigits = preg_replace('/\D+/', '', (string)($_GET['phone'] ?? '')) ?? '';
 
-        if (!$tenantId || ($protocol === '' && $phone === '')) {
-            $this->json(['ok' => false, 'message' => 'Informe protocolo ou telefone.'], 422);
+        $searchType = $protocol !== '' ? 'protocol' : ($phoneDigits !== '' ? 'phone' : 'empty');
+        ErrorHandler::log(sprintf('CITIZEN_TRACK input protocol="%s" phone_digits="%s" search_type=%s', $protocol, $phoneDigits, $searchType));
+
+        if (!$tenantId || ($protocol === '' && $phoneDigits === '')) {
+            ErrorHandler::log('CITIZEN_TRACK result_count=0 reason=empty_query');
+            $this->json(['ok' => false, 'message' => 'Informe o protocolo ou telefone.'], 422);
             return;
         }
 
-        $row = (new RequestModel())->findByProtocolOrPhone($protocol, $phone, $tenantId);
-        if (!$row) {
-            $this->json(['ok' => false, 'message' => 'Solicitação não encontrada.'], 404);
-            return;
-        }
+        try {
+            $rows = (new RequestModel())->searchForTrack($protocol, $phoneDigits, $tenantId);
+            ErrorHandler::log('CITIZEN_TRACK result_count=' . count($rows));
 
-        $this->json(['ok' => true, 'data' => $row]);
+            if ($rows === []) {
+                $this->json(['ok' => false, 'message' => 'Nenhuma solicitação encontrada com os dados informados.'], 404);
+                return;
+            }
+
+            $this->json(['ok' => true, 'data' => $rows]);
+        } catch (\Throwable $e) {
+            ErrorHandler::log('CITIZEN_TRACK sql_error=' . $e->getMessage());
+            $this->json(['ok' => false, 'message' => 'Erro ao consultar protocolo. Tente novamente em instantes.'], 500);
+        }
     }
 
     private function savePhoto(array $file): string
