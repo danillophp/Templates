@@ -15,6 +15,14 @@ final class Router
     {
         $route = $_GET['r'] ?? 'home';
 
+        if (str_starts_with($route, 'admin/')) {
+            Auth::requirePermission('admin.access');
+        }
+
+        if (str_starts_with($route, 'api/admin/')) {
+            Auth::requirePermission('admin.access');
+        }
+
         switch ($route) {
             case 'home': (new PublicController())->home(); break;
             case 'secretaria': (new PublicController())->secretaria(); break;
@@ -38,6 +46,8 @@ final class Router
             case 'admin/documentos/salvar': (new AdminController())->salvarDocumento(); break;
             case 'admin/estoque': (new AdminController())->estoque(); break;
             case 'admin/estoque/movimentar': (new AdminController())->movimentarEstoque(); break;
+            case 'admin/auditoria': (new AdminController())->auditoria(); break;
+            case 'admin/auditoria/exportar': (new AdminController())->exportarAuditoriaCsv(); break;
 
             case 'api/public/escolas': (new ApiController())->publicSchools(); break;
             case 'api/public/noticias': (new ApiController())->publicNews(); break;

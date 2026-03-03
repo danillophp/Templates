@@ -8,6 +8,7 @@ class Controller
 {
     protected function view(string $view, array $data = [], string $layout = 'layouts/main'): void
     {
+        $this->applySecurityHeaders();
         extract($data, EXTR_SKIP);
         $viewPath = __DIR__ . '/../Views/' . $view . '.php';
         require __DIR__ . '/../Views/' . $layout . '.php';
@@ -15,6 +16,7 @@ class Controller
 
     protected function json(array $payload, int $status = 200): void
     {
+        $this->applySecurityHeaders();
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -42,5 +44,13 @@ class Controller
         }
 
         return false;
+    }
+
+    private function applySecurityHeaders(): void
+    {
+        header('X-Frame-Options: DENY');
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header("Content-Security-Policy: default-src 'self' https: data: 'unsafe-inline'; frame-ancestors 'none';");
     }
 }
