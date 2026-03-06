@@ -117,6 +117,34 @@ class Appointment extends Model
         $stmt->execute([':id' => $id]);
     }
 
+
+    public function listTodayForReminder(string $date): array
+    {
+        $sql = 'SELECT
+                    a.id,
+                    a.cliente_id,
+                    a.data_agendamento,
+                    a.hora_inicio,
+                    a.hora_fim,
+                    a.status,
+                    c.nome AS cliente_nome,
+                    c.telefone,
+                    c.whatsapp,
+                    c.email,
+                    s.nome AS servico_nome
+                FROM agendamentos a
+                INNER JOIN clientes c ON c.id = a.cliente_id
+                INNER JOIN servicos s ON s.id = a.servico_id
+                WHERE a.data_agendamento = :data
+                  AND a.status IN ("confirmado", "aguardando_pagamento")
+                ORDER BY a.hora_inicio ASC';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':data' => $date]);
+
+        return $stmt->fetchAll();
+    }
+
     public function findDetailed(int $id): ?array
     {
         $sql = 'SELECT

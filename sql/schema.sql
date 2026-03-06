@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS notificacoes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     agendamento_id INT UNSIGNED NULL,
     cliente_id INT UNSIGNED NULL,
-    tipo ENUM('lembrete_cliente','resumo_proprietaria','sistema') NOT NULL,
+    tipo ENUM('lembrete_cliente','resumo_admin','sistema') NOT NULL,
     canal ENUM('email','whatsapp','sms','interno') NOT NULL DEFAULT 'interno',
     destinatario VARCHAR(160) NULL,
     mensagem TEXT NOT NULL,
