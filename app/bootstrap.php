@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\AvailabilityController;
 use App\Controllers\ClientController;
 use App\Controllers\DashboardController;
 use App\Controllers\ServiceCategoryController;
@@ -90,5 +91,6 @@ $router->post('/servicos/excluir', [ServiceController::class, 'destroy'], $authO
 // Configuração da agenda
 $router->get('/agenda/configuracoes', [ScheduleConfigController::class, 'edit'], $authOnly);
 $router->post('/agenda/configuracoes/salvar', [ScheduleConfigController::class, 'save'], $authOnly);
+$router->get('/api/agenda/horarios-disponiveis', [AvailabilityController::class, 'availableSlots']);
 
 return $router;

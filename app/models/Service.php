@@ -29,6 +29,16 @@ class Service extends Model
         return $this->db->query($sql)->fetchAll();
     }
 
+
+    public function findById(int $id): ?array
+    {
+        $stmt = $this->db->prepare('SELECT id, categoria_id, nome, duracao_minutos, ativo FROM servicos WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
     public function find(int $id): ?array
     {
         $stmt = $this->db->prepare('SELECT * FROM servicos WHERE id = :id LIMIT 1');
