@@ -1,0 +1,8 @@
+:root{--brand:#0d6efd;--bg:#f4f7fb;--text:#1f2937}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,sans-serif}
+.hero{background:linear-gradient(120deg,#0d6efd,#1f4bb8);color:#fff;border-radius:1rem;padding:2rem}
+.card-modern{border:0;border-radius:1rem;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+.footer{margin-top:4rem;padding:2rem 0;background:#0f172a;color:#fff}
+.high-contrast{filter:contrast(1.25) saturate(1.2)}
+.font-large{font-size:1.1rem}
+#map{border-radius:1rem;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.08)}

@@ -1,80 +1,37 @@
-# CATA TRECO
+# EDUCASADECOM + E-EDUCA
 
-Sistema web institucional para gestão municipal de coleta de resíduos volumosos, construído com **PHP 8+ (OO/MVC)**, **MySQL**, **Bootstrap 5**, **Leaflet** e **Fetch API**.
+Plataforma da Secretaria Municipal de Educação (Santo Antônio do Descoberto/GO) com portal público e backoffice administrativo, compatível com hospedagem compartilhada (HostGator), usando PHP 8.2 + MySQL 8.
 
-## Arquitetura
+## Fluxo de entrega solicitado
+1. **Threat model** e controles de segurança: `docs/SECURITY_HARDENING.md`.
+2. **SQL completo (DDL + seeds)**: `sql/educasade.sql`.
+3. **Código de segurança**: autenticação com rate limit/2FA opcional, RBAC por permissões, auditoria e upload seguro.
 
-- Backend OO com MVC simples (`app/Controllers`, `app/Models`, `app/Core`)
-- API REST interna em JSON via rotas `?r=api/...`
-- Sessão PHP para autenticação e perfis (ADMIN e FUNCIONARIO)
-- Logs e trilha de auditoria LGPD
-- Front moderno, responsivo e dinâmico (AJAX)
+## Principais recursos
+- Portal público: home, secretaria, notícias, documentos, transparência, primeira infância, contato e mapa.
+- Admin: escolas, notícias, documentos, estoque, auditoria (filtro e exportação CSV).
+- API pública e administrativa.
+- Cache interno em MySQL (TTL + tags) com ETag/Last-Modified.
+- Auditoria detalhada (`audit_log`) com before/after, IP e user-agent.
 
-## Banco de dados (HostGator)
+## Segurança implementada
+- `password_hash` / `password_verify`.
+- Rate limit de login em MySQL + bloqueio progressivo.
+- Sessão segura (`HttpOnly`, `SameSite=Strict`, regeneração de sessão).
+- 2FA opcional via TOTP sem dependência externa.
+- RBAC por `roles`, `permissions`, `role_permissions`, `user_roles`.
+- CSRF, PDO prepared statements e escaping centralizado.
+- Upload seguro (MIME real, extensão permitida, nome por hash e bloqueio de execução).
+- Logs técnicos fora do webroot (`storage/logs/app.log`).
 
-- Banco: `santo821_treco`
-- Usuário: `catatreco`
-- Senha: `php@3903`
+## Instalação (HostGator)
+1. Publique o projeto e aponte o domínio para `public/` (ou use `.htaccess` da raiz conforme ambiente).
+2. Configure `config/db.php` e (opcional) `.env` local.
+3. Importe `sql/educasade.sql` no MySQL.
+4. Ajuste permissões: `storage/uploads`, `storage/logs`, `storage/cache`.
+5. Login inicial (seed): `superadmin`.
 
-Arquivo de conexão: `config/db.php`.
-Script SQL completo: `sql/catatreco.sql`.
-
-## Funcionalidades
-
-1. **Módulo do cidadão**
-   - Formulário moderno com validações e envio AJAX.
-   - Mapa Leaflet + OpenStreetMap.
-   - Geocoding automático Nominatim por endereço/CEP.
-   - Upload de foto + consentimento LGPD + IP + status inicial `PENDENTE`.
-
-2. **Login e perfis**
-   - Senha com bcrypt.
-   - Acesso por perfil ADMINISTRADOR e FUNCIONARIO.
-
-3. **Painel administrativo**
-   - Cards de indicadores (Pendentes, Aprovadas, Em andamento, Finalizadas).
-   - Filtros por data, status e localidade.
-   - Ações: aprovar, recusar, alterar data/hora, atribuir funcionário.
-
-4. **Painel do funcionário**
-   - Coletas atribuídas com dados completos do cidadão.
-   - Botões Ligar, WhatsApp, Como chegar, foto.
-   - Mapa por coleta + ações iniciar/finalizar.
-
-5. **WhatsApp automático**
-   - Estrutura pronta para WhatsApp Cloud API com templates oficiais.
-   - Fallback automático via `wa.me`.
-
-6. **LGPD, segurança e auditoria**
-   - Consentimento explícito.
-   - Registro de IP e data/hora.
-   - Log de ações administrativas e operacionais.
-   - Estrutura preparada para anonimização futura.
-
-## Instalação na HostGator
-
-1. Envie os arquivos para `public_html/catatreco`.
-2. Importe `sql/catatreco.sql` no phpMyAdmin.
-3. Confirme credenciais em `config/db.php`.
-4. Garanta permissão de escrita em `uploads/` (ex.: `775`).
-5. Acesse: `https://www.prefsade.com.br/catatreco/public/index.php`.
-
-## Credenciais iniciais
-
-- Admin: `admin` / `Admin@123`
-- Funcionário: `funcionario1` / `Func@123`
-
-> Altere as senhas imediatamente em produção.
-
-## Rotas principais
-
-- `?r=citizen/home`
-- `?r=auth/login`
-- `?r=admin/dashboard`
-- `?r=employee/dashboard`
-
-## Produção
-
-- Ative HTTPS e cookies de sessão seguros.
-- Configure `WA_TOKEN`, `WA_PHONE_NUMBER_ID` e templates em `config/app.php`.
-- Recomendado: backup diário, monitoramento e WAF.
+## Documentação
+- `docs/PLANEJAMENTO.md`: arquitetura e roadmap funcional.
+- `docs/CACHE.md`: desenho do cache MySQL.
+- `docs/SECURITY_HARDENING.md`: ameaças, modelagem, índices e checklist OWASP/HostGator.
