@@ -7,6 +7,7 @@ use App\Controllers\ClientController;
 use App\Controllers\DashboardController;
 use App\Controllers\ServiceCategoryController;
 use App\Controllers\ServiceController;
+use App\Controllers\ScheduleConfigController;
 use App\Core\Auth;
 use App\Core\Router;
 
@@ -85,5 +86,9 @@ $router->get('/servicos/editar', [ServiceController::class, 'edit'], $authOnly);
 $router->post('/servicos/atualizar', [ServiceController::class, 'update'], $authOnly);
 $router->post('/servicos/status', [ServiceController::class, 'toggleStatus'], $authOnly);
 $router->post('/servicos/excluir', [ServiceController::class, 'destroy'], $authOnly);
+
+// Configuração da agenda
+$router->get('/agenda/configuracoes', [ScheduleConfigController::class, 'edit'], $authOnly);
+$router->post('/agenda/configuracoes/salvar', [ScheduleConfigController::class, 'save'], $authOnly);
 
 return $router;

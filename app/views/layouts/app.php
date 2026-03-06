@@ -17,6 +17,7 @@
                 <li class="nav-item"><a class="nav-link" href="/clientes">Clientes</a></li>
                 <li class="nav-item"><a class="nav-link" href="/categorias">Categorias</a></li>
                 <li class="nav-item"><a class="nav-link" href="/servicos">Serviços</a></li>
+                <li class="nav-item"><a class="nav-link" href="/agenda/configuracoes">Agenda</a></li>
             </ul>
             <div class="d-flex align-items-center gap-2 text-white">
                 <span class="small">Olá, <?= e($user['name'] ?? 'Usuário') ?></span>

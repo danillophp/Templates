@@ -93,15 +93,14 @@ CREATE TABLE IF NOT EXISTS servicos (
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS configuracoes_agenda (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    dia_semana TINYINT UNSIGNED NOT NULL COMMENT '0=domingo ... 6=sábado',
     hora_inicio TIME NOT NULL,
     hora_fim TIME NOT NULL,
     intervalo_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 30,
-    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    dias_funcionamento VARCHAR(30) NOT NULL DEFAULT '1,2,3,4,5,6',
+    tempo_validade_pre_reserva SMALLINT UNSIGNED NOT NULL DEFAULT 60,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_agenda_dia_semana (dia_semana),
-    KEY idx_agenda_ativo (ativo)
+    KEY idx_agenda_intervalo (intervalo_minutos)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------
@@ -260,15 +259,10 @@ VALUES
 (1, 'Ana Paula Souza', '(11) 99999-1111', '(11) 99999-1111', 'ana.souza@email.com', '1993-04-10', 'Prefere horário da manhã.'),
 (2, 'Beatriz Lima', '(11) 98888-2222', '(11) 98888-2222', 'beatriz.lima@email.com', '1990-09-21', 'Alergia leve a ácido forte.');
 
--- Configuração de agenda padrão (segunda a sábado)
-INSERT IGNORE INTO configuracoes_agenda (id, dia_semana, hora_inicio, hora_fim, intervalo_minutos, ativo)
+-- Configuração de agenda padrão
+INSERT IGNORE INTO configuracoes_agenda (id, hora_inicio, hora_fim, intervalo_minutos, dias_funcionamento, tempo_validade_pre_reserva)
 VALUES
-(1, 1, '08:00:00', '18:00:00', 30, 1),
-(2, 2, '08:00:00', '18:00:00', 30, 1),
-(3, 3, '08:00:00', '18:00:00', 30, 1),
-(4, 4, '08:00:00', '18:00:00', 30, 1),
-(5, 5, '08:00:00', '18:00:00', 30, 1),
-(6, 6, '08:00:00', '13:00:00', 30, 1);
+(1, '08:00:00', '18:00:00', 30, '1,2,3,4,5,6', 60);
 
 -- Agendamento exemplo (entrada de 20%)
 INSERT IGNORE INTO agendamentos (
