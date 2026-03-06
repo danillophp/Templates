@@ -9,6 +9,7 @@ use App\Core\Database;
 use App\Core\Logger;
 use App\Models\Appointment;
 use App\Models\Client;
+use App\Models\ScheduleConfig;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 
@@ -23,6 +24,9 @@ class PublicBookingController extends Controller
     public function index(): void
     {
         $db = $this->db();
+        $appointmentModel = new Appointment($db);
+        $appointmentModel->expireOutdatedPreReservations();
+
         $categories = (new ServiceCategory($db))->all();
         $services = array_values(array_filter((new Service($db))->all(), static fn(array $s): bool => (int) $s['ativo'] === 1));
 
@@ -60,18 +64,22 @@ class PublicBookingController extends Controller
         }
 
         $db = $this->db();
+        $appointmentModel = new Appointment($db);
+        $appointmentModel->expireOutdatedPreReservations();
+
         $serviceModel = new Service($db);
         $service = $serviceModel->findById($payload['servico_id']);
-
         if (!$service || (int) $service['categoria_id'] !== $payload['categoria_id']) {
             flash('error', 'Serviço inválido para a categoria selecionada.');
             redirect('/agendamento');
         }
 
+        $scheduleConfig = (new ScheduleConfig($db))->get();
+        $validadeMinutos = max(1, (int) ($scheduleConfig['tempo_validade_pre_reserva'] ?? 60));
+
         $start = new \DateTimeImmutable($payload['data'] . ' ' . $payload['hora'] . ':00');
         $end = $start->modify('+' . max(1, (int) $service['duracao_minutos']) . ' minutes');
 
-        $appointmentModel = new Appointment($db);
         if ($appointmentModel->hasConflict($payload['data'], $start->format('H:i:s'), $end->format('H:i:s'))) {
             flash('error', 'Este horário acabou de ser ocupado. Escolha outro horário disponível.');
             redirect('/agendamento');
@@ -86,10 +94,11 @@ class PublicBookingController extends Controller
             'observacoes' => $payload['observacoes'],
         ]);
 
+        // Regra: entrada fixa de 20%
         $valorTotal = (float) $service['valor'];
-        $percentual = (float) ($service['percentual_entrada'] ?? 20);
-        $valorEntrada = round($valorTotal * ($percentual / 100), 2);
+        $valorEntrada = round($valorTotal * 0.20, 2);
         $valorRestante = round($valorTotal - $valorEntrada, 2);
+        $expiraEm = (new \DateTimeImmutable())->modify('+' . $validadeMinutos . ' minutes')->format('Y-m-d H:i:s');
 
         $appointmentId = $appointmentModel->create([
             'cliente_id' => $clientId,
@@ -101,10 +110,11 @@ class PublicBookingController extends Controller
             'valor_total' => $valorTotal,
             'valor_entrada' => $valorEntrada,
             'valor_restante' => $valorRestante,
+            'pre_reserva_expira_em' => $expiraEm,
             'observacoes' => $payload['observacoes'],
         ]);
 
-        Logger::info('Pré-reserva pública criada', ['agendamento_id' => $appointmentId]);
+        Logger::info('Pré-reserva pública criada', ['agendamento_id' => $appointmentId, 'expira_em' => $expiraEm]);
         redirect('/agendamento/pagamento?id=' . $appointmentId);
     }
 
@@ -115,9 +125,17 @@ class PublicBookingController extends Controller
             redirect('/agendamento');
         }
 
-        $appointment = (new Appointment($this->db()))->findDetailed($id);
+        $appointmentModel = new Appointment($this->db());
+        $appointmentModel->expireOutdatedPreReservations();
+        $appointment = $appointmentModel->findDetailed($id);
+
         if (!$appointment) {
             flash('error', 'Agendamento não encontrado.');
+            redirect('/agendamento');
+        }
+
+        if ($appointment['status'] === 'cancelado') {
+            flash('error', 'Esta pré-reserva expirou. Escolha um novo horário.');
             redirect('/agendamento');
         }
 

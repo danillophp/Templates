@@ -32,6 +32,9 @@ class AvailabilityController
         $dbConfig = require __DIR__ . '/../config/database.php';
         $db = Database::getConnection($dbConfig);
 
+        $appointmentModel = new Appointment($db);
+        $appointmentModel->expireOutdatedPreReservations();
+
         $service = (new Service($db))->findById($serviceId);
         if (!$service || (int) $service['ativo'] !== 1) {
             $this->json(['error' => 'Serviço não encontrado ou inativo.'], 404);
@@ -48,7 +51,7 @@ class AvailabilityController
             $this->json([]);
         }
 
-        $busySlots = (new Appointment($db))->listBusyByDate($date);
+        $busySlots = $appointmentModel->listBusyByDate($date);
 
         $engine = new AvailabilityEngine();
         $available = $engine->calculate(

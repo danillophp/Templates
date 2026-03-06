@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS agendamentos (
     valor_total DECIMAL(10,2) NOT NULL,
     valor_entrada DECIMAL(10,2) NOT NULL,
     valor_restante DECIMAL(10,2) NOT NULL,
+    pre_reserva_expira_em DATETIME NULL,
     observacoes TEXT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -158,6 +159,7 @@ CREATE TABLE IF NOT EXISTS agendamentos (
     KEY idx_agendamentos_cliente (cliente_id),
     KEY idx_agendamentos_servico (servico_id),
     KEY idx_agendamentos_usuario (usuario_responsavel_id),
+    KEY idx_agendamentos_pre_reserva_expira (pre_reserva_expira_em),
     UNIQUE KEY uq_agendamento_slot (data_agendamento, hora_inicio)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -267,10 +269,10 @@ VALUES
 -- Agendamento exemplo (entrada de 20%)
 INSERT IGNORE INTO agendamentos (
     id, cliente_id, servico_id, usuario_responsavel_id, data_agendamento,
-    hora_inicio, hora_fim, status, valor_total, valor_entrada, valor_restante, observacoes
+    hora_inicio, hora_fim, status, valor_total, valor_entrada, valor_restante, pre_reserva_expira_em, observacoes
 ) VALUES (
     1, 1, 1, 1, CURDATE(),
-    '09:00:00', '11:00:00', 'aguardando_pagamento', 220.00, 44.00, 176.00,
+    '09:00:00', '11:00:00', 'aguardando_pagamento', 220.00, 44.00, 176.00, DATE_ADD(NOW(), INTERVAL 60 MINUTE),
     'Pré-reserva criada pelo administrativo.'
 );
 

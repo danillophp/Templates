@@ -12,6 +12,8 @@
                     <div class="col-md-6"><strong>Horário:</strong> <?= e((string) $appointment['hora_inicio']) ?> - <?= e((string) $appointment['hora_fim']) ?></div>
                 </div>
 
+                <div class="small text-muted mb-3">Pré-reserva válida até: <?= e((string) ($appointment['pre_reserva_expira_em'] ?? '-')) ?></div>
+
                 <div class="alert alert-info">
                     <div><strong>Valor total:</strong> R$ <?= number_format((float) $appointment['valor_total'], 2, ',', '.') ?></div>
                     <div><strong>Entrada (agora):</strong> R$ <?= number_format((float) $appointment['valor_entrada'], 2, ',', '.') ?></div>

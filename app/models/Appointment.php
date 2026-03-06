@@ -8,12 +8,31 @@ use App\Core\Model;
 
 class Appointment extends Model
 {
+    public function expireOutdatedPreReservations(): int
+    {
+        $sql = 'UPDATE agendamentos
+                SET status = "cancelado"
+                WHERE status = "pre_reservado"
+                  AND pre_reserva_expira_em IS NOT NULL
+                  AND pre_reserva_expira_em < NOW()';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
     public function listBusyByDate(string $date): array
     {
         $sql = 'SELECT hora_inicio, hora_fim, status
                 FROM agendamentos
                 WHERE data_agendamento = :data_agendamento
-                  AND status IN ("pre_reservado", "aguardando_pagamento", "confirmado", "realizado")';
+                  AND status IN ("pre_reservado", "aguardando_pagamento", "confirmado", "realizado")
+                  AND NOT (
+                    status = "pre_reservado"
+                    AND pre_reserva_expira_em IS NOT NULL
+                    AND pre_reserva_expira_em < NOW()
+                  )';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':data_agendamento' => $date]);
@@ -23,9 +42,15 @@ class Appointment extends Model
 
     public function hasConflict(string $date, string $startTime, string $endTime): bool
     {
-        $sql = 'SELECT id FROM agendamentos
+        $sql = 'SELECT id
+                FROM agendamentos
                 WHERE data_agendamento = :data
                   AND status IN ("pre_reservado", "aguardando_pagamento", "confirmado", "realizado")
+                  AND NOT (
+                    status = "pre_reservado"
+                    AND pre_reserva_expira_em IS NOT NULL
+                    AND pre_reserva_expira_em < NOW()
+                  )
                   AND (:start_time < hora_fim AND :end_time > hora_inicio)
                 LIMIT 1';
 
@@ -51,6 +76,7 @@ class Appointment extends Model
                     valor_total,
                     valor_entrada,
                     valor_restante,
+                    pre_reserva_expira_em,
                     observacoes
                 ) VALUES (
                     :cliente_id,
@@ -62,6 +88,7 @@ class Appointment extends Model
                     :valor_total,
                     :valor_entrada,
                     :valor_restante,
+                    :pre_reserva_expira_em,
                     :observacoes
                 )';
 
@@ -76,6 +103,7 @@ class Appointment extends Model
             ':valor_total' => $data['valor_total'],
             ':valor_entrada' => $data['valor_entrada'],
             ':valor_restante' => $data['valor_restante'],
+            ':pre_reserva_expira_em' => $data['pre_reserva_expira_em'] ?? null,
             ':observacoes' => $data['observacoes'] ?: null,
         ]);
 
@@ -90,6 +118,7 @@ class Appointment extends Model
                     a.hora_inicio,
                     a.hora_fim,
                     a.status,
+                    a.pre_reserva_expira_em,
                     a.valor_total,
                     a.valor_entrada,
                     a.valor_restante,
