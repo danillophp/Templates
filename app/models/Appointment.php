@@ -110,6 +110,13 @@ class Appointment extends Model
         return (int) $this->db->lastInsertId();
     }
 
+
+    public function markConfirmed(int $id): void
+    {
+        $stmt = $this->db->prepare('UPDATE agendamentos SET status = "confirmado" WHERE id = :id AND status IN ("pre_reservado", "aguardando_pagamento")');
+        $stmt->execute([':id' => $id]);
+    }
+
     public function findDetailed(int $id): ?array
     {
         $sql = 'SELECT

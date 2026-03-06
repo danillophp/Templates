@@ -59,6 +59,7 @@ $router->get('/', static fn() => redirect('/login'));
 $router->get('/agendamento', [PublicBookingController::class, 'index']);
 $router->post('/agendamento/reservar', [PublicBookingController::class, 'reserve']);
 $router->get('/agendamento/pagamento', [PublicBookingController::class, 'payment']);
+$router->post('/agendamento/pagamento/confirmar', [PublicBookingController::class, 'confirmPayment']);
 $router->get('/login', [AuthController::class, 'showLogin'], $guestOnly);
 $router->post('/login', [AuthController::class, 'login'], $guestOnly);
 $router->post('/logout', [AuthController::class, 'logout'], $authOnly);

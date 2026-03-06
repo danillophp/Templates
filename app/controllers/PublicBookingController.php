@@ -9,6 +9,7 @@ use App\Core\Database;
 use App\Core\Logger;
 use App\Models\Appointment;
 use App\Models\Client;
+use App\Models\Payment;
 use App\Models\ScheduleConfig;
 use App\Models\Service;
 use App\Models\ServiceCategory;
@@ -143,5 +144,51 @@ class PublicBookingController extends Controller
             'title' => 'Pagamento da Entrada',
             'appointment' => $appointment,
         ], 'layouts/public');
+    }
+
+    public function confirmPayment(): void
+    {
+        if (!verify_csrf_token($_POST['_token'] ?? null)) {
+            http_response_code(419);
+            exit('Token CSRF inválido.');
+        }
+
+        $appointmentId = (int) input('agendamento_id', '0');
+        $metodo = input('metodo_pagamento');
+
+        if ($appointmentId <= 0 || $metodo === '') {
+            flash('error', 'Dados de pagamento inválidos.');
+            redirect('/agendamento');
+        }
+
+        $db = $this->db();
+        $appointmentModel = new Appointment($db);
+        $appointmentModel->expireOutdatedPreReservations();
+
+        $appointment = $appointmentModel->findDetailed($appointmentId);
+        if (!$appointment || $appointment['status'] === 'cancelado') {
+            flash('error', 'Pré-reserva não encontrada ou expirada.');
+            redirect('/agendamento');
+        }
+
+        $paymentModel = new Payment($db);
+        $paymentModel->createEntryPayment([
+            'agendamento_id' => $appointmentId,
+            'valor' => (float) $appointment['valor_entrada'],
+            'metodo_pagamento' => $metodo,
+            'status' => 'pago',
+            'pago_em' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+        ]);
+
+        // Regra: sem pagamento, não confirma.
+        if ($paymentModel->hasPaidEntry($appointmentId)) {
+            $appointmentModel->markConfirmed($appointmentId);
+            Logger::info('Agendamento confirmado após pagamento de entrada', ['agendamento_id' => $appointmentId]);
+            flash('success', 'Pagamento confirmado. Seu agendamento está confirmado!');
+            redirect('/agendamento/pagamento?id=' . $appointmentId);
+        }
+
+        flash('error', 'Pagamento não confirmado. O agendamento permanece sem confirmação.');
+        redirect('/agendamento/pagamento?id=' . $appointmentId);
     }
 }

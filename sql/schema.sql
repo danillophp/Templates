@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
     agendamento_id INT UNSIGNED NOT NULL,
     tipo ENUM('entrada','saldo') NOT NULL DEFAULT 'entrada',
     valor DECIMAL(10,2) NOT NULL,
-    metodo VARCHAR(50) NULL COMMENT 'pix,cartao,dinheiro,etc',
+    metodo_pagamento VARCHAR(50) NULL COMMENT 'pix,cartao,dinheiro,etc',
     status ENUM('pendente','aguardando_confirmacao','pago','cancelado','expirado','estornado') NOT NULL DEFAULT 'pendente',
     transacao_externa_id VARCHAR(100) NULL,
     pago_em DATETIME NULL,
@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
     KEY idx_pagamentos_agendamento (agendamento_id),
     KEY idx_pagamentos_status (status),
     KEY idx_pagamentos_tipo (tipo),
+    KEY idx_pagamentos_metodo (metodo_pagamento),
     KEY idx_pagamentos_transacao (transacao_externa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -277,7 +278,7 @@ INSERT IGNORE INTO agendamentos (
 );
 
 -- Pagamento exemplo (entrada pendente)
-INSERT IGNORE INTO pagamentos (id, agendamento_id, tipo, valor, metodo, status)
+INSERT IGNORE INTO pagamentos (id, agendamento_id, tipo, valor, metodo_pagamento, status)
 VALUES (1, 1, 'entrada', 44.00, 'pix', 'pendente');
 
 -- Notificação exemplo
