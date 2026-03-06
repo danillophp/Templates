@@ -81,6 +81,7 @@ $router->get('/servicos/criar', [ServiceController::class, 'create'], $authOnly)
 $router->post('/servicos/salvar', [ServiceController::class, 'store'], $authOnly);
 $router->get('/servicos/editar', [ServiceController::class, 'edit'], $authOnly);
 $router->post('/servicos/atualizar', [ServiceController::class, 'update'], $authOnly);
+$router->post('/servicos/status', [ServiceController::class, 'toggleStatus'], $authOnly);
 $router->post('/servicos/excluir', [ServiceController::class, 'destroy'], $authOnly);
 
 return $router;
