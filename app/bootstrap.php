@@ -72,6 +72,7 @@ $router->get('/categorias/criar', [ServiceCategoryController::class, 'create'], 
 $router->post('/categorias/salvar', [ServiceCategoryController::class, 'store'], $authOnly);
 $router->get('/categorias/editar', [ServiceCategoryController::class, 'edit'], $authOnly);
 $router->post('/categorias/atualizar', [ServiceCategoryController::class, 'update'], $authOnly);
+$router->post('/categorias/status', [ServiceCategoryController::class, 'toggleStatus'], $authOnly);
 $router->post('/categorias/excluir', [ServiceCategoryController::class, 'destroy'], $authOnly);
 
 // CRUD serviços
