@@ -10,7 +10,7 @@ class User extends Model
 {
     public function findByEmail(string $email): ?array
     {
-        $sql = 'SELECT id, name, email, password FROM users WHERE email = :email LIMIT 1';
+        $sql = 'SELECT id, nome AS name, email, senha AS password FROM usuarios WHERE email = :email AND ativo = 1 LIMIT 1';
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':email', $email);
         $stmt->execute();

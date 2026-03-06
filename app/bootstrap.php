@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\ClientController;
 use App\Controllers\DashboardController;
+use App\Controllers\ServiceCategoryController;
+use App\Controllers\ServiceController;
 use App\Core\Auth;
 use App\Core\Router;
 
@@ -46,10 +49,37 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 $router = new Router();
 
+$guestOnly = [static fn() => Auth::requireGuest()];
+$authOnly = [static fn() => Auth::requireAuth()];
+
 $router->get('/', static fn() => redirect('/login'));
-$router->get('/login', [AuthController::class, 'showLogin'], [static fn() => Auth::requireGuest()]);
-$router->post('/login', [AuthController::class, 'login'], [static fn() => Auth::requireGuest()]);
-$router->post('/logout', [AuthController::class, 'logout'], [static fn() => Auth::requireAuth()]);
-$router->get('/dashboard', [DashboardController::class, 'index'], [static fn() => Auth::requireAuth()]);
+$router->get('/login', [AuthController::class, 'showLogin'], $guestOnly);
+$router->post('/login', [AuthController::class, 'login'], $guestOnly);
+$router->post('/logout', [AuthController::class, 'logout'], $authOnly);
+$router->get('/dashboard', [DashboardController::class, 'index'], $authOnly);
+
+// CRUD clientes
+$router->get('/clientes', [ClientController::class, 'index'], $authOnly);
+$router->get('/clientes/criar', [ClientController::class, 'create'], $authOnly);
+$router->post('/clientes/salvar', [ClientController::class, 'store'], $authOnly);
+$router->get('/clientes/editar', [ClientController::class, 'edit'], $authOnly);
+$router->post('/clientes/atualizar', [ClientController::class, 'update'], $authOnly);
+$router->post('/clientes/excluir', [ClientController::class, 'destroy'], $authOnly);
+
+// CRUD categorias
+$router->get('/categorias', [ServiceCategoryController::class, 'index'], $authOnly);
+$router->get('/categorias/criar', [ServiceCategoryController::class, 'create'], $authOnly);
+$router->post('/categorias/salvar', [ServiceCategoryController::class, 'store'], $authOnly);
+$router->get('/categorias/editar', [ServiceCategoryController::class, 'edit'], $authOnly);
+$router->post('/categorias/atualizar', [ServiceCategoryController::class, 'update'], $authOnly);
+$router->post('/categorias/excluir', [ServiceCategoryController::class, 'destroy'], $authOnly);
+
+// CRUD serviços
+$router->get('/servicos', [ServiceController::class, 'index'], $authOnly);
+$router->get('/servicos/criar', [ServiceController::class, 'create'], $authOnly);
+$router->post('/servicos/salvar', [ServiceController::class, 'store'], $authOnly);
+$router->get('/servicos/editar', [ServiceController::class, 'edit'], $authOnly);
+$router->post('/servicos/atualizar', [ServiceController::class, 'update'], $authOnly);
+$router->post('/servicos/excluir', [ServiceController::class, 'destroy'], $authOnly);
 
 return $router;

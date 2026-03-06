@@ -10,6 +10,17 @@ function e(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+/**
+ * Sanitiza input textual básico.
+ */
+function input(string $key, string $default = ''): string
+{
+    $value = $_POST[$key] ?? $_GET[$key] ?? $default;
+    $value = is_string($value) ? trim($value) : $default;
+
+    return strip_tags($value);
+}
+
 function redirect(string $path): void
 {
     header('Location: ' . $path);

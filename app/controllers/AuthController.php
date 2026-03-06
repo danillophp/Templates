@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Database;
+use App\Core\Logger;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -25,7 +26,7 @@ class AuthController extends Controller
             exit('Token CSRF inválido.');
         }
 
-        $email = filter_var(trim((string) ($_POST['email'] ?? '')), FILTER_VALIDATE_EMAIL);
+        $email = filter_var(input('email'), FILTER_VALIDATE_EMAIL);
         $password = (string) ($_POST['password'] ?? '');
 
         $_SESSION['_old'] = ['email' => (string) ($_POST['email'] ?? '')];
@@ -40,12 +41,14 @@ class AuthController extends Controller
         $user = $userModel->findByEmail($email);
 
         if (!$user || !password_verify($password, $user['password'])) {
+            Logger::warning('Falha de login', ['email' => $email]);
             flash('error', 'Credenciais inválidas.');
             $this->redirect('/login');
         }
 
         unset($_SESSION['_old']);
         Auth::login($user);
+        Logger::info('Login realizado', ['user_id' => $user['id']]);
         flash('success', 'Login efetuado com sucesso!');
 
         $this->redirect('/dashboard');
@@ -58,8 +61,10 @@ class AuthController extends Controller
             exit('Token CSRF inválido.');
         }
 
+        $user = Auth::user();
         Auth::logout();
         session_start();
+        Logger::info('Logout realizado', ['user_id' => $user['id'] ?? null]);
         flash('success', 'Sessão encerrada com sucesso.');
         $this->redirect('/login');
     }
