@@ -86,6 +86,21 @@ class Client extends Model
     /**
      * Histórico resumido de agendamentos do cliente.
      */
+
+    public function findOrCreateByPhone(array $data): int
+    {
+        $stmt = $this->db->prepare('SELECT id FROM clientes WHERE telefone = :telefone LIMIT 1');
+        $stmt->execute([':telefone' => $data['telefone']]);
+        $found = $stmt->fetch();
+
+        if ($found) {
+            return (int) $found['id'];
+        }
+
+        $this->create($data + ['data_nascimento' => null]);
+        return (int) $this->db->lastInsertId();
+    }
+
     public function history(int $clientId): array
     {
         $sql = 'SELECT

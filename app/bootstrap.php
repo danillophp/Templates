@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\AvailabilityController;
 use App\Controllers\ClientController;
 use App\Controllers\DashboardController;
+use App\Controllers\PublicBookingController;
 use App\Controllers\ServiceCategoryController;
 use App\Controllers\ServiceController;
 use App\Controllers\ScheduleConfigController;
@@ -55,6 +56,9 @@ $guestOnly = [static fn() => Auth::requireGuest()];
 $authOnly = [static fn() => Auth::requireAuth()];
 
 $router->get('/', static fn() => redirect('/login'));
+$router->get('/agendamento', [PublicBookingController::class, 'index']);
+$router->post('/agendamento/reservar', [PublicBookingController::class, 'reserve']);
+$router->get('/agendamento/pagamento', [PublicBookingController::class, 'payment']);
 $router->get('/login', [AuthController::class, 'showLogin'], $guestOnly);
 $router->post('/login', [AuthController::class, 'login'], $guestOnly);
 $router->post('/logout', [AuthController::class, 'logout'], $authOnly);
