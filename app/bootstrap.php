@@ -60,6 +60,8 @@ $router->get('/dashboard', [DashboardController::class, 'index'], $authOnly);
 
 // CRUD clientes
 $router->get('/clientes', [ClientController::class, 'index'], $authOnly);
+$router->get('/clientes/buscar', [ClientController::class, 'index'], $authOnly);
+$router->get('/clientes/historico', [ClientController::class, 'history'], $authOnly);
 $router->get('/clientes/criar', [ClientController::class, 'create'], $authOnly);
 $router->post('/clientes/salvar', [ClientController::class, 'store'], $authOnly);
 $router->get('/clientes/editar', [ClientController::class, 'edit'], $authOnly);

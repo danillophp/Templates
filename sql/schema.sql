@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(160) NOT NULL,
     telefone VARCHAR(30) NOT NULL,
+    whatsapp VARCHAR(30) NULL,
     email VARCHAR(160) NULL,
     data_nascimento DATE NULL,
     observacoes TEXT NULL,
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_clientes_nome (nome),
     KEY idx_clientes_telefone (telefone),
+    KEY idx_clientes_whatsapp (whatsapp),
     KEY idx_clientes_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -253,10 +255,10 @@ VALUES
 (3, 2, 'Limpeza de Pele Profunda', 'Procedimento completo facial', 90, 180.00, 20.00, 1);
 
 -- Clientes exemplo
-INSERT IGNORE INTO clientes (id, nome, telefone, email, data_nascimento, observacoes)
+INSERT IGNORE INTO clientes (id, nome, telefone, whatsapp, email, data_nascimento, observacoes)
 VALUES
-(1, 'Ana Paula Souza', '(11) 99999-1111', 'ana.souza@email.com', '1993-04-10', 'Prefere horário da manhã.'),
-(2, 'Beatriz Lima', '(11) 98888-2222', 'beatriz.lima@email.com', '1990-09-21', 'Alergia leve a ácido forte.');
+(1, 'Ana Paula Souza', '(11) 99999-1111', '(11) 99999-1111', 'ana.souza@email.com', '1993-04-10', 'Prefere horário da manhã.'),
+(2, 'Beatriz Lima', '(11) 98888-2222', '(11) 98888-2222', 'beatriz.lima@email.com', '1990-09-21', 'Alergia leve a ácido forte.');
 
 -- Configuração de agenda padrão (segunda a sábado)
 INSERT IGNORE INTO configuracoes_agenda (id, dia_semana, hora_inicio, hora_fim, intervalo_minutos, ativo)

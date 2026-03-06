@@ -20,8 +20,15 @@ class ClientController extends Controller
 
     public function index(): void
     {
-        $clients = $this->model()->all();
-        $this->view('clients/index', ['title' => 'Clientes', 'user' => Auth::user(), 'clients' => $clients]);
+        $phone = input('telefone');
+        $clients = $this->model()->all($phone);
+
+        $this->view('clients/index', [
+            'title' => 'Clientes',
+            'user' => Auth::user(),
+            'clients' => $clients,
+            'phoneSearch' => $phone,
+        ]);
     }
 
     public function create(): void
@@ -36,16 +43,8 @@ class ClientController extends Controller
             exit('Token CSRF inválido.');
         }
 
-        $data = [
-            'nome' => input('nome'),
-            'telefone' => input('telefone'),
-            'email' => input('email'),
-            'data_nascimento' => input('data_nascimento'),
-            'observacoes' => input('observacoes'),
-        ];
-
-        if ($data['nome'] === '' || $data['telefone'] === '') {
-            flash('error', 'Nome e telefone são obrigatórios.');
+        $data = $this->payload();
+        if ($data === null) {
             redirect('/clientes/criar');
         }
 
@@ -76,18 +75,41 @@ class ClientController extends Controller
         }
 
         $id = (int) input('id', '0');
-        $data = [
-            'nome' => input('nome'),
-            'telefone' => input('telefone'),
-            'email' => input('email'),
-            'data_nascimento' => input('data_nascimento'),
-            'observacoes' => input('observacoes'),
-        ];
+        $client = $this->model()->find($id);
+
+        if (!$client) {
+            flash('error', 'Cliente não encontrado.');
+            redirect('/clientes');
+        }
+
+        $data = $this->payload();
+        if ($data === null) {
+            redirect('/clientes/editar?id=' . $id);
+        }
 
         $this->model()->update($id, $data);
         Logger::info('Cliente atualizado', ['id' => $id]);
         flash('success', 'Cliente atualizado com sucesso.');
         redirect('/clientes');
+    }
+
+    public function history(): void
+    {
+        $id = (int) input('id', '0');
+        $client = $this->model()->find($id);
+
+        if (!$client) {
+            flash('error', 'Cliente não encontrado.');
+            redirect('/clientes');
+        }
+
+        $history = $this->model()->history($id);
+        $this->view('clients/history', [
+            'title' => 'Histórico do Cliente',
+            'user' => Auth::user(),
+            'client' => $client,
+            'history' => $history,
+        ]);
     }
 
     public function destroy(): void
@@ -102,5 +124,29 @@ class ClientController extends Controller
         Logger::warning('Cliente removido', ['id' => $id]);
         flash('success', 'Cliente removido.');
         redirect('/clientes');
+    }
+
+    private function payload(): ?array
+    {
+        $data = [
+            'nome' => input('nome'),
+            'telefone' => input('telefone'),
+            'whatsapp' => input('whatsapp'),
+            'email' => input('email'),
+            'data_nascimento' => input('data_nascimento'),
+            'observacoes' => input('observacoes'),
+        ];
+
+        if ($data['nome'] === '') {
+            flash('error', 'Nome é obrigatório.');
+            return null;
+        }
+
+        if ($data['telefone'] === '') {
+            flash('error', 'Telefone é obrigatório.');
+            return null;
+        }
+
+        return $data;
     }
 }
