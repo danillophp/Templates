@@ -23,11 +23,24 @@ class Router
 
     public function dispatch(string $method, string $uri): void
     {
+        if ($method === 'HEAD') {
+            $method = 'GET';
+        }
+
+        if (!isset($this->routes[$method])) {
+            http_response_code(405);
+            exit('Método não permitido.');
+        }
+
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
         $basePath = normalize_base_path((string) app_config('app.base_path', ''));
 
         if ($basePath !== '' && str_starts_with($path, $basePath)) {
             $path = substr($path, strlen($basePath)) ?: '/';
+        }
+
+        if (!str_starts_with($path, '/')) {
+            $path = '/' . ltrim($path, '/');
         }
 
         $route = $this->routes[$method][$path] ?? null;

@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Core;
 
-/**
- * Serviço de autenticação baseado em sessão.
- */
 class Auth
 {
     public static function check(): bool
@@ -23,10 +20,11 @@ class Auth
     {
         session_regenerate_id(true);
         $_SESSION['user'] = [
-            'id' => $user['id'],
-            'name' => $user['name'],
-            'email' => $user['email'],
+            'id' => (int) $user['id'],
+            'name' => (string) $user['name'],
+            'email' => (string) $user['email'],
         ];
+        $_SESSION['_last_activity'] = time();
     }
 
     public static function logout(): void
@@ -35,7 +33,15 @@ class Auth
 
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params['path'],
+                $params['domain'] ?? '',
+                (bool) $params['secure'],
+                (bool) $params['httponly']
+            );
         }
 
         session_destroy();

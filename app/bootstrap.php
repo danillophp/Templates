@@ -39,6 +39,15 @@ $GLOBALS['app_config'] = $config;
 
 date_default_timezone_set($config['app']['timezone']);
 
+
+ini_set('display_errors', app_config('app.debug', false) ? '1' : '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
+ini_set('session.use_strict_mode', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_samesite', 'Lax');
+
 session_name($config['session']['name']);
 session_set_cookie_params([
     'lifetime' => $config['session']['lifetime'],
@@ -51,6 +60,19 @@ session_set_cookie_params([
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
+
+$sessionTimeout = (int) ($config['session']['lifetime'] ?? 7200);
+$lastActivity = (int) ($_SESSION['_last_activity'] ?? 0);
+if ($lastActivity > 0 && (time() - $lastActivity) > $sessionTimeout) {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'] ?? '', (bool) $params['secure'], (bool) $params['httponly']);
+    }
+    session_destroy();
+    session_start();
+}
+$_SESSION['_last_activity'] = time();
 
 $router = new Router();
 
