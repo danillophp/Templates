@@ -1,0 +1,19 @@
+Options -Indexes
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|phar|cgi|pl|py|sh|exe)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(png|jpe?g|webp)$">
+    Require all granted
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ - [F,L]
+</IfModule>
