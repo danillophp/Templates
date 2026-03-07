@@ -1,0 +1,8 @@
+:root{--rose:#b76e79;--nude:#f8efea;--dark:#4b2e35}
+body{font-family:'Segoe UI',sans-serif;background:#fff;color:#3d2a2f}
+.navbar-brand img{height:42px;width:auto}
+.btn-primary{background:var(--rose);border-color:var(--rose)}
+.btn-primary:hover{background:#9f5e68;border-color:#9f5e68}
+.card{border-radius:14px}
+.studio-footer{background:var(--nude);border-top:1px solid #eddad2;margin-top:2rem;padding:1.5rem 0;font-size:.92rem}
+.studio-google-invite{background:#fff7f8;border:1px solid #f2d7dd;border-radius:12px;padding:.8rem 1rem}

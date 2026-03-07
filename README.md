@@ -1,80 +1,120 @@
-# CATA TRECO
+# Studio Bruna Nayara — Sistema de Agendamento (PHP 8 + MySQL)
 
-Sistema web institucional para gestão municipal de coleta de resíduos volumosos, construído com **PHP 8+ (OO/MVC)**, **MySQL**, **Bootstrap 5**, **Leaflet** e **Fetch API**.
+Sistema MVC profissional preparado para produção em **subdiretório `/agenda`**.
 
-## Arquitetura
+## URL de produção
 
-- Backend OO com MVC simples (`app/Controllers`, `app/Models`, `app/Core`)
-- API REST interna em JSON via rotas `?r=api/...`
-- Sessão PHP para autenticação e perfis (ADMIN e FUNCIONARIO)
-- Logs e trilha de auditoria LGPD
-- Front moderno, responsivo e dinâmico (AJAX)
+- `http://www.studiobrunanayara.com.br/agenda`
 
-## Banco de dados (HostGator)
+## Estrutura
 
-- Banco: `santo821_treco`
-- Usuário: `catatreco`
-- Senha: `php@3903`
+```text
+/public
+  index.php
+  .htaccess
+  /assets
+    /css
+    /js
+    /img
+/app
+  /config
+  /controllers
+  /core
+  /helpers
+  /models
+  /services
+  /views
+/storage
+  /logs
+  /uploads
+  /cache
+/database
+  schema.sql
+  seeds.sql
+```
 
-Arquivo de conexão: `config/db.php`.
-Script SQL completo: `sql/catatreco.sql`.
+## Configuração central
 
-## Funcionalidades
+### App (`app/config/config.php`)
+- `APP_URL`
+- `APP_BASE_PATH` (fallback `/agenda`)
+- timezone e sessão segura
 
-1. **Módulo do cidadão**
-   - Formulário moderno com validações e envio AJAX.
-   - Mapa Leaflet + OpenStreetMap.
-   - Geocoding automático Nominatim por endereço/CEP.
-   - Upload de foto + consentimento LGPD + IP + status inicial `PENDENTE`.
+### Banco (`app/config/database.php`)
+Usa `getenv()` com fallback HostGator:
+- database: `santo821_studiobrunanayara`
+- username: `santo821_studiobrunanayara`
+- password: `php@3903.`
 
-2. **Login e perfis**
-   - Senha com bcrypt.
-   - Acesso por perfil ADMINISTRADOR e FUNCIONARIO.
+## Helpers de subpasta
 
-3. **Painel administrativo**
-   - Cards de indicadores (Pendentes, Aprovadas, Em andamento, Finalizadas).
-   - Filtros por data, status e localidade.
-   - Ações: aprovar, recusar, alterar data/hora, atribuir funcionário.
+- `base_url()`
+- `asset_url()`
+- `redirect_to()`
 
-4. **Painel do funcionário**
-   - Coletas atribuídas com dados completos do cidadão.
-   - Botões Ligar, WhatsApp, Como chegar, foto.
-   - Mapa por coleta + ações iniciar/finalizar.
+Todos os links, formulários e redirects principais foram ajustados para respeitar `/agenda`.
 
-5. **WhatsApp automático**
-   - Estrutura pronta para WhatsApp Cloud API com templates oficiais.
-   - Fallback automático via `wa.me`.
+## Branding e dados oficiais
 
-6. **LGPD, segurança e auditoria**
-   - Consentimento explícito.
-   - Registro de IP e data/hora.
-   - Log de ações administrativas e operacionais.
-   - Estrutura preparada para anonimização futura.
+- Logo gerenciável por upload em `public/uploads/logo/` (sem logo fixa em código)
+- Dados institucionais em `configuracoes_studio`
+- Rodapé com endereço, telefone, redes e localização
+- Convite amigável de avaliação Google (ativável no painel)
 
-## Instalação na HostGator
+## Módulos entregues
 
-1. Envie os arquivos para `public_html/catatreco`.
-2. Importe `sql/catatreco.sql` no phpMyAdmin.
-3. Confirme credenciais em `config/db.php`.
-4. Garanta permissão de escrita em `uploads/` (ex.: `775`).
-5. Acesse: `https://www.prefsade.com.br/catatreco/public/index.php`.
+- Login + logout com sessão segura e CSRF
+- Dashboard administrativo
+- CRUD clientes
+- CRUD categorias
+- CRUD serviços
+- Agenda/configuração de horários
+- Agendamento público e pré-reserva
+- Pagamento de entrada de 20%
+- Configurações institucionais do Studio
+- Convite de avaliação Google (público + confirmação)
 
-## Credenciais iniciais
+## Deploy HostGator (passo a passo)
 
-- Admin: `admin` / `Admin@123`
-- Funcionário: `funcionario1` / `Func@123`
+1. Suba o projeto para o servidor.
+2. Aponte o subdiretório web para `public/` ou copie o conteúdo de `public` para `/agenda`.
+3. Garanta `mod_rewrite` ativo e `.htaccess` da pasta pública.
+4. Importe `database/schema.sql`.
+5. Configure variáveis de ambiente (ou use fallback):
+   - `APP_URL=http://www.studiobrunanayara.com.br`
+   - `APP_BASE_PATH=/agenda`
+   - `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+6. Dê permissão de escrita em `storage/logs`, `storage/uploads`, `storage/cache`.
+7. Teste:
+   - `/agenda/login`
+   - `/agenda/dashboard`
+   - `/agenda/agendamento`
 
-> Altere as senhas imediatamente em produção.
+## Checklist técnico de validação
 
-## Rotas principais
+- [ ] Login/logout funciona em `/agenda`
+- [ ] Todos os assets carregam sem 404
+- [ ] CRUDs redirecionam para URLs com base `/agenda`
+- [ ] Agendamento público cria pré-reserva
+- [ ] Pagamento confirma entrada e agendamento
+- [ ] Rodapé exibe dados oficiais
+- [ ] Convite Google aparece quando ativo
+- [ ] Logs são gerados em `storage/logs/app.log`
+- [ ] Sem referências a sistemas antigos
 
-- `?r=citizen/home`
-- `?r=auth/login`
-- `?r=admin/dashboard`
-- `?r=employee/dashboard`
 
-## Produção
+## Como trocar a logo pelo painel
 
-- Ative HTTPS e cookies de sessão seguros.
-- Configure `WA_TOKEN`, `WA_PHONE_NUMBER_ID` e templates em `config/app.php`.
-- Recomendado: backup diário, monitoramento e WAF.
+1. Acesse **Configurações > Studio** no painel administrativo.
+2. No campo **Upload da logo**, envie uma imagem PNG, JPG/JPEG ou WEBP (máx. 5MB).
+3. Clique em **Salvar configurações**.
+4. A logo será salva em `public/uploads/logo/` com nome único e passará a aparecer automaticamente no login, topo do painel, página pública e rodapé.
+5. Se nenhuma logo estiver enviada, o sistema exibe apenas o nome do studio como fallback (sem quebrar layout).
+
+## Segurança de upload
+
+- Validação de extensão e MIME.
+- Tamanho máximo de 5MB.
+- Renomeação automática para evitar sobrescrita.
+- Upload em diretório isolado.
+- `.htaccess` em `public/uploads/logo/` bloqueando execução de scripts e listagem de diretório.
