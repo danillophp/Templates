@@ -53,7 +53,7 @@ class UploadService
             throw new RuntimeException('Arquivo enviado não é uma imagem válida.');
         }
 
-        $targetDir = __DIR__ . '/../../public/uploads/logo';
+        $targetDir = __DIR__ . '/../../uploads/logo';
         if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
             throw new RuntimeException('Não foi possível preparar o diretório de upload.');
         }

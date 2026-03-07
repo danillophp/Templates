@@ -11,7 +11,7 @@ Após auditoria focada em hospedagem real (`studiobrunanayara.com.br` + sistema 
 
 ## 2) Arquivos corrigidos nesta revisão
 
-- `public/.htaccess`
+- `.htaccess`
 - `app/config/config.php`
 - `app/config/database.php`
 - `app/helpers/helpers.php`
@@ -114,3 +114,12 @@ Exemplo suportado:
 ## 10) Observação prática de teste local
 
 No servidor embutido do PHP com `-t public`, acessos a `/agenda/assets/*` podem não refletir o comportamento de Apache em subpasta. A validação definitiva deve ser feita no Apache/HostGator conforme checklist acima.
+
+
+## Regra recomendada no .htaccess da raiz (WordPress)
+
+Para evitar interferência do WordPress no sistema em subpasta, inclua antes das regras do WP:
+
+```apache
+RewriteRule ^agenda/ - [L]
+```

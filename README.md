@@ -9,13 +9,14 @@ Sistema MVC profissional preparado para produção em **subdiretório `/agenda`*
 ## Estrutura
 
 ```text
-/public
-  index.php
-  .htaccess
-  /assets
-    /css
-    /js
-    /img
+/index.php
+/.htaccess
+/assets
+  /css
+  /js
+  /img
+/uploads
+  /logo
 /app
   /config
   /controllers
@@ -56,7 +57,7 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 
 ## Branding e dados oficiais
 
-- Logo gerenciável por upload em `public/uploads/logo/` (sem logo fixa em código)
+- Logo gerenciável por upload em `uploads/logo/` (sem logo fixa em código)
 - Dados institucionais em `configuracoes_studio`
 - Rodapé com endereço, telefone, redes e localização
 - Convite amigável de avaliação Google (ativável no painel)
@@ -77,7 +78,7 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 ## Deploy HostGator (passo a passo)
 
 1. Suba o projeto para o servidor.
-2. Aponte o subdiretório web para `public/` ou copie o conteúdo de `public` para `/agenda`.
+2. Publique os arquivos diretamente na pasta `/agenda` (front controller em `/agenda/index.php`).
 3. Garanta `mod_rewrite` ativo e `.htaccess` da pasta pública.
 4. Importe `database/schema.sql`.
 5. Configure variáveis de ambiente (ou use fallback):
@@ -93,7 +94,7 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 ## Checklist técnico de validação
 
 - [ ] Login/logout funciona em `/agenda`
-- [ ] Todos os assets carregam sem 404
+- [ ] Todos os assets carregam sem 404 em `/agenda/assets/...`
 - [ ] CRUDs redirecionam para URLs com base `/agenda`
 - [ ] Agendamento público cria pré-reserva
 - [ ] Pagamento confirma entrada e agendamento
@@ -108,7 +109,7 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 1. Acesse **Configurações > Studio** no painel administrativo.
 2. No campo **Upload da logo**, envie uma imagem PNG, JPG/JPEG ou WEBP (máx. 5MB).
 3. Clique em **Salvar configurações**.
-4. A logo será salva em `public/uploads/logo/` com nome único e passará a aparecer automaticamente no login, topo do painel, página pública e rodapé.
+4. A logo será salva em `uploads/logo/` com nome único e passará a aparecer automaticamente no login, topo do painel, página pública e rodapé.
 5. Se nenhuma logo estiver enviada, o sistema exibe apenas o nome do studio como fallback (sem quebrar layout).
 
 ## Segurança de upload
@@ -117,7 +118,7 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 - Tamanho máximo de 5MB.
 - Renomeação automática para evitar sobrescrita.
 - Upload em diretório isolado.
-- `.htaccess` em `public/uploads/logo/` bloqueando execução de scripts e listagem de diretório.
+- `.htaccess` em `uploads/logo/` bloqueando execução de scripts e listagem de diretório.
 
 
 ## Diagnóstico de produção em /agenda
