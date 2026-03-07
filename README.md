@@ -4,7 +4,7 @@ Sistema MVC profissional preparado para produção em **subdiretório `/agenda`*
 
 ## URL de produção
 
-- `http://www.studiobrunanayara.com.br/agenda`
+- `http://studiobrunanayara.com.br/agenda`
 
 ## Estrutura
 
@@ -81,7 +81,7 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 3. Garanta `mod_rewrite` ativo e `.htaccess` da pasta pública.
 4. Importe `database/schema.sql`.
 5. Configure variáveis de ambiente (ou use fallback):
-   - `APP_URL=http://www.studiobrunanayara.com.br`
+   - `APP_URL=http://studiobrunanayara.com.br`
    - `APP_BASE_PATH=/agenda`
    - `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
 6. Dê permissão de escrita em `storage/logs`, `storage/uploads`, `storage/cache`.
@@ -118,3 +118,8 @@ Todos os links, formulários e redirects principais foram ajustados para respeit
 - Renomeação automática para evitar sobrescrita.
 - Upload em diretório isolado.
 - `.htaccess` em `public/uploads/logo/` bloqueando execução de scripts e listagem de diretório.
+
+
+## Diagnóstico de produção em /agenda
+
+Consulte `PRODUCTION_DEPLOY_DIAGNOSIS.md` para causa raiz, correções aplicadas e checklist de validação em produção.

@@ -1,7 +1,5 @@
 Options -Indexes
 RewriteEngine On
-RewriteBase /agenda/
-
 # Bloqueia acesso a arquivos ocultos e sensíveis
 RedirectMatch 403 /\..*$
 <FilesMatch "^(composer\.(json|lock)|\.env|\.gitignore|phpunit\.xml)$">

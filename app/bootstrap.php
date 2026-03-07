@@ -51,7 +51,7 @@ ini_set('session.cookie_samesite', 'Lax');
 session_name($config['session']['name']);
 session_set_cookie_params([
     'lifetime' => $config['session']['lifetime'],
-    'path' => '/',
+    'path' => base_path() !== '' ? base_path() : '/',
     'httponly' => true,
     'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
     'samesite' => 'Lax',
