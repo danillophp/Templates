@@ -93,9 +93,11 @@ $router->get('/dashboard', [DashboardController::class, 'index'], $authOnly);
 $router->get('/clientes', [ClientController::class, 'index'], $authOnly);
 $router->get('/clientes/buscar', [ClientController::class, 'index'], $authOnly);
 $router->get('/clientes/historico', [ClientController::class, 'history'], $authOnly);
+$router->get('/clientes/historico/{id}', [ClientController::class, 'history'], $authOnly);
 $router->get('/clientes/criar', [ClientController::class, 'create'], $authOnly);
 $router->post('/clientes/salvar', [ClientController::class, 'store'], $authOnly);
 $router->get('/clientes/editar', [ClientController::class, 'edit'], $authOnly);
+$router->get('/clientes/editar/{id}', [ClientController::class, 'edit'], $authOnly);
 $router->post('/clientes/atualizar', [ClientController::class, 'update'], $authOnly);
 $router->post('/clientes/excluir', [ClientController::class, 'destroy'], $authOnly);
 
@@ -104,6 +106,7 @@ $router->get('/categorias', [ServiceCategoryController::class, 'index'], $authOn
 $router->get('/categorias/criar', [ServiceCategoryController::class, 'create'], $authOnly);
 $router->post('/categorias/salvar', [ServiceCategoryController::class, 'store'], $authOnly);
 $router->get('/categorias/editar', [ServiceCategoryController::class, 'edit'], $authOnly);
+$router->get('/categorias/editar/{id}', [ServiceCategoryController::class, 'edit'], $authOnly);
 $router->post('/categorias/atualizar', [ServiceCategoryController::class, 'update'], $authOnly);
 $router->post('/categorias/status', [ServiceCategoryController::class, 'toggleStatus'], $authOnly);
 $router->post('/categorias/excluir', [ServiceCategoryController::class, 'destroy'], $authOnly);
@@ -113,6 +116,7 @@ $router->get('/servicos', [ServiceController::class, 'index'], $authOnly);
 $router->get('/servicos/criar', [ServiceController::class, 'create'], $authOnly);
 $router->post('/servicos/salvar', [ServiceController::class, 'store'], $authOnly);
 $router->get('/servicos/editar', [ServiceController::class, 'edit'], $authOnly);
+$router->get('/servicos/editar/{id}', [ServiceController::class, 'edit'], $authOnly);
 $router->post('/servicos/atualizar', [ServiceController::class, 'update'], $authOnly);
 $router->post('/servicos/status', [ServiceController::class, 'toggleStatus'], $authOnly);
 $router->post('/servicos/excluir', [ServiceController::class, 'destroy'], $authOnly);

@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+$config = require __DIR__ . '/config.php';
+$db = $config['database'];
+
 return [
     'driver' => 'mysql',
-    'host' => getenv('DB_HOST') ?: 'localhost',
+    'host' => $db['host'],
     'port' => getenv('DB_PORT') ?: '3306',
-    'database' => getenv('DB_DATABASE') ?: 'santo821_studiobrunanayara',
-    'username' => getenv('DB_USERNAME') ?: 'santo821_studiobrunanayara',
-    'password' => getenv('DB_PASSWORD') ?: 'php@3903.',
-    'charset' => 'utf8mb4',
+    'database' => $db['database'],
+    'username' => $db['username'],
+    'password' => $db['password'],
+    'charset' => $db['charset'],
     'collation' => 'utf8mb4_unicode_ci',
 ];

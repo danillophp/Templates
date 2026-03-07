@@ -41,18 +41,34 @@ function normalize_base_path(string $path): string
     return $trimmed === '/' ? '' : $trimmed;
 }
 
+function app_url(): string
+{
+    return rtrim((string) app_config('app.url', ''), '/');
+}
+
 function base_path(): string
 {
     return normalize_base_path((string) app_config('app.base_path', ''));
 }
 
+function normalize_relative_path(string $path): string
+{
+    $path = trim($path);
+    if ($path === '' || $path === '/') {
+        return '';
+    }
+
+    return '/' . ltrim($path, '/');
+}
+
 function base_url(string $path = ''): string
 {
-    $basePath = base_path();
-    $path = '/' . ltrim($path, '/');
-    $path = $path === '/' ? '' : $path;
+    return app_url() . normalize_relative_path($path);
+}
 
-    return $basePath . $path;
+function public_url(string $path = ''): string
+{
+    return app_url() . normalize_relative_path($path);
 }
 
 function asset_url(string $path): string
@@ -62,11 +78,12 @@ function asset_url(string $path): string
     }
 
     $cleanPath = ltrim($path, '/');
-    if (str_starts_with($cleanPath, 'uploads/')) {
-        return base_url('/' . $cleanPath);
+
+    if (str_starts_with($cleanPath, 'assets/') || str_starts_with($cleanPath, 'uploads/')) {
+        return public_url($cleanPath);
     }
 
-    return base_url('/assets/' . $cleanPath);
+    return public_url('assets/' . $cleanPath);
 }
 
 function redirect_to(string $path = ''): void
