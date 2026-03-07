@@ -5,6 +5,9 @@ declare(strict_types=1);
 use App\Controllers\AuthController;
 use App\Controllers\AvailabilityController;
 use App\Controllers\ClientController;
+use App\Controllers\PaymentWebhookController;
+use App\Controllers\PaymentController;
+use App\Controllers\CalendarController;
 use App\Controllers\DashboardController;
 use App\Controllers\PublicBookingController;
 use App\Controllers\ServiceCategoryController;
@@ -84,10 +87,15 @@ $router->get('/agendamento', [PublicBookingController::class, 'index']);
 $router->post('/agendamento/reservar', [PublicBookingController::class, 'reserve']);
 $router->get('/agendamento/pagamento', [PublicBookingController::class, 'payment']);
 $router->post('/agendamento/pagamento/confirmar', [PublicBookingController::class, 'confirmPayment']);
+$router->post('/pagamentos/processar', [PaymentController::class, 'process']);
+$router->get('/pagamentos/status', [PaymentController::class, 'status']);
+$router->post('/webhooks/pagamentos', [PaymentWebhookController::class, 'handle']);
 $router->get('/login', [AuthController::class, 'showLogin'], $guestOnly);
 $router->post('/login', [AuthController::class, 'login'], $guestOnly);
 $router->post('/logout', [AuthController::class, 'logout'], $authOnly);
 $router->get('/dashboard', [DashboardController::class, 'index'], $authOnly);
+$router->get('/calendario', [CalendarController::class, 'index'], $authOnly);
+$router->get('/api/calendario/eventos', [CalendarController::class, 'events'], $authOnly);
 
 // CRUD clientes
 $router->get('/clientes', [ClientController::class, 'index'], $authOnly);

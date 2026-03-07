@@ -25,6 +25,7 @@
                 <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/categorias')) ?>">Categorias</a></li>
                 <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/servicos')) ?>">Serviços</a></li>
                 <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/agenda/configuracoes')) ?>">Agenda</a></li>
+                <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/calendario')) ?>">Calendário</a></li>
                 <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/configuracoes/studio')) ?>">Studio</a></li>
             </ul>
             <div class="d-flex align-items-center gap-2">

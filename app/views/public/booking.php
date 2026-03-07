@@ -1,4 +1,3 @@
-
 <?php $studio = studio_settings(); ?>
 <div class="row mb-3">
   <div class="col-lg-10 mx-auto">
@@ -12,11 +11,19 @@
     </div>
   </div>
 </div>
+
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h4 mb-0">Agendamento Online</h1>
-            <span class="badge text-bg-primary">Fluxo rápido</span>
+            <span class="badge text-bg-primary">Calendário interativo</span>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h2 class="h6 mb-3">1) Selecione a data no calendário</h2>
+                <div id="publicCalendar"></div>
+            </div>
         </div>
 
         <div class="card border-0 shadow-sm">
@@ -25,7 +32,7 @@
                     <?= csrf_field() ?>
 
                     <div class="col-md-4">
-                        <label class="form-label">1. Categoria *</label>
+                        <label class="form-label">2. Categoria *</label>
                         <select class="form-select" name="categoria_id" id="categoria_id" required>
                             <option value="">Selecione</option>
                             <?php foreach ($categories as $category): ?>
@@ -37,56 +44,41 @@
                     </div>
 
                     <div class="col-md-8">
-                        <label class="form-label">2. Serviço *</label>
+                        <label class="form-label">3. Serviço *</label>
                         <select class="form-select" name="servico_id" id="servico_id" required disabled>
                             <option value="">Selecione a categoria primeiro</option>
                         </select>
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">3. Data *</label>
+                        <label class="form-label">4. Data *</label>
                         <input type="date" class="form-control" name="data" id="data" required min="<?= date('Y-m-d') ?>">
                     </div>
 
                     <div class="col-md-8">
-                        <label class="form-label">4. Horário disponível *</label>
+                        <label class="form-label">5. Horário disponível *</label>
                         <select class="form-select" name="hora" id="hora" required disabled>
                             <option value="">Escolha serviço e data</option>
                         </select>
                     </div>
 
-                    <div class="col-12"><hr><h2 class="h6">5. Seus dados</h2></div>
+                    <div class="col-12"><hr><h2 class="h6">6. Seus dados</h2></div>
 
-                    <div class="col-md-6">
-                        <label class="form-label">Nome *</label>
-                        <input class="form-control" name="nome" required maxlength="160">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Telefone *</label>
-                        <input class="form-control" name="telefone" required maxlength="30">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">WhatsApp *</label>
-                        <input class="form-control" name="whatsapp" required maxlength="30">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">E-mail *</label>
-                        <input type="email" class="form-control" name="email" required maxlength="160">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Observações</label>
-                        <textarea class="form-control" name="observacoes" rows="2"></textarea>
-                    </div>
+                    <div class="col-md-6"><label class="form-label">Nome *</label><input class="form-control" name="nome" required maxlength="160"></div>
+                    <div class="col-md-3"><label class="form-label">Telefone *</label><input class="form-control" name="telefone" required maxlength="30"></div>
+                    <div class="col-md-3"><label class="form-label">WhatsApp *</label><input class="form-control" name="whatsapp" required maxlength="30"></div>
+                    <div class="col-md-6"><label class="form-label">E-mail *</label><input type="email" class="form-control" name="email" required maxlength="160"></div>
+                    <div class="col-md-6"><label class="form-label">Observações</label><textarea class="form-control" name="observacoes" rows="2"></textarea></div>
 
-                    <div class="col-12">
-                        <button class="btn btn-primary px-4" type="submit">6. Avançar para pagamento</button>
-                    </div>
+                    <div class="col-12"><button class="btn btn-primary px-4" type="submit">7. Avançar para pagamento</button></div>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
 (() => {
     const services = <?= json_encode($services, JSON_UNESCAPED_UNICODE) ?>;
@@ -148,5 +140,20 @@
     categorySelect.addEventListener('change', populateServices);
     serviceSelect.addEventListener('change', loadTimes);
     dateInput.addEventListener('change', loadTimes);
+
+    const calEl = document.getElementById('publicCalendar');
+    if (calEl) {
+        const calendar = new FullCalendar.Calendar(calEl, {
+            locale: 'pt-br',
+            initialView: 'dayGridMonth',
+            selectable: true,
+            dateClick(info) {
+                dateInput.value = info.dateStr;
+                dateInput.dispatchEvent(new Event('change'));
+                window.scrollTo({top: dateInput.getBoundingClientRect().top + window.scrollY - 100, behavior: 'smooth'});
+            }
+        });
+        calendar.render();
+    }
 })();
 </script>

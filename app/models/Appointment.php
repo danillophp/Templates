@@ -174,4 +174,72 @@ class Appointment extends Model
 
         return $row ?: null;
     }
+
+    public function listForCalendar(?string $start = null, ?string $end = null, ?string $status = null): array
+    {
+        $sql = 'SELECT a.id, a.data_agendamento, a.hora_inicio, a.hora_fim, a.status, a.valor_total, c.nome AS cliente_nome, s.nome AS servico_nome
+                FROM agendamentos a
+                INNER JOIN clientes c ON c.id = a.cliente_id
+                INNER JOIN servicos s ON s.id = a.servico_id
+                WHERE (:start IS NULL OR a.data_agendamento >= :start)
+                  AND (:end IS NULL OR a.data_agendamento <= :end)
+                  AND (:status IS NULL OR a.status = :status)
+                ORDER BY a.data_agendamento ASC, a.hora_inicio ASC';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':start' => $start !== '' ? $start : null,
+            ':end' => $end !== '' ? $end : null,
+            ':status' => $status !== '' ? $status : null,
+        ]);
+
+        $events = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $color = match ($row['status']) {
+                'confirmado' => '#198754',
+                'aguardando_pagamento' => '#ffc107',
+                'cancelado' => '#dc3545',
+                'realizado' => '#0d6efd',
+                default => '#6c757d',
+            };
+
+            $events[] = [
+                'id' => (int) $row['id'],
+                'title' => $row['cliente_nome'] . ' • ' . $row['servico_nome'],
+                'start' => $row['data_agendamento'] . 'T' . $row['hora_inicio'],
+                'end' => $row['data_agendamento'] . 'T' . $row['hora_fim'],
+                'backgroundColor' => $color,
+                'borderColor' => $color,
+                'extendedProps' => [
+                    'status' => $row['status'],
+                    'valor' => $row['valor_total'],
+                ],
+            ];
+        }
+
+        return $events;
+    }
+
+    public function transitionStatus(int $appointmentId, string $newStatus, string $note = ''): void
+    {
+        $currentStmt = $this->db->prepare('SELECT status FROM agendamentos WHERE id = :id LIMIT 1');
+        $currentStmt->execute([':id' => $appointmentId]);
+        $current = $currentStmt->fetchColumn();
+        if (!$current || $current === $newStatus) {
+            return;
+        }
+
+        $stmt = $this->db->prepare('UPDATE agendamentos SET status = :status WHERE id = :id');
+        $stmt->execute([':status' => $newStatus, ':id' => $appointmentId]);
+
+        $history = $this->db->prepare('INSERT INTO historico_agendamentos (agendamento_id, status_anterior, status_novo, observacao, created_at)
+                                       VALUES (:agendamento_id, :status_anterior, :status_novo, :observacao, NOW())');
+        $history->execute([
+            ':agendamento_id' => $appointmentId,
+            ':status_anterior' => $current,
+            ':status_novo' => $newStatus,
+            ':observacao' => $note,
+        ]);
+    }
+
 }

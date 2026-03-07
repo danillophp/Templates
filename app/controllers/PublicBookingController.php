@@ -10,6 +10,7 @@ use App\Core\Logger;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Payment;
+use App\Services\PaymentProcessorService;
 use App\Models\ScheduleConfig;
 use App\Models\Service;
 use App\Models\ServiceCategory;
@@ -140,9 +141,12 @@ class PublicBookingController extends Controller
             redirect('/agendamento');
         }
 
+        $payment = (new Payment($this->db()))->findLastByAppointment($id);
+
         $this->view('public/payment', [
             'title' => 'Pagamento da Entrada',
             'appointment' => $appointment,
+            'payment' => $payment,
         ], 'layouts/public');
     }
 
@@ -171,24 +175,17 @@ class PublicBookingController extends Controller
             redirect('/agendamento');
         }
 
-        $paymentModel = new Payment($db);
-        $paymentModel->createEntryPayment([
-            'agendamento_id' => $appointmentId,
-            'valor' => (float) $appointment['valor_entrada'],
-            'metodo_pagamento' => $metodo,
-            'status' => 'pago',
-            'pago_em' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-        ]);
+        (new PaymentProcessorService($db))->startPayment($appointment, $metodo);
 
-        // Regra: sem pagamento, não confirma.
-        if ($paymentModel->hasPaidEntry($appointmentId)) {
-            $appointmentModel->markConfirmed($appointmentId);
-            Logger::info('Agendamento confirmado após pagamento de entrada', ['agendamento_id' => $appointmentId]);
-            flash('success', 'Pagamento confirmado. Seu agendamento está confirmado!');
-            redirect('/agendamento/pagamento?id=' . $appointmentId);
+        if ($metodo === 'dinheiro') {
+            $appointmentModel->transitionStatus($appointmentId, 'confirmado', 'Pagamento manual confirmado no balcão.');
+            Logger::info('Agendamento confirmado com pagamento manual', ['agendamento_id' => $appointmentId]);
+            flash('success', 'Pagamento manual registrado. Agendamento confirmado.');
+        } else {
+            Logger::info('Pagamento iniciado', ['agendamento_id' => $appointmentId, 'metodo' => $metodo]);
+            flash('success', 'Pagamento iniciado. Finalize e aguarde confirmação automática.');
         }
 
-        flash('error', 'Pagamento não confirmado. O agendamento permanece sem confirmação.');
         redirect('/agendamento/pagamento?id=' . $appointmentId);
     }
 }
