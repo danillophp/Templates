@@ -31,17 +31,40 @@
         }
     }
 
+    async function registerMirrorServiceWorker() {
+        if (!('serviceWorker' in navigator)) {
+            return;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+
+            if (registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+
+            registration.addEventListener('updatefound', () => {
+                const worker = registration.installing;
+                if (!worker) {
+                    return;
+                }
+
+                worker.addEventListener('statechange', () => {
+                    if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                        window.location.reload();
+                    }
+                });
+            });
+        } catch (error) {
+            console.warn('Falha ao registrar o service worker espelhado do PrefSADE.', error);
+        }
+    }
+
     if (searchInput) {
         searchInput.addEventListener('input', (event) => {
             filterServices(event.target.value);
         });
     }
 
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch((error) => {
-                console.warn('Falha ao registrar o service worker do PrefSADE.', error);
-            });
-        });
-    }
+    window.addEventListener('load', registerMirrorServiceWorker);
 })();

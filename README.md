@@ -86,3 +86,8 @@ Script SQL completo: `sql/catatreco.sql`.
 ## Hub PrefSADE Serviços Digitais
 
 - Novo hub institucional em `/app/index.php` com base PWA, busca dinâmica e links para os serviços já existentes.
+
+## App espelhado /app
+
+- Guia de implantação espelhada e bases móveis: `docs/PREFSADE_MIRROR_APP_GUIDE.md`.
+- Configurações base para Android TWA e iOS Capacitor: `app/mobile/`.

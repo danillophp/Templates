@@ -1,0 +1,30 @@
+{
+  "appId": "br.gov.sade.prefsade",
+  "appName": "PrefSADE Serviços Digitais",
+  "webDir": "../..",
+  "server": {
+    "url": "https://www.prefsade.com.br/app/index.php",
+    "cleartext": false,
+    "allowNavigation": [
+      "www.prefsade.com.br",
+      "prefsade.com.br"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#0d2d62",
+      "showSpinner": false
+    }
+  },
+  "notes": [
+    "O shell iOS deve carregar o conteúdo remoto do domínio oficial, sem duplicar páginas internamente.",
+    "Mudanças no servidor refletem automaticamente no app para layout, banners, menus, formulários e módulos hospedados online.",
+    "Nova publicação na App Store só é necessária quando mudar ícones, splash, permissões nativas, código Capacitor ou políticas do aplicativo."
+  ]
+}
