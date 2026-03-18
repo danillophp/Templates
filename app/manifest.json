@@ -1,0 +1,26 @@
+{
+  "name": "PrefSADE Serviços Digitais",
+  "short_name": "PrefSADE",
+  "description": "Hub oficial de serviços digitais da Prefeitura de Santo Antônio do Descoberto.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/app/index.php",
+  "scope": "/app/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0d2d62",
+  "categories": [
+    "government",
+    "utilities",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/app/assets/icons/icon-app.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

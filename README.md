@@ -78,3 +78,11 @@ Script SQL completo: `sql/catatreco.sql`.
 - Ative HTTPS e cookies de sessão seguros.
 - Configure `WA_TOKEN`, `WA_PHONE_NUMBER_ID` e templates em `config/app.php`.
 - Recomendado: backup diário, monitoramento e WAF.
+
+## Documentação estratégica PrefSADE
+
+- Arquitetura proposta do aplicativo unificado: `docs/PREFSADE_APP_ARCHITECTURE.md`.
+
+## Hub PrefSADE Serviços Digitais
+
+- Novo hub institucional em `/app/index.php` com base PWA, busca dinâmica e links para os serviços já existentes.
