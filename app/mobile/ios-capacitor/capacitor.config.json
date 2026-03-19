@@ -3,7 +3,7 @@
   "appName": "PrefSADE Serviços Digitais",
   "webDir": "../..",
   "server": {
-    "url": "https://www.prefsade.com.br/app/index.php",
+    "url": "https://www.prefsade.com.br/app/",
     "cleartext": false,
     "allowNavigation": [
       "www.prefsade.com.br",

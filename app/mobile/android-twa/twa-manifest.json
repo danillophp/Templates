@@ -1,7 +1,7 @@
 {
   "applicationId": "br.gov.sade.prefsade",
   "host": "www.prefsade.com.br",
-  "launchUrl": "/app/index.php",
+  "launchUrl": "/app/",
   "webManifestUrl": "https://www.prefsade.com.br/app/manifest.json",
   "name": "PrefSADE Serviços Digitais",
   "launcherName": "PrefSADE",

@@ -4,7 +4,7 @@
   "description": "Hub oficial de serviços digitais da Prefeitura de Santo Antônio do Descoberto.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "/app/index.php",
+  "start_url": "/app/",
   "scope": "/app/",
   "display": "standalone",
   "orientation": "portrait-primary",
