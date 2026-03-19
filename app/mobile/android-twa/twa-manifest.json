@@ -1,0 +1,22 @@
+{
+  "applicationId": "br.gov.sade.prefsade",
+  "host": "www.prefsade.com.br",
+  "launchUrl": "/app/",
+  "webManifestUrl": "https://www.prefsade.com.br/app/manifest.json",
+  "name": "PrefSADE Serviços Digitais",
+  "launcherName": "PrefSADE",
+  "themeColor": "#0d2d62",
+  "navigationColor": "#0d2d62",
+  "backgroundColor": "#f4f7fb",
+  "display": "standalone",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": false,
+    "locationDelegation": false
+  },
+  "generatorNotes": [
+    "Este app Android deve apontar sempre para o domínio online como fonte oficial de conteúdo.",
+    "Mudanças em /app, /catatreco, /iluminacao, /chamado, /emendas, /educasad e /suporte refletem automaticamente no app após recarga.",
+    "Nova publicação na Play Store só é necessária quando mudar package, assinatura, permissões, splash, ícones, nome ou código nativo do container TWA."
+  ]
+}
