@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# Segurança básica
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set X-XSS-Protection "1; mode=block"
+
+# Bloqueia acesso direto a arquivos sensíveis
+RewriteRule ^(config|app|storage|database|routes)/ - [F,L,NC]
+
+# Front controller
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]

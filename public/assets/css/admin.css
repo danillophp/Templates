@@ -1,0 +1,32 @@
+:root { --bg: #050b1d; --panel: #0f1a3d; --text: #edf1ff; --muted: #b4bfdf; --accent: #ff46be; --gold: #f6c453; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--text); }
+.admin-login-body { min-height: 100vh; display: grid; place-items: center; }
+.admin-login-card { width: min(420px, 92%); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.15); border-radius: 14px; padding: 1.5rem; }
+.admin-login-card form { display: grid; gap: .8rem; }
+.admin-login-card input { width: 100%; padding: .65rem; border-radius: 8px; border: 1px solid rgba(255,255,255,.2); background: #0c1430; color: #fff; }
+.admin-login-card button { border: 0; border-radius: 8px; padding: .7rem; font-weight: 700; background: linear-gradient(120deg, var(--accent), #ff1f9f); color: #fff; }
+.alert { background: rgba(255,80,80,.15); border: 1px solid rgba(255,80,80,.45); padding: .6rem; border-radius: 8px; margin-bottom: .8rem; }
+
+.admin-layout { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+.sidebar { background: #0b1431; border-right: 1px solid rgba(255,255,255,.08); padding: 1rem; position: sticky; top: 0; height: 100vh; }
+.sidebar nav a { display: block; color: var(--muted); text-decoration: none; padding: .55rem .65rem; border-radius: 8px; margin-bottom: .35rem; }
+.sidebar nav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+.content { padding: 1rem; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.cards article, .panel { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 1rem; }
+.cards p { font-size: 1.6rem; color: var(--gold); margin: .2rem 0 0; }
+.panel { margin-top: 1rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid rgba(255,255,255,.08); padding: .55rem; text-align: left; font-size: .92rem; }
+.grid-form { display: grid; gap: .7rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-form textarea, .grid-form input, .grid-form select { width: 100%; padding: .6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,.2); background: #0c1430; color: #fff; }
+.grid-form .check { grid-column: 1/-1; }
+.grid-form button { grid-column: 1/-1; border: 0; padding: .7rem; border-radius: 8px; font-weight: 700; background: linear-gradient(120deg, var(--gold), #d89913); color: #111; }
+.table-scroll { overflow: auto; }
+@media (max-width: 920px) {
+  .admin-layout { grid-template-columns: 1fr; }
+  .sidebar { height: auto; position: static; }
+  .cards { grid-template-columns: 1fr; }
+  .grid-form { grid-template-columns: 1fr; }
+}

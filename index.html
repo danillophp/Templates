@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Landing Page oficial do Festival 14 de Maio com destaque para o concurso Garota SADE 2026, votação simulada e atrações musicais."
+    />
+    <title>Festival 14 de Maio | Garota SADE 2026</title>
+
+    <!-- Fonte externa permitida (Google Fonts) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <a href="#inicio" class="skip-link">Ir para o conteúdo principal</a>
+
+    <header class="site-header" id="topo">
+      <div class="container header-container">
+        <a href="#inicio" class="brand brand-left" aria-label="Festival 14 de Maio - início">
+          <!-- Substituir por: /assets/img/logo-festival.png -->
+          <img src="assets/img/logo-festival.png" alt="Logo Festival 14 de Maio" />
+        </a>
+
+        <button
+          class="menu-toggle"
+          id="menuToggle"
+          type="button"
+          aria-label="Abrir menu de navegação"
+          aria-controls="menuPrincipal"
+          aria-expanded="false"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="site-nav" id="menuPrincipal" aria-label="Navegação principal">
+          <ul class="nav-list">
+            <li><a href="#inicio">Início</a></li>
+            <li><a href="#concurso">Concurso</a></li>
+            <li><a href="#votacao">Votação</a></li>
+            <li><a href="#atracoes">Atrações</a></li>
+            <li><a href="#regulamento">Regulamento</a></li>
+          </ul>
+        </nav>
+
+        <a href="#concurso" class="brand brand-right" aria-label="Garota SADE 2026">
+          <!-- Substituir por: /assets/img/logo-garota-sade.png -->
+          <img src="assets/img/logo-garota-sade.png" alt="Logo Garota SADE 2026" />
+        </a>
+      </div>
+    </header>
+
+    <main id="inicio">
+      <section class="hero section-reveal" id="concurso" aria-label="Destaque Garota SADE 2026">
+        <!-- Substituir fundo por: /assets/img/hero-garota-sade.jpg -->
+        <div class="hero-overlay"></div>
+        <div class="container hero-content">
+          <p class="hero-eyebrow">Festival 14 de Maio apresenta</p>
+          <h1 class="neon-title">GAROTA SADE 2026</h1>
+          <p class="hero-subtitle">A grande estrela do Festival 14 de Maio</p>
+          <div class="hero-actions">
+            <a href="#regulamento" class="btn btn-primary">Faça sua Inscrição</a>
+            <a href="assets/img/regulamento-garota-sade-2026.pdf" class="btn btn-secondary" target="_blank" rel="noopener">
+              Baixar Regulamento PDF
+            </a>
+            <a href="#votacao" class="btn btn-outline">Abrir Sistema de Votação</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="voting section-reveal" id="votacao" aria-labelledby="titulo-votacao">
+        <div class="container">
+          <div class="section-heading">
+            <p class="section-kicker">Concurso Oficial</p>
+            <h2 id="titulo-votacao" class="section-title neon-title-sm">Vote na sua candidata favorita</h2>
+            <p class="section-description">
+              Escolha entre as 10 concorrentes e acompanhe a contagem de votos em tempo real (simulação front-end).
+            </p>
+          </div>
+
+          <div class="candidates-grid" id="candidatesGrid">
+            <article class="candidate-card" data-candidate="1">
+              <!-- Substituir por: /assets/img/candidata-01.jpg -->
+              <img src="assets/img/candidata-01.jpg" alt="Foto da candidata 01" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Aurora Lima</h3>
+                <p class="candidate-number">Número: 01</p>
+                <p class="candidate-votes">Votos: <strong id="votes-1">0</strong></p>
+                <button class="btn btn-vote" data-id="1" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-1" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="2">
+              <!-- Substituir por: /assets/img/candidata-02.jpg -->
+              <img src="assets/img/candidata-02.jpg" alt="Foto da candidata 02" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Beatriz Souza</h3>
+                <p class="candidate-number">Número: 02</p>
+                <p class="candidate-votes">Votos: <strong id="votes-2">0</strong></p>
+                <button class="btn btn-vote" data-id="2" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-2" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="3">
+              <!-- Substituir por: /assets/img/candidata-03.jpg -->
+              <img src="assets/img/candidata-03.jpg" alt="Foto da candidata 03" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Camila Nunes</h3>
+                <p class="candidate-number">Número: 03</p>
+                <p class="candidate-votes">Votos: <strong id="votes-3">0</strong></p>
+                <button class="btn btn-vote" data-id="3" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-3" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="4">
+              <!-- Substituir por: /assets/img/candidata-04.jpg -->
+              <img src="assets/img/candidata-04.jpg" alt="Foto da candidata 04" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Daniela Reis</h3>
+                <p class="candidate-number">Número: 04</p>
+                <p class="candidate-votes">Votos: <strong id="votes-4">0</strong></p>
+                <button class="btn btn-vote" data-id="4" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-4" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="5">
+              <!-- Substituir por: /assets/img/candidata-05.jpg -->
+              <img src="assets/img/candidata-05.jpg" alt="Foto da candidata 05" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Elisa Moura</h3>
+                <p class="candidate-number">Número: 05</p>
+                <p class="candidate-votes">Votos: <strong id="votes-5">0</strong></p>
+                <button class="btn btn-vote" data-id="5" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-5" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="6">
+              <!-- Substituir por: /assets/img/candidata-06.jpg -->
+              <img src="assets/img/candidata-06.jpg" alt="Foto da candidata 06" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Fernanda Alves</h3>
+                <p class="candidate-number">Número: 06</p>
+                <p class="candidate-votes">Votos: <strong id="votes-6">0</strong></p>
+                <button class="btn btn-vote" data-id="6" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-6" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="7">
+              <!-- Substituir por: /assets/img/candidata-07.jpg -->
+              <img src="assets/img/candidata-07.jpg" alt="Foto da candidata 07" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Gabriela Pires</h3>
+                <p class="candidate-number">Número: 07</p>
+                <p class="candidate-votes">Votos: <strong id="votes-7">0</strong></p>
+                <button class="btn btn-vote" data-id="7" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-7" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="8">
+              <!-- Substituir por: /assets/img/candidata-08.jpg -->
+              <img src="assets/img/candidata-08.jpg" alt="Foto da candidata 08" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Helena Costa</h3>
+                <p class="candidate-number">Número: 08</p>
+                <p class="candidate-votes">Votos: <strong id="votes-8">0</strong></p>
+                <button class="btn btn-vote" data-id="8" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-8" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="9">
+              <!-- Substituir por: /assets/img/candidata-09.jpg -->
+              <img src="assets/img/candidata-09.jpg" alt="Foto da candidata 09" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Isabela Freitas</h3>
+                <p class="candidate-number">Número: 09</p>
+                <p class="candidate-votes">Votos: <strong id="votes-9">0</strong></p>
+                <button class="btn btn-vote" data-id="9" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-9" aria-live="polite"></span>
+              </div>
+            </article>
+
+            <article class="candidate-card" data-candidate="10">
+              <!-- Substituir por: /assets/img/candidata-10.jpg -->
+              <img src="assets/img/candidata-10.jpg" alt="Foto da candidata 10" class="candidate-image" />
+              <div class="candidate-content">
+                <h3>Candidata Júlia Martins</h3>
+                <p class="candidate-number">Número: 10</p>
+                <p class="candidate-votes">Votos: <strong id="votes-10">0</strong></p>
+                <button class="btn btn-vote" data-id="10" type="button">Votar</button>
+                <span class="vote-feedback" id="feedback-10" aria-live="polite"></span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="shows section-reveal" id="atracoes" aria-labelledby="titulo-atracoes">
+        <div class="container">
+          <div class="section-heading">
+            <p class="section-kicker">Programação Musical</p>
+            <h2 id="titulo-atracoes" class="section-title neon-title-sm">Atrações confirmadas</h2>
+            <p class="section-description">
+              Três grandes shows para transformar as noites do Festival 14 de Maio em uma experiência inesquecível.
+            </p>
+          </div>
+
+          <div class="shows-grid">
+            <article class="show-card">
+              <!-- Substituir por: /assets/img/artista-israel-e-rodolfo.jpg -->
+              <img src="assets/img/artista-israel-e-rodolfo.jpg" alt="Show de Israel e Rodolfo" class="show-image" />
+              <div class="show-content">
+                <h3>Israel e Rodolfo</h3>
+                <p>Dupla referência do sertanejo universitário em um show de alta energia.</p>
+                <p class="show-schedule"><strong>14 de maio</strong> · 22h30</p>
+              </div>
+            </article>
+
+            <article class="show-card">
+              <!-- Substituir por: /assets/img/artista-ze-ricardo-e-thiago.jpg -->
+              <img src="assets/img/artista-ze-ricardo-e-thiago.jpg" alt="Show de Zé Ricardo e Thiago" class="show-image" />
+              <div class="show-content">
+                <h3>Zé Ricardo e Thiago</h3>
+                <p>Romantismo e sucessos nacionais em uma apresentação memorável.</p>
+                <p class="show-schedule"><strong>15 de maio</strong> · 23h00</p>
+              </div>
+            </article>
+
+            <article class="show-card">
+              <!-- Substituir por: /assets/img/artista-tribo-da-periferia.jpg -->
+              <img src="assets/img/artista-tribo-da-periferia.jpg" alt="Show de Tribo da Periferia" class="show-image" />
+              <div class="show-content">
+                <h3>Tribo da Periferia</h3>
+                <p>Batidas urbanas e presença de palco intensa para fechar a programação.</p>
+                <p class="show-schedule"><strong>16 de maio</strong> · 00h00</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="rules section-reveal" id="regulamento" aria-labelledby="titulo-regulamento">
+        <div class="container rules-content">
+          <h2 id="titulo-regulamento" class="section-title neon-title-sm">Regulamento Garota SADE 2026</h2>
+          <p>
+            Leia atentamente os critérios de participação, etapas de avaliação e regras oficiais para garantir sua
+            inscrição correta no concurso.
+          </p>
+          <a href="assets/img/regulamento-garota-sade-2026.pdf" class="btn btn-secondary" target="_blank" rel="noopener">
+            Baixar Regulamento PDF
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer section-reveal" aria-label="Rodapé institucional">
+      <div class="container footer-grid">
+        <div>
+          <h3>Festival 14 de Maio</h3>
+          <p>Datas oficiais: 14, 15 e 16 de maio</p>
+          <p>Realização: Comissão Organizadora Municipal e parceiros culturais.</p>
+        </div>
+
+        <div>
+          <h4>Links rápidos</h4>
+          <ul class="footer-links">
+            <li><a href="#inicio">Início</a></li>
+            <li><a href="#votacao">Votação</a></li>
+            <li><a href="#atracoes">Atrações</a></li>
+            <li><a href="#regulamento">Regulamento</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>Redes sociais</h4>
+          <div class="social-list" aria-label="Redes sociais fictícias">
+            <a href="#" aria-label="Instagram do evento">Instagram</a>
+            <a href="#" aria-label="Facebook do evento">Facebook</a>
+            <a href="#" aria-label="YouTube do evento">YouTube</a>
+          </div>
+        </div>
+      </div>
+      <p class="footer-copy">© 2026 Festival 14 de Maio. Todos os direitos reservados.</p>
+    </footer>
+
+    <script src="js/scripts.js"></script>
+  </body>
+</html>
