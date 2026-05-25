@@ -1,0 +1,1 @@
+<?php get_header(); if(have_posts()): while(have_posts()): the_post(); ?><article class="container"><h1><?php the_title(); ?></h1><?php if(has_post_thumbnail()) the_post_thumbnail('large',['loading'=>'lazy']); ?><div><?php the_content(); ?></div></article><?php endwhile; else: ?><p>Conteúdo não encontrado.</p><?php endif; get_footer();
