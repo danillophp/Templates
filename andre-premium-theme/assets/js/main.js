@@ -1,0 +1,3 @@
+document.addEventListener('click',e=>{const h=document.querySelector('.hamburger');const m=document.querySelector('.menu-wrap');if(e.target===h){m.classList.toggle('open');h.setAttribute('aria-expanded',m.classList.contains('open')?'true':'false');}
+if(e.target.dataset.font){const b=document.body;let s=parseFloat(getComputedStyle(b).fontSize);if(e.target.dataset.font==='plus')b.style.fontSize=(s+1)+'px';if(e.target.dataset.font==='minus')b.style.fontSize=Math.max(12,s-1)+'px';if(e.target.dataset.font==='reset')b.style.fontSize='';}
+if(e.target.dataset.contrast==='toggle')document.body.classList.toggle('high-contrast');});
